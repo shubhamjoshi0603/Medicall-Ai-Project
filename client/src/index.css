@@ -302,3 +302,23 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
 .app-shell[data-theme="dark"] .shadow-md { box-shadow: 0 10px 28px rgba(0, 0, 0, .16) !important; }
 .app-shell[data-theme="light"] article,
 .app-shell[data-theme="light"] .bg-white { box-shadow: 0 10px 28px rgba(63, 49, 31, .035); }
+
+
+/* Additional dark-mode colors used by alert, payment and dashboard surfaces. */
+.app-shell[data-theme="dark"] .text-red-700 { color: #FFB6C0 !important; }
+.app-shell[data-theme="dark"] .text-violet-700 { color: #C8B9FF !important; }
+.app-shell[data-theme="dark"] .text-indigo-100\/80 { color: #D1DCFF !important; }
+.app-shell[data-theme="dark"] .text-teal-50\/80,
+.app-shell[data-theme="dark"] .text-teal-50\/85,
+.app-shell[data-theme="dark"] .text-teal-50\/90 { color: #D1F7F1 !important; }
+.app-shell[data-theme="dark"] .bg-red-50 { background-color: #3B202D !important; }
+.app-shell[data-theme="dark"] .bg-amber-50\/70 { background-color: #3A301E !important; }
+.app-shell[data-theme="dark"] .bg-emerald-50\/70 { background-color: #12372E !important; }
+.app-shell[data-theme="dark"] .bg-teal-50\/60,
+.app-shell[data-theme="dark"] .bg-teal-50\/80 { background-color: #13353E !important; }
+.app-shell[data-theme="dark"] .bg-cyan-50\/60 { background-color: #122E48 !important; }
+.app-shell[data-theme="dark"] .bg-white\/80 { background-color: rgba(20, 36, 58, .82) !important; }
+.app-shell[data-theme="dark"] .bg-white\/15 { background-color: rgba(255,255,255,.14) !important; }
+.app-shell[data-theme="dark"] .bg-white\/10 { background-color: rgba(255,255,255,.10) !important; }
+.app-shell[data-theme="dark"] .bg-blue-50 { background-color: #172E4B !important; }
+.app-shell[data-theme="dark"] .text-blue-900 { color: #D2E9FF !important; }
