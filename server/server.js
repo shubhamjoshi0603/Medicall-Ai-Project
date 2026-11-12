@@ -543,7 +543,6 @@ const appointmentSchema = new Schema(
       unique: true,
       sparse: true,
       default: generateBookingReference,
-      index: true,
     },
     clinicId: {
       type: Schema.Types.ObjectId,
