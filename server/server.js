@@ -1348,7 +1348,7 @@ app.patch(
       const appointment = await Appointment.findOne({
         _id: req.params.id,
         clinicId: req.clinicId,
-        status: "Confirmed",
+        status: status === "Cancelled" ? "Confirmed" : { $in: ["Confirmed", "Completed"] },
       }).populate("doctorId", "name specialization fee");
 
       if (!appointment) {
@@ -1379,11 +1379,12 @@ app.patch(
         paymentRecorded = true;
       }
 
-      appointment.status = status;
+      const statusChanged = appointment.status !== status;
+      if (statusChanged) appointment.status = status;
       await appointment.save();
 
       let emailSent = false;
-      if (appointment.patientEmail) {
+      if (statusChanged && appointment.patientEmail) {
         try {
           const clinic = await Clinic.findById(appointment.clinicId).select("clinicName");
           emailSent = await sendAppointmentEmail({
@@ -1404,10 +1405,12 @@ app.patch(
 
       const message = status === "Completed"
         ? revenueAdded > 0
-          ? `Visit completed. ₹${revenueAdded.toLocaleString("en-IN")} recorded as ${paymentMethod} revenue for your clinic.`
+          ? statusChanged
+            ? `Visit completed. ₹${revenueAdded.toLocaleString("en-IN")} recorded as ${paymentMethod} offline revenue for your clinic.`
+            : `Offline payment of ₹${revenueAdded.toLocaleString("en-IN")} recorded for this completed visit.`
           : paymentRecorded
             ? "Visit completed. This appointment's payment was already recorded; no duplicate revenue was added."
-            : "Visit completed. No payment was recorded, so it has not been added to paid revenue."
+            : "Visit completed. No payment was recorded yet; you can record the offline payment later."
         : "Appointment cancelled.";
 
       return res.json({ message, emailSent, revenueAdded, appointment });
