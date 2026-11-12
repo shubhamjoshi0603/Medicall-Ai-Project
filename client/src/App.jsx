@@ -127,6 +127,8 @@ export default function App() {
   const [clinicLocationDraft, setClinicLocationDraft] = useState({ address: "", latitude: "", longitude: "" });
   const [analytics, setAnalytics] = useState(null);
   const [rescheduleDrafts, setRescheduleDrafts] = useState({});
+  const [collectionModal, setCollectionModal] = useState(null);
+  const [collectionMethod, setCollectionMethod] = useState("Cash");
   const [adminDoctors, setAdminDoctors] = useState([]);
   const [availabilityRequests, setAvailabilityRequests] = useState([]);
   const [doctorForm, setDoctorForm] = useState({
@@ -711,40 +713,36 @@ export default function App() {
     }
   }
 
-  async function completeAppointment(appointment) {
-    const alreadyPaid = appointment.paymentStatus === "Paid";
-    let collection = {};
-
-    if (!alreadyPaid) {
-      const rawMethod = window.prompt(
-        "How did the patient pay? Enter Cash, UPI, Card or Other.",
-        "Cash"
-      );
-      if (!rawMethod) return;
-      const method = rawMethod.trim().toLowerCase();
-      const paymentMethod = ({ cash: "Cash", upi: "UPI", card: "Card", other: "Other" })[method];
-      if (!paymentMethod) {
-        setError("Choose Cash, UPI, Card or Other. No payment was recorded.");
-        return;
-      }
-      const amount = Number(appointment.paymentAmount) > 0
-        ? Number(appointment.paymentAmount)
-        : Number(appointment.doctorId?.fee || 0);
-      if (!Number.isFinite(amount) || amount <= 0) {
-        setError("Add a valid consultation fee to this doctor before completing and collecting payment.");
-        return;
-      }
-      const confirmed = window.confirm(
-        `Confirm that ₹${amount.toLocaleString("en-IN")} was received by the clinic via ${paymentMethod}?`
-      );
-      if (!confirmed) return;
-      collection = { collectPayment: true, paymentMethod };
-    } else {
-      const confirmed = window.confirm("This appointment is already marked as paid. Mark the visit as completed?");
-      if (!confirmed) return;
+  async function updateAppointment(id, status, extra = {}) {
+    try {
+      const { data } = await api.patch(`/appointments/${id}/status`, { status, ...extra });
+      setNotice(data.message || `Appointment marked ${status.toLowerCase()}.`);
+      await loadDashboard();
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not update appointment.");
+      return false;
     }
+  }
 
-    await updateAppointment(appointment._id, "Completed", collection);
+  function completeAppointment(appointment) {
+    if (appointment.paymentStatus === "Paid") {
+      if (window.confirm("This visit is already paid. Mark the appointment as completed? The existing payment will not be counted again.")) {
+        updateAppointment(appointment._id, "Completed");
+      }
+      return;
+    }
+    setCollectionMethod("Cash");
+    setCollectionModal(appointment);
+  }
+
+  async function confirmAppointmentCollection() {
+    if (!collectionModal) return;
+    const saved = await updateAppointment(collectionModal._id, "Completed", {
+      collectPayment: true,
+      paymentMethod: collectionMethod,
+    });
+    if (saved) setCollectionModal(null);
   }
 
   async function saveClinicLocation(event) {
@@ -1419,6 +1417,44 @@ export default function App() {
         </main>
       )}
       {page === "doctor-portal" && <DoctorPortal onExit={() => setPage("home")} />}
+
+      {collectionModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCollectionModal(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="collection-title" className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="bg-gradient-to-r from-[#123747] to-[#087e83] px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15"><Icon name="check" size={22}/></span>
+                <div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-teal-100">Visit completion</p><h2 id="collection-title" className="mt-1 text-xl font-black">Record clinic payment</h2></div>
+              </div>
+            </div>
+            <div className="space-y-4 p-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold text-slate-500">Patient</p>
+                <p className="mt-1 font-bold text-slate-900">{collectionModal.patientName}</p>
+                <p className="mt-2 text-xs text-slate-500">Doctor · {collectionModal.doctorId?.name || "Assigned doctor"}</p>
+                <div className="mt-3 flex items-end justify-between gap-3 border-t border-slate-200 pt-3">
+                  <span className="text-sm font-semibold text-slate-600">Consultation fee received</span>
+                  <strong className="text-2xl font-black text-slate-950">₹{Number(collectionModal.paymentAmount || collectionModal.doctorId?.fee || 0).toLocaleString("en-IN")}</strong>
+                </div>
+              </div>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-slate-700">Payment method</span>
+                <select value={collectionMethod} onChange={(event) => setCollectionMethod(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800">
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Card">Card</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <p className="rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-900">This records the amount as received and adds it to collected clinic revenue. It does not transfer money to a bank account.</p>
+              <div className="flex flex-wrap justify-end gap-2">
+                <button type="button" onClick={() => setCollectionModal(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="button" disabled={Number(collectionModal.paymentAmount || collectionModal.doctorId?.fee || 0) <= 0} onClick={confirmAppointmentCollection} className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">Confirm received & complete</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
       <footer className="border-t bg-white px-5 py-6 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} MediCall AI · Clinic-managed appointments
