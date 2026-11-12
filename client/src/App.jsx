@@ -166,7 +166,7 @@ export default function App() {
   const completedAppointments = appointments.filter((item) => item.status === "Completed").length;
 
   useEffect(() => {
-    loadClinic(selectedClinicId);
+    loadClinic(localStorage.getItem("medicall_selected_clinic") || "");
     return () => {
       try {
         if (mediaRecorderRef.current?.state === "recording") {
