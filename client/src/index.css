@@ -80,42 +80,41 @@ input:focus, select:focus, textarea:focus { border-color: #0d9488; box-shadow: 0
 }
 
 .app-shell[data-theme="dark"] {
-  --color-white: #17211e;
-  --color-slate-50: #101815;
-  --color-slate-100: #18221e;
-  --color-slate-200: #293630;
-  --color-slate-300: #3a4941;
-  --color-slate-400: #879a8f;
-  --color-slate-500: #a1b0a6;
-  --color-slate-600: #becac1;
-  --color-slate-700: #d0dbd2;
-  --color-slate-800: #e1e9e2;
-  --color-slate-900: #edf3ed;
-  --color-slate-950: #f7faf7;
+  /* Keep white as actual white so text-white remains legible. */
+  --color-white: #ffffff;
+  --color-slate-50: #0c1728;
+  --color-slate-100: #142238;
+  --color-slate-200: #24364e;
+  --color-slate-300: #354a66;
+  --color-slate-400: #8fa4bf;
+  --color-slate-500: #a9bad0;
+  --color-slate-600: #c1cede;
+  --color-slate-700: #d0dbea;
+  --color-slate-800: #e1eaf5;
+  --color-slate-900: #edf3fb;
+  --color-slate-950: #f8fbff;
 
-  /* Darken tinted utility surfaces while retaining the teal/cyan brand. */
-  --color-teal-50: #102c28;
-  --color-teal-100: #173c35;
-  --color-teal-200: #24564b;
-  --color-cyan-50: #102831;
-  --color-cyan-100: #173945;
-  --color-cyan-200: #245365;
-  --color-indigo-50: #20223a;
-  --color-indigo-100: #2b2e4b;
-  --color-indigo-200: #3b4167;
-  --color-emerald-50: #102c22;
-  --color-emerald-100: #17402f;
-  --color-rose-50: #351d24;
-  --color-rose-100: #4a2731;
-  --color-amber-50: #332b19;
-  --color-amber-100: #493b20;
-  --color-blue-50: #17283b;
-  --color-blue-100: #203851;
+  --color-teal-50: #10283b;
+  --color-teal-100: #183b56;
+  --color-teal-200: #245477;
+  --color-cyan-50: #10263e;
+  --color-cyan-100: #193b5b;
+  --color-cyan-200: #28577d;
+  --color-indigo-50: #1b2548;
+  --color-indigo-100: #283766;
+  --color-indigo-200: #3a4d87;
+  --color-emerald-50: #102d2c;
+  --color-emerald-100: #194544;
+  --color-rose-50: #351d2b;
+  --color-rose-100: #4c2a3d;
+  --color-amber-50: #352a18;
+  --color-amber-100: #4b3b20;
+  --color-blue-50: #142b49;
+  --color-blue-100: #203d63;
 
-  background-color: #0d1512 !important;
-  color: #e1e9e2;
+  background-color: #081322 !important;
+  color: #e1eaf5;
 }
-
 /* Improve contrast for accent-colored labels on dark surfaces. */
 .app-shell[data-theme="dark"] .text-teal-700,
 .app-shell[data-theme="dark"] .text-teal-800 { color: #73ddca !important; }
@@ -157,3 +156,63 @@ input:focus, select:focus, textarea:focus { border-color: #0d9488; box-shadow: 0
 @media (max-width: 640px) {
   header nav button[aria-label^="Switch to"] { padding: 0; }
 }
+
+
+/* Navy-blue dark surfaces. These overrides keep background utilities separate
+   from text utilities, particularly the Tailwind text-white token. */
+.app-shell[data-theme="dark"] .bg-white { background-color: #142238 !important; }
+.app-shell[data-theme="dark"] .bg-slate-50 { background-color: #0c1728 !important; }
+.app-shell[data-theme="dark"] .bg-slate-50\/70 { background-color: #101d31 !important; }
+.app-shell[data-theme="dark"] .bg-slate-100 { background-color: #192b43 !important; }
+.app-shell[data-theme="dark"] .bg-slate-900 { background-color: #091626 !important; }
+.app-shell[data-theme="dark"] .bg-slate-950 { background-color: #060f1b !important; }
+.app-shell[data-theme="dark"] .bg-teal-50 { background-color: #10283b !important; }
+.app-shell[data-theme="dark"] .bg-teal-100 { background-color: #183b56 !important; }
+.app-shell[data-theme="dark"] .bg-cyan-50 { background-color: #10263e !important; }
+.app-shell[data-theme="dark"] .bg-cyan-100 { background-color: #193b5b !important; }
+.app-shell[data-theme="dark"] .bg-indigo-50 { background-color: #1b2548 !important; }
+.app-shell[data-theme="dark"] .bg-indigo-100 { background-color: #283766 !important; }
+.app-shell[data-theme="dark"] .bg-emerald-50 { background-color: #102d2c !important; }
+.app-shell[data-theme="dark"] .bg-rose-50 { background-color: #351d2b !important; }
+.app-shell[data-theme="dark"] .bg-amber-50 { background-color: #352a18 !important; }
+.app-shell[data-theme="dark"] .bg-blue-50 { background-color: #142b49 !important; }
+.app-shell[data-theme="dark"] .bg-gradient-to-r.from-\\[\\#123747\\].to-\\[\\#087e83\\] { background: linear-gradient(120deg,#123a68,#075985) !important; }
+.app-shell[data-theme="dark"] .patient-hero { background: linear-gradient(120deg,#123a68,#075985) !important; }
+.app-shell[data-theme="dark"] .text-teal-50,
+.app-shell[data-theme="dark"] .text-teal-100,
+.app-shell[data-theme="dark"] .text-teal-200 { color: #c5f4ed !important; }
+.app-shell[data-theme="dark"] .text-cyan-50,
+.app-shell[data-theme="dark"] .text-cyan-100,
+.app-shell[data-theme="dark"] .text-cyan-200 { color: #c4eaff !important; }
+.app-shell[data-theme="dark"] .text-indigo-50,
+.app-shell[data-theme="dark"] .text-indigo-100,
+.app-shell[data-theme="dark"] .text-indigo-200 { color: #d3d9ff !important; }
+.app-shell[data-theme="dark"] .bg-teal-700 { background-color: #1d4ed8 !important; }
+.app-shell[data-theme="dark"] .bg-indigo-700 { background-color: #354fc0 !important; }
+.app-shell[data-theme="dark"] .bg-cyan-700 { background-color: #0369a1 !important; }
+.app-shell[data-theme="dark"] .bg-gradient-to-r.from-teal-700.to-cyan-700 { background: linear-gradient(90deg,#1d4ed8,#0369a1) !important; }
+.app-shell[data-theme="dark"] .text-teal-700,
+.app-shell[data-theme="dark"] .text-teal-800 { color: #8be2f2 !important; }
+.app-shell[data-theme="dark"] .text-cyan-700,
+.app-shell[data-theme="dark"] .text-cyan-800 { color: #8bd8ff !important; }
+.app-shell[data-theme="dark"] .text-indigo-700,
+.app-shell[data-theme="dark"] .text-indigo-800 { color: #b5c0ff !important; }
+.app-shell[data-theme="dark"] .text-emerald-700,
+.app-shell[data-theme="dark"] .text-emerald-800 { color: #82dfb1 !important; }
+.app-shell[data-theme="dark"] .text-rose-600,
+.app-shell[data-theme="dark"] .text-rose-700 { color: #f4a5b2 !important; }
+.app-shell[data-theme="dark"] .text-amber-700,
+.app-shell[data-theme="dark"] .text-amber-800 { color: #f2cf83 !important; }
+.app-shell[data-theme="dark"] .text-blue-700 { color: #9cc9f5 !important; }
+.app-shell[data-theme="dark"] input,
+.app-shell[data-theme="dark"] select,
+.app-shell[data-theme="dark"] textarea {
+  color-scheme: dark;
+  background-color: #142238;
+  border-color: #354a66;
+  color: #e1eaf5;
+}
+.app-shell[data-theme="dark"] input::placeholder,
+.app-shell[data-theme="dark"] textarea::placeholder { color: #8fa4bf; }
+.app-shell[data-theme="dark"] body,
+body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
