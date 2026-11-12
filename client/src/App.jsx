@@ -43,6 +43,7 @@ const emptyBooking = {
 
 export default function App() {
   const [page, setPage] = useState("home");
+  const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const [clinic, setClinic] = useState(null);
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -723,18 +724,64 @@ export default function App() {
         </button>
 
         <nav className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
-          <button onClick={() => setPage("home")} className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-800">Home</button>
-          <button onClick={() => setPage("doctor-portal")} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-800">Doctor portal</button>
+          <button onClick={() => { setPage("home"); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-800">Home</button>
           {token ? <>
-            <button className="rounded-xl bg-gradient-to-r from-teal-700 to-cyan-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-teal-700/20 transition hover:-translate-y-0.5 hover:shadow-xl" onClick={() => setPage("dashboard")}>Clinic dashboard</button>
-            <button onClick={logout} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
+            <button className="rounded-xl bg-gradient-to-r from-teal-700 to-cyan-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-teal-700/20 transition hover:-translate-y-0.5 hover:shadow-xl" onClick={() => { setPage("dashboard"); setLoginMenuOpen(false); }}>Clinic dashboard</button>
+            <button onClick={() => { logout(); setLoginMenuOpen(false); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
           </> : patientToken ? <>
-            <button className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800" onClick={() => setPage("patient-dashboard")}>My account</button>
-            <button onClick={patientLogout} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
-          </> : <>
-            <button onClick={() => { setAuthMode("patient-login"); setPage("auth"); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-300 hover:bg-teal-50">Patient login</button>
-            <button onClick={() => { setAuthMode("clinic-login"); setPage("auth"); }} className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800">Clinic login</button>
-          </>}
+            <button className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800" onClick={() => { setPage("patient-dashboard"); setLoginMenuOpen(false); }}>My account</button>
+            <button onClick={() => { patientLogout(); setLoginMenuOpen(false); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
+          </> : null}
+          <div className="relative">
+            <button
+              type="button"
+              aria-haspopup="true"
+              aria-expanded={loginMenuOpen}
+              aria-controls="login-role-menu"
+              onClick={() => setLoginMenuOpen((open) => !open)}
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
+            >
+              Login
+              <svg className={`h-4 w-4 transition-transform ${loginMenuOpen ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {loginMenuOpen && (
+              <div id="login-role-menu" role="menu" className="absolute right-0 top-full z-50 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_50px_rgba(15,42,58,.16)]">
+                <p className="px-3 pb-2 pt-2 text-[10px] font-extrabold uppercase tracking-[.18em] text-slate-400">Choose your portal</p>
+                <button
+                  role="menuitem"
+                  onClick={() => { setAuthMode("patient-login"); setPage("auth"); setLoginMenuOpen(false); }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-teal-50"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-700">
+                    <Icon name="user" size={17} />
+                  </span>
+                  <span><span className="block text-sm font-bold text-slate-800">Patient login</span><span className="mt-0.5 block text-xs text-slate-500">Book and manage appointments</span></span>
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => { setPage("doctor-portal"); setLoginMenuOpen(false); }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-teal-50"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700">
+                    <Icon name="message" size={17} />
+                  </span>
+                  <span><span className="block text-sm font-bold text-slate-800">Doctor portal</span><span className="mt-0.5 block text-xs text-slate-500">View patients and availability</span></span>
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => { setAuthMode("clinic-login"); setPage("auth"); setLoginMenuOpen(false); }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-teal-50"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-700">
+                    <Icon name="plus" size={17} />
+                  </span>
+                  <span><span className="block text-sm font-bold text-slate-800">Clinic login</span><span className="mt-0.5 block text-xs text-slate-500">Manage your clinic dashboard</span></span>
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
       </header>
 
