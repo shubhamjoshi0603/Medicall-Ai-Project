@@ -322,3 +322,34 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
 .app-shell[data-theme="dark"] .bg-white\/10 { background-color: rgba(255,255,255,.10) !important; }
 .app-shell[data-theme="dark"] .bg-blue-50 { background-color: #172E4B !important; }
 .app-shell[data-theme="dark"] .text-blue-900 { color: #D2E9FF !important; }
+
+
+/* The light theme uses a calmer neutral-grey clinic workspace rather than
+   bright white panels everywhere, while keeping warm undertones. */
+.app-shell[data-theme="light"] {
+  --color-slate-50: #F5F6F7;
+  --color-slate-100: #ECEFF1;
+  --color-slate-200: #DEE3E7;
+  --color-slate-300: #CDD4D9;
+  --color-slate-400: #98A2AA;
+  --color-slate-500: #727D86;
+  --color-slate-600: #56616B;
+  --color-slate-700: #414B54;
+  --color-slate-800: #303A43;
+  --color-slate-900: #222C34;
+  --color-slate-950: #161F26;
+  background-color: #EEF1F3 !important;
+  color: #303A43;
+}
+.app-shell[data-theme="light"] header { background: rgba(250, 251, 252, .94) !important; }
+.app-shell[data-theme="light"] .border-slate-100,
+.app-shell[data-theme="light"] .border-slate-200 { border-color: #E0E4E7 !important; }
+.app-shell[data-theme="light"] .bg-slate-50 { background-color: #F5F6F7 !important; }
+.app-shell[data-theme="light"] .bg-slate-100 { background-color: #ECEFF1 !important; }
+.app-shell[data-theme="light"] .shadow-sm { box-shadow: 0 6px 20px rgba(35, 48, 60, .045) !important; }
+.app-shell[data-theme="dark"] .bg-violet-50 { background-color: #202746 !important; }
+.app-shell[data-theme="dark"] .text-violet-700 { color: #C4B8FF !important; }
+.app-shell[data-theme="dark"] .border-violet-100 { border-color: #39446C !important; }
+.app-shell[data-theme="dark"] .bg-white\/85 { background-color: rgba(20, 36, 58, .9) !important; }
+.app-shell[data-theme="dark"] .text-white { color: #FFFFFF !important; }
+.app-shell[data-theme="dark"] .bg-white\/10 { background-color: rgba(255,255,255,.11) !important; }
