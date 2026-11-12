@@ -56,8 +56,9 @@ const mailTransporter = process.env.SMTP_HOST && process.env.SMTP_USER && proces
     })
   : null;
 
-async function sendAppointmentEmail({ to, patientName, clinicName, doctorName, date, time, status = "Confirmed", appointmentId }) {
+async function sendAppointmentEmail({ to, patientName, clinicName, doctorName, date, time, status = "Confirmed", appointmentId, bookingReference }) {
   if (!mailTransporter || !to) return false;
+  const bookingId = bookingReference || appointmentId;
   const from = process.env.MAIL_FROM || process.env.SMTP_USER;
   const subject = status === "Confirmed" ? "Your MediCall AI appointment is confirmed" : `Your MediCall AI appointment was ${status.toLowerCase()}`;
   const html = `
@@ -67,11 +68,11 @@ async function sendAppointmentEmail({ to, patientName, clinicName, doctorName, d
       <p>Your appointment with <strong>${escapeHtml(doctorName)}</strong> at <strong>${escapeHtml(clinicName)}</strong> is <strong>${escapeHtml(status)}</strong>.</p>
       <div style="background:#f0fdfa;padding:16px;border-radius:12px">
         <p><strong>Date:</strong> ${escapeHtml(date)}</p><p><strong>Time:</strong> ${escapeHtml(time)}</p>
-        <p><strong>Booking ID:</strong> ${escapeHtml(String(appointmentId))}</p>
+        <p><strong>Booking ID:</strong> ${escapeHtml(String(bookingId))}</p>
       </div>
       <p>If you need to change your appointment, please contact the clinic.</p><p>Thank you,<br/>MediCall AI</p>
     </div>`;
-  await mailTransporter.sendMail({ from, to, subject, html, text: `Dear ${patientName}, your appointment with ${doctorName} at ${clinicName} is ${status}. Date: ${date}; Time: ${time}; Booking ID: ${appointmentId}.` });
+  await mailTransporter.sendMail({ from, to, subject, html, text: `Dear ${patientName}, your appointment with ${doctorName} at ${clinicName} is ${status}. Date: ${date}; Time: ${time}; Booking ID: ${bookingId}.` });
   return true;
 }
 function escapeHtml(value) {
@@ -352,11 +353,23 @@ app.post("/api/chat", async (req, res) => {
         try {
           const appointment = await Appointment.create({ clinicId: clinic._id, doctorId: doctor._id, patientName: session.patientName, patientEmail: session.patientEmail, phone: session.phone, date: session.date, time: session.time, reason: session.reason || '' });
           let emailSent = false;
-          try { emailSent = await sendAppointmentEmail({ to: session.patientEmail, patientName: session.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date: session.date, time: session.time, status: appointment.status, appointmentId: appointment._id }); }
+          try { emailSent = await sendAppointmentEmail({ to: session.patientEmail, patientName: session.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date: session.date, time: session.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
           catch (mailError) { console.error("Chat booking email failed:", mailError.message); }
           await recordConversation({ clinicId: clinic._id, conversationId, channel: req.body?.channel === "voice" ? "voice" : "chat", appointmentId: appointment._id });
           bookingSessions.delete(conversationId);
-          return res.status(201).json({ reply: `Your appointment is confirmed! ${session.patientName} with ${doctor.name} on ${session.date} at ${session.time}. ${emailSent ? 'A confirmation email has been sent.' : 'Email delivery is not configured; please contact the clinic for confirmation.'} Booking ID: ${appointment._id}.`, bookingCreated: true, appointment: { id: appointment._id, patientName: session.patientName, phone: session.phone, doctorName: doctor.name, date: session.date, time: session.time, status: appointment.status } });
+          const bookingId = appointment.bookingReference;
+          const reply = `Bahut badhiya, ${session.patientName}! Aapki appointment successfully confirm ho gayi hai.
+
+Doctor: ${doctor.name} (${doctor.specialization})
+Clinic: ${clinic.clinicName}
+Date: ${session.date}
+Time: ${session.time}
+Booking ID: ${bookingId}
+
+${emailSent ? "Confirmation email bhi bhej diya gaya hai." : "Confirmation email abhi nahi bheja ja saka; please clinic se contact karein."}
+
+MediCall AI se baat karne ke liye shukriya! Aapse baat karke achha laga. Apna khayal rakhiye!`;
+          return res.status(201).json({ reply, languageCode: "hi-IN", bookingCreated: true, appointment: { id: appointment._id, bookingId, bookingReference: bookingId, patientName: session.patientName, phone: session.phone, doctorName: doctor.name, specialization: doctor.specialization, clinicName: clinic.clinicName, date: session.date, time: session.time, status: appointment.status } });
         } catch (err) {
           if (err.code === 11000) return res.status(409).json({ message: "That time slot is already booked. Please choose another time.", bookingCreated: false });
           throw err;
@@ -423,13 +436,24 @@ Return ONLY valid JSON matching: {"reply":"text to show user","bookingIntent":tr
       try {
         const appointment = await Appointment.create({ clinicId: clinic._id, doctorId: doctor._id, patientName, patientEmail, phone, date, time, reason });
         let emailSent = false;
-        try { emailSent = await sendAppointmentEmail({ to: patientEmail, patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date, time, status: appointment.status, appointmentId: appointment._id }); }
+        try { emailSent = await sendAppointmentEmail({ to: patientEmail, patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date, time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
         catch (mailError) { console.error("AI booking email failed:", mailError.message); }
         await recordConversation({ clinicId: clinic._id, conversationId, channel: req.body?.channel === "voice" ? "voice" : "chat", appointmentId: appointment._id });
         return res.status(201).json({
-          reply: `Appointment successfully booked! Patient: ${patientName}. Doctor: ${doctor.name}. Date: ${date}. Time: ${time}. ${emailSent ? 'Confirmation email sent.' : 'Email delivery is not configured; please contact the clinic.'} Booking ID: ${appointment._id}.`,
+          reply: `Bahut badhiya, ${patientName}! Aapki appointment successfully confirm ho gayi hai.
+
+Doctor: ${doctor.name} (${doctor.specialization})
+Clinic: ${clinic.clinicName}
+Date: ${date}
+Time: ${time}
+Booking ID: ${appointment.bookingReference}
+
+${emailSent ? "Confirmation email bhi bhej diya gaya hai." : "Confirmation email abhi nahi bheja ja saka; please clinic se contact karein."}
+
+MediCall AI se baat karne ke liye shukriya! Aapse baat karke achha laga. Apna khayal rakhiye!`,
+          languageCode: "hi-IN",
           bookingCreated: true,
-          appointment: { id: appointment._id, patientName, phone, doctorName: doctor.name, date, time, reason, status: appointment.status },
+          appointment: { id: appointment._id, bookingId: appointment.bookingReference, bookingReference: appointment.bookingReference, patientName, phone, doctorName: doctor.name, specialization: doctor.specialization, clinicName: clinic.clinicName, date, time, reason, status: appointment.status },
         });
       } catch (bookingError) {
         if (bookingError.code === 11000) return res.status(409).json({ message: "This doctor and time slot are already booked. Please choose another time." });
@@ -504,8 +528,23 @@ const doctorSchema = new Schema(
   { timestamps: true }
 );
 
+function generateBookingReference() {
+  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = require("crypto").randomBytes(8);
+  const suffix = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+  return `MCA-${datePart}-${suffix}`;
+}
+
 const appointmentSchema = new Schema(
   {
+    bookingReference: {
+      type: String,
+      unique: true,
+      sparse: true,
+      default: generateBookingReference,
+      index: true,
+    },
     clinicId: {
       type: Schema.Types.ObjectId,
       ref: "Clinic",
@@ -1065,7 +1104,7 @@ app.post("/api/public/appointments", async (req, res) => {
 
     let emailSent = false;
     try {
-      emailSent = await sendAppointmentEmail({ to: normalizedEmail, patientName: appointment.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id });
+      emailSent = await sendAppointmentEmail({ to: normalizedEmail, patientName: appointment.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference });
     } catch (mailError) {
       console.error("Appointment confirmation email failed:", mailError.message);
     }
@@ -1075,6 +1114,8 @@ app.post("/api/public/appointments", async (req, res) => {
       emailSent,
       appointment: {
         id: appointment._id,
+        bookingId: appointment.bookingReference,
+        bookingReference: appointment.bookingReference,
         patientName: appointment.patientName,
         doctorName: doctor.name,
         date: appointment.date,
@@ -1330,7 +1371,7 @@ app.patch(
         try {
           const doctor = await Doctor.findById(appointment.doctorId).select("name");
           const clinic = await Clinic.findById(appointment.clinicId).select("clinicName");
-          emailSent = await sendAppointmentEmail({ to: appointment.patientEmail, patientName: appointment.patientName, clinicName: clinic?.clinicName || "the clinic", doctorName: doctor?.name || "your doctor", date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id });
+          emailSent = await sendAppointmentEmail({ to: appointment.patientEmail, patientName: appointment.patientName, clinicName: clinic?.clinicName || "the clinic", doctorName: doctor?.name || "your doctor", date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference });
         } catch (mailError) { console.error("Appointment status email failed:", mailError.message); }
       }
       return res.json({ message: emailSent ? "Appointment updated and patient emailed." : "Appointment updated. Email was not sent (missing patient email or SMTP configuration).", emailSent, appointment });
@@ -1414,8 +1455,9 @@ function validFutureSlot(date, time) {
 async function emailAppointmentUpdate(appointment, subject, heading, message, extra = "") {
   if (!mailTransporter || !appointment.patientEmail) return false;
   const [clinic, doctor] = await Promise.all([Clinic.findById(appointment.clinicId).select("clinicName"), Doctor.findById(appointment.doctorId).select("name")]);
-  const html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:24px;color:#172033"><h2 style="color:#0f766e">MediCall AI</h2><p>Dear ${escapeHtml(appointment.patientName)},</p><h3>${escapeHtml(heading)}</h3><p>${escapeHtml(message)}</p><p><b>Clinic:</b> ${escapeHtml(clinic?.clinicName || "Clinic")}<br/><b>Doctor:</b> ${escapeHtml(doctor?.name || "Doctor")}<br/><b>Date:</b> ${escapeHtml(appointment.date)}<br/><b>Time:</b> ${escapeHtml(appointment.time)}<br/><b>Booking ID:</b> ${escapeHtml(appointment._id)}</p>${extra}<p>Thank you,<br/>MediCall AI</p></div>`;
-  await mailTransporter.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: appointment.patientEmail, subject, html, text: `${heading}. ${message} Appointment: ${appointment.date} at ${appointment.time}.` });
+  const bookingId = appointment.bookingReference || appointment._id;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:24px;color:#172033"><h2 style="color:#0f766e">MediCall AI</h2><p>Dear ${escapeHtml(appointment.patientName)},</p><h3>${escapeHtml(heading)}</h3><p>${escapeHtml(message)}</p><p><b>Clinic:</b> ${escapeHtml(clinic?.clinicName || "Clinic")}<br/><b>Doctor:</b> ${escapeHtml(doctor?.name || "Doctor")}<br/><b>Date:</b> ${escapeHtml(appointment.date)}<br/><b>Time:</b> ${escapeHtml(appointment.time)}<br/><b>Booking ID:</b> ${escapeHtml(bookingId)}</p>${extra}<p>Thank you,<br/>MediCall AI</p></div>`;
+  await mailTransporter.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: appointment.patientEmail, subject, html, text: `${heading}. ${message} Appointment: ${appointment.date} at ${appointment.time}. Booking ID: ${bookingId}.` });
   return true;
 }
 
@@ -1430,7 +1472,7 @@ app.post("/api/patient/appointments/:id/reschedule-request", protectPatient, asy
     appointment.rescheduleRequest = { date, time, note: String(note).slice(0, 500), status: "Pending", requestedAt: new Date() };
     await appointment.save();
     const clinic = await Clinic.findById(appointment.clinicId).select("clinicName email");
-    if (mailTransporter && clinic?.email) await mailTransporter.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: clinic.email, subject: "Patient reschedule request", text: `${appointment.patientName} requested ${date} at ${time}. Booking ID: ${appointment._id}.` });
+    if (mailTransporter && clinic?.email) await mailTransporter.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: clinic.email, subject: "Patient reschedule request", text: `${appointment.patientName} requested ${date} at ${time}. Booking ID: ${appointment.bookingReference || appointment._id}.` });
     return res.json({ message: "Your reschedule request has been sent to the clinic for approval.", appointment });
   } catch (e) { console.error("Reschedule request:", e); return res.status(500).json({ message: "Could not submit reschedule request." }); }
 });
