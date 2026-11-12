@@ -44,6 +44,20 @@ const emptyBooking = {
 export default function App() {
   const [page, setPage] = useState("home");
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("medicall_theme") === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("medicall_theme", theme);
+    } catch {}
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
   const [clinic, setClinic] = useState(null);
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -711,7 +725,7 @@ export default function App() {
     "rounded-xl bg-teal-700 px-5 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800">
+    <div data-theme={theme} className="app-shell min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800">
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/70 bg-white/90 px-4 py-3 shadow-[0_8px_30px_rgba(15,42,58,0.06)] backdrop-blur-2xl sm:px-6 lg:px-12">
         <button
           onClick={() => setPage("home")}
@@ -732,6 +746,24 @@ export default function App() {
             <button className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800" onClick={() => { setPage("patient-dashboard"); setLoginMenuOpen(false); }}>My account</button>
             <button onClick={() => { patientLogout(); setLoginMenuOpen(false); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
           </> : null}
+          <button
+            type="button"
+            onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
+            aria-label={theme === "light" ? "Switch to dark theme" : "Switch to warm light theme"}
+            title={theme === "light" ? "Switch to dark theme" : "Switch to warm light theme"}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
+          >
+            {theme === "light" ? (
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.7 8.7 0 1 0 20.2 15.1Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
           <div className="relative">
             <button
               type="button"
