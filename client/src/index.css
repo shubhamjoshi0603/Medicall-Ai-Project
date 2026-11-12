@@ -176,7 +176,6 @@ input:focus, select:focus, textarea:focus { border-color: #0d9488; box-shadow: 0
 .app-shell[data-theme="dark"] .bg-rose-50 { background-color: #351d2b !important; }
 .app-shell[data-theme="dark"] .bg-amber-50 { background-color: #352a18 !important; }
 .app-shell[data-theme="dark"] .bg-blue-50 { background-color: #142b49 !important; }
-.app-shell[data-theme="dark"] .bg-gradient-to-r.from-\\[\\#123747\\].to-\\[\\#087e83\\] { background: linear-gradient(120deg,#123a68,#075985) !important; }
 .app-shell[data-theme="dark"] .patient-hero { background: linear-gradient(120deg,#123a68,#075985) !important; }
 .app-shell[data-theme="dark"] .text-teal-50,
 .app-shell[data-theme="dark"] .text-teal-100,
@@ -216,3 +215,16 @@ input:focus, select:focus, textarea:focus { border-color: #0d9488; box-shadow: 0
 .app-shell[data-theme="dark"] textarea::placeholder { color: #8fa4bf; }
 .app-shell[data-theme="dark"] body,
 body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
+
+/* Dark-mode header and deep accent text contrast. */
+.app-shell[data-theme="dark"] header {
+  background: rgba(12, 23, 40, .94) !important;
+  border-color: #24364e !important;
+}
+.app-shell[data-theme="dark"] .text-teal-950 { color: #d1f8f1 !important; }
+.app-shell[data-theme="dark"] .text-cyan-950 { color: #d5f0ff !important; }
+.app-shell[data-theme="dark"] .text-indigo-950 { color: #e0e5ff !important; }
+.app-shell[data-theme="dark"] .text-emerald-950 { color: #d3f7e2 !important; }
+.app-shell[data-theme="dark"] .text-rose-950 { color: #ffe0e6 !important; }
+.app-shell[data-theme="dark"] .text-amber-950 { color: #ffedc2 !important; }
+.app-shell[data-theme="dark"] .text-blue-950 { color: #d7eaff !important; }
