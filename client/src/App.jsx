@@ -130,6 +130,7 @@ export default function App() {
   const [rescheduleDrafts, setRescheduleDrafts] = useState({});
   const [collectionModal, setCollectionModal] = useState(null);
   const [collectionMethod, setCollectionMethod] = useState("Cash");
+  const [appointmentFilter, setAppointmentFilter] = useState("upcoming");
   const [adminDoctors, setAdminDoctors] = useState([]);
   const [availabilityRequests, setAvailabilityRequests] = useState([]);
   const [doctorForm, setDoctorForm] = useState({
@@ -167,15 +168,41 @@ export default function App() {
     const occupation = (doctor.specialization || "").toLowerCase();
     return !symptomSpecialty || specialtyTerms.some((term) => occupation.includes(term));
   });
-  const paidRevenue = appointments
-    .filter((item) => item.paymentStatus === "Paid")
-    .reduce((sum, item) => {
-      const recordedAmount = Number(item.paymentAmount);
-      const consultationFee = Number(item.doctorId?.fee || item.fee || 0);
-      return sum + (recordedAmount > 0 ? recordedAmount : consultationFee);
-    }, 0);
-  const pendingPayments = appointments.filter((item) => item.paymentStatus !== "Paid" && item.status !== "Cancelled").length;
+  const dateKey = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const todayDateKey = dateKey(new Date());
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowDateKey = dateKey(tomorrowDate);
+  const amountForAppointment = (item) => {
+    const recorded = Number(item.paymentAmount || 0);
+    return recorded > 0 ? recorded : Number(item.doctorId?.fee || item.fee || 0);
+  };
+  const isOnlinePayment = (item) => item.paymentMethod === "Razorpay" || Boolean(item.razorpayPaymentId);
+  const paidAppointments = appointments.filter((item) => item.paymentStatus === "Paid");
+  const onlineRevenue = paidAppointments.filter(isOnlinePayment).reduce((sum, item) => sum + amountForAppointment(item), 0);
+  const offlineRevenue = paidAppointments.filter((item) => !isOnlinePayment(item)).reduce((sum, item) => sum + amountForAppointment(item), 0);
+  const paidRevenue = onlineRevenue + offlineRevenue;
+  const pendingPayments = appointments.filter((item) => item.status !== "Cancelled" && item.paymentStatus !== "Paid").length;
   const completedAppointments = appointments.filter((item) => item.status === "Completed").length;
+  const todayAppointmentsCount = appointments.filter((item) => item.status === "Confirmed" && item.date === todayDateKey).length;
+  const tomorrowAppointmentsCount = appointments.filter((item) => item.status === "Confirmed" && item.date === tomorrowDateKey).length;
+  const scheduledLaterCount = appointments.filter((item) => item.status === "Confirmed" && item.date > tomorrowDateKey).length;
+  const cancelledAppointmentsCount = appointments.filter((item) => item.status === "Cancelled").length;
+  const filteredClinicAppointments = appointments.filter((item) => {
+    if (appointmentFilter === "today") return item.status === "Confirmed" && item.date === todayDateKey;
+    if (appointmentFilter === "tomorrow") return item.status === "Confirmed" && item.date === tomorrowDateKey;
+    if (appointmentFilter === "later") return item.status === "Confirmed" && item.date > tomorrowDateKey;
+    if (appointmentFilter === "completed") return item.status === "Completed";
+    if (appointmentFilter === "cancelled") return item.status === "Cancelled";
+    if (appointmentFilter === "all") return true;
+    return item.status === "Confirmed" && item.date >= todayDateKey;
+  });
 
   useEffect(() => {
     loadClinic(localStorage.getItem("medicall_selected_clinic") || "");
@@ -702,16 +729,6 @@ export default function App() {
       setNotice(approved ? "Doctor availability approved." : "Doctor availability rejected.");
       await loadDashboard();
     } catch (err) { setError(err.response?.data?.message || "Could not update availability."); }
-  }
-
-  async function updateAppointment(id, status, extra = {}) {
-    try {
-      const { data } = await api.patch(`/appointments/${id}/status`, { status, ...extra });
-      setNotice(data.message || `Appointment marked ${status.toLowerCase()}.`);
-      await loadDashboard();
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not update appointment.");
-    }
   }
 
   async function updateAppointment(id, status, extra = {}) {
@@ -1247,41 +1264,41 @@ export default function App() {
 
       {page === "dashboard" && (
         <main id="dashboard-top" className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:px-10">
-          <section className="relative mb-7 overflow-hidden rounded-[30px] border border-slate-200/70 bg-gradient-to-br from-white via-white to-cyan-50/70 p-6 shadow-[0_14px_45px_rgba(15,42,58,.07)] sm:p-8">
-            <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-teal-50" />
-            <div className="pointer-events-none absolute right-24 top-16 h-24 w-24 rounded-full border border-teal-100" />
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+          <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F5F7F9] via-white to-[#EAF2F6] p-5 shadow-sm sm:p-6">
+            <img src={healthcareHero} alt="Healthcare team illustration" className="pointer-events-none absolute -right-8 -bottom-20 hidden h-64 w-80 object-contain opacity-80 lg:block" />
+            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="max-w-2xl">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" /> Clinic workspace
                 </div>
-                <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                  Good to see you, {adminClinic?.adminName || "Admin"}
-                </h1>
-                <p className="mt-2 text-sm text-slate-500">{adminClinic?.clinicName || "Your clinic"} · Manage appointments, doctors and patient visits.</p>
+                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-[28px]">Clinic overview</h1>
+                <p className="mt-1 text-sm text-slate-600"><span className="font-semibold text-slate-800">{adminClinic?.clinicName || "Your clinic"}</span> · Managed by {adminClinic?.adminName || "Clinic admin"}</p>
+                <p className="mt-1 text-xs text-slate-500">Review the daily schedule, track visits and keep your team organised.</p>
               </div>
-              <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-600/20 transition hover:-translate-y-0.5 hover:shadow-xl" onClick={loadDashboard}>
-                <Icon name="arrow" size={16} /> Refresh data
+              <button className="relative z-10 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50" onClick={loadDashboard}>
+                <Icon name="arrow" size={16} /> Refresh
               </button>
             </div>
           </section>
           <nav className="mb-7 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm" aria-label="Clinic dashboard sections">
-            {[ ["Overview", "dashboard-top"], ["Appointments", "clinic-appointments"], ["AI analytics", "clinic-analytics"], ["Team", "clinic-team"], ["Location", "clinic-location"] ].map(([label, target]) => <a key={target} href={`#${target}`} className="rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700">{label}</a>)}
+            {[ ["Overview", "dashboard-top"], ["Appointments", "clinic-appointments"], ["AI analytics", "clinic-analytics"], ["Team", "clinic-team"], ["Location settings", "clinic-location"] ].map(([label, target]) => <a key={target} href={`#${target}`} className="rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700">{label}</a>)}
             <span className="ml-auto hidden rounded-xl bg-emerald-50 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 sm:inline-flex">● Clinic workspace active</span>
           </nav>
 
-          <section id="clinic-analytics" className="mb-7 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section id="clinic-analytics" className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {[
-              { label: "Today's appointments", value: stats.today || 0, note: "Scheduled for today", icon: "message", tint: "bg-blue-50 text-blue-700" },
-              { label: "Upcoming visits", value: stats.upcoming || 0, note: "Confirmed appointments", icon: "arrow", tint: "bg-teal-50 text-teal-700" },
-              { label: "Unique patients", value: stats.patients || 0, note: "Patients in your records", icon: "user", tint: "bg-violet-50 text-violet-700" },
-              { label: "Doctors", value: stats.doctors || 0, note: "Available specialists", icon: "plus", tint: "bg-amber-50 text-amber-700" },
+              { label: "Today", value: todayAppointmentsCount, note: "Confirmed visits", icon: "message", tint: "bg-slate-100 text-slate-700", filter: "today" },
+              { label: "Tomorrow", value: tomorrowAppointmentsCount, note: "Next-day schedule", icon: "arrow", tint: "bg-blue-50 text-blue-700", filter: "tomorrow" },
+              { label: "Scheduled later", value: scheduledLaterCount, note: "Future confirmed", icon: "plus", tint: "bg-slate-100 text-slate-700", filter: "later" },
+              { label: "Completed visits", value: completedAppointments, note: "Visit history", icon: "check", tint: "bg-emerald-50 text-emerald-700", filter: "completed" },
+              { label: "Cancelled", value: cancelledAppointmentsCount, note: "Closed bookings", icon: "close", tint: "bg-slate-100 text-slate-600", filter: "cancelled" },
+              { label: "Doctors", value: stats.doctors || 0, note: "Clinic team", icon: "user", tint: "bg-slate-100 text-slate-700", filter: "team" },
             ].map((item) => (
-              <article key={item.label} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.025)] transition hover:-translate-y-0.5 hover:shadow-md">
+              <article key={item.label} onClick={() => item.filter === "team" ? document.getElementById("clinic-team")?.scrollIntoView({ behavior: "smooth" }) : setAppointmentFilter(item.filter)} className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-slate-500">{item.label}</p>
-                    <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">{item.value}</p>
+                    <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{item.value}</p>
                   </div>
                   <span className={`grid h-11 w-11 place-items-center rounded-xl ${item.tint}`}><Icon name={item.icon} size={20} /></span>
                 </div>
@@ -1298,7 +1315,12 @@ export default function App() {
           <section className="mb-7 grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
             <article className="overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-[#171c45] via-[#252b62] to-[#34418a] p-6 text-white shadow-[0_16px_40px_rgba(35,43,98,.18)]">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-indigo-200">Clinic intelligence</p><h2 className="mt-2 text-xl font-black">Performance at a glance</h2><p className="mt-1 text-sm text-indigo-100/80">Consultation fees recorded as received are added to your clinic revenue.</p></div><span className="rounded-xl bg-white/10 p-3"><Icon name="spark" size={22}/></span></div>
-              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="rounded-xl border border-white/10 bg-white/10 p-4"><p className="text-xs text-indigo-100">Collected visit revenue</p><p className="mt-2 text-2xl font-black">₹{paidRevenue.toLocaleString("en-IN")}</p><p className="mt-1 text-[10px] text-indigo-100/80">Recorded payments only</p></div><div className="rounded-xl border border-white/10 bg-white/10 p-4"><p className="text-xs text-indigo-100">Completed visits</p><p className="mt-2 text-2xl font-black">{completedAppointments}</p></div><div className="col-span-2 rounded-xl border border-white/10 bg-white/10 p-4 sm:col-span-1"><p className="text-xs text-indigo-100">Payment pending</p><p className="mt-2 text-2xl font-black">{pendingPayments}</p></div></div>
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/15 bg-white/10 p-4"><p className="text-xs font-semibold text-indigo-100">Total collected</p><p className="mt-2 text-2xl font-black">₹{paidRevenue.toLocaleString("en-IN")}</p><p className="mt-1 text-[10px] text-indigo-100/80">All confirmed receipts</p></div>
+                <div className="rounded-xl border border-white/15 bg-white/10 p-4"><p className="text-xs font-semibold text-indigo-100">Online payments</p><p className="mt-2 text-2xl font-black">₹{onlineRevenue.toLocaleString("en-IN")}</p><p className="mt-1 text-[10px] text-indigo-100/80">Razorpay verified</p></div>
+                <div className="rounded-xl border border-white/15 bg-white/10 p-4"><p className="text-xs font-semibold text-indigo-100">Offline collections</p><p className="mt-2 text-2xl font-black">₹{offlineRevenue.toLocaleString("en-IN")}</p><p className="mt-1 text-[10px] text-indigo-100/80">Cash · UPI · Card · Other</p></div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-indigo-100/85"><span>Payment pending: {pendingPayments}</span><span>Completed visits: {completedAppointments}</span></div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-teal-700">AI conversion insight</p><h2 className="mt-2 text-xl font-black text-slate-950">Turn conversations into care</h2><p className="mt-2 text-sm leading-6 text-slate-500">{analytics?.totalConversations ? `${analytics.convertedConversations || 0} of ${analytics.totalConversations} tracked conversations led to an appointment (${analytics.conversionRate || 0}%).` : "Conversation metrics will appear after patients start using the AI chat or voice assistant."}</p><div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-indigo-500" style={{ width: `${Math.min(100, Math.max(0, Number(analytics?.conversionRate || 0)))}%` }}/></div><div className="mt-3 flex justify-between text-xs text-slate-500"><span>AI conversion</span><strong className="text-slate-800">{analytics?.conversionRate || 0}%</strong></div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Improvement tip: review unanswered questions and make sure doctor specializations, fees and availability are up to date.</p></article>
           </section>
@@ -1309,7 +1331,18 @@ export default function App() {
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">Appointments</h2>
                 <p className="mt-1 text-sm text-slate-500">Review bookings and update their status.</p>
               </div>
-              <span className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{appointments.length} total</span>
+              <span className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{filteredClinicAppointments.length} shown · {appointments.length} total</span>
+            </div>
+            <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-slate-50/70 px-5 py-3 sm:px-6">
+              {[
+                ["upcoming", "Upcoming"],
+                ["today", "Today"],
+                ["tomorrow", "Tomorrow"],
+                ["later", "Scheduled later"],
+                ["completed", "Completed"],
+                ["cancelled", "Cancelled"],
+                ["all", "All bookings"],
+              ].map(([value, label]) => <button key={value} onClick={() => setAppointmentFilter(value)} className={`rounded-full border px-3 py-2 text-xs font-bold transition ${appointmentFilter === value ? "border-slate-700 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-100"}`}>{label}</button>)}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-left text-sm">
@@ -1319,17 +1352,17 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {appointments.map((appointment) => (
+                  {filteredClinicAppointments.map((appointment) => (
                     <tr key={appointment._id} className="transition hover:bg-slate-50/70">
                       <td className="px-6 py-4">
                         <div className="font-semibold text-slate-800">{appointment.patientName}</div>
-                        <div className="mt-1 text-xs text-slate-500">{appointment.phone}</div>
+                        <div className="mt-1 text-xs text-slate-500">{appointment.phone}</div><div className="mt-1 text-[10px] font-semibold text-slate-400">{appointment.bookingReference || appointment._id}</div>
                       </td>
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.doctorId?.name || "Doctor"}</div></td>
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.date}</div><div className="mt-1 text-xs text-slate-500">{appointment.time}</div></td>
                       <td className="px-6 py-4">
-                        <div className={`font-bold ${appointment.paymentStatus === "Paid" ? "text-emerald-700" : "text-amber-700"}`}>{appointment.paymentStatus === "Paid" ? "Paid" : appointment.paymentStatus || "Pending"}</div>
-                        <div className="mt-1 text-xs text-slate-500">₹{Number(appointment.paymentAmount || appointment.doctorId?.fee || 0).toLocaleString("en-IN")}{appointment.paymentMethod ? ` · ${appointment.paymentMethod}` : ""}</div>
+                        <div className={`font-bold ${appointment.paymentStatus === "Paid" ? "text-emerald-700" : appointment.status === "Cancelled" ? "text-slate-500" : "text-amber-700"}`}>{appointment.paymentStatus === "Paid" ? (appointment.paymentMethod === "Razorpay" ? "Paid online" : "Paid offline") : appointment.status === "Cancelled" ? "Closed · cancelled" : appointment.paymentStatus === "Failed" ? "Payment failed" : "Awaiting payment"}</div>
+                        <div className="mt-1 text-xs text-slate-500">{appointment.paymentStatus === "Paid" ? `₹${Number(appointment.paymentAmount || appointment.doctorId?.fee || 0).toLocaleString("en-IN")} · ${appointment.paymentMethod || "Recorded"}` : appointment.status === "Cancelled" ? "No collection due" : `₹${Number(appointment.paymentAmount || appointment.doctorId?.fee || 0).toLocaleString("en-IN")} expected`}</div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${appointment.status === "Confirmed" ? "bg-emerald-50 text-emerald-700" : appointment.status === "Cancelled" ? "bg-rose-50 text-rose-700" : appointment.status === "Completed" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{appointment.status}</span>
@@ -1342,32 +1375,16 @@ export default function App() {
                       </td>
                     </tr>
                   ))}
-                  {!appointments.length && <tr><td colSpan="6" className="px-6 py-14 text-center">
+                  {!filteredClinicAppointments.length && <tr><td colSpan="6" className="px-6 py-14 text-center">
                     <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-400"><Icon name="message" size={22} /></span>
-                    <p className="mt-3 font-semibold text-slate-700">No appointments yet</p><p className="mt-1 text-sm text-slate-500">New patient bookings will appear here.</p>
+                    <p className="mt-3 font-semibold text-slate-700">No appointments yet</p><p className="mt-1 text-sm text-slate-500">No bookings match this view. Choose another schedule or status filter.</p>
                   </td></tr>}
                 </tbody>
               </table>
             </div>
           </section>
 
-          <section id="clinic-location" className="mb-7 scroll-mt-28 rounded-3xl border border-cyan-100 bg-gradient-to-br from-white to-cyan-50/70 p-5 shadow-sm sm:p-6">
-            <div className="mb-4">
-              <p className="text-xs font-extrabold uppercase tracking-[.16em] text-cyan-700">Clinic profile</p>
-              <h2 className="mt-1 text-xl font-black text-slate-950">Set your clinic location</h2>
-              <p className="mt-1 text-sm text-slate-600">Add the complete address. To choose any point, open Google Maps, right-click (desktop) or long-press (mobile) the location, then paste its coordinates below.</p>
-            </div>
-            <form onSubmit={saveClinicLocation} className="grid gap-3 md:grid-cols-2">
-              <label className="md:col-span-2"><span className="mb-1 block text-xs font-bold text-slate-600">Clinic full address</span><textarea rows="2" maxLength="500" required={!clinicLocationDraft.latitude && !clinicLocationDraft.longitude} value={clinicLocationDraft.address} onChange={(e) => setClinicLocationDraft((v) => ({ ...v, address: e.target.value }))} placeholder="Building, street, area, city, state, PIN code" className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-teal-400"/></label>
-              <label><span className="mb-1 block text-xs font-bold text-slate-600">Latitude (optional)</span><input type="number" step="any" min="-90" max="90" value={clinicLocationDraft.latitude} onChange={(e) => setClinicLocationDraft((v) => ({ ...v, latitude: e.target.value }))} placeholder="28.6139" className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label>
-              <label><span className="mb-1 block text-xs font-bold text-slate-600">Longitude (optional)</span><input type="number" step="any" min="-180" max="180" value={clinicLocationDraft.longitude} onChange={(e) => setClinicLocationDraft((v) => ({ ...v, longitude: e.target.value }))} placeholder="77.2090" className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label>
-              <div className="flex flex-wrap items-center gap-3 md:col-span-2">
-                <button type="submit" className="rounded-xl bg-teal-700 px-5 py-3 text-sm font-extrabold text-white hover:bg-teal-800">Save clinic location</button>
-                <a className="text-sm font-bold text-teal-700 underline" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Open Google Maps to choose location ↗</a>
-                {clinicLocationDraft.latitude !== "" && clinicLocationDraft.longitude !== "" && <a className="text-sm font-bold text-indigo-700 underline" href={`https://www.google.com/maps?q=${clinicLocationDraft.latitude},${clinicLocationDraft.longitude}`} target="_blank" rel="noreferrer">Preview selected point ↗</a>}
-              </div>
-            </form>
-          </section>
+
 
           <section id="clinic-team" className="grid scroll-mt-28 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
             <div className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
@@ -1415,6 +1432,29 @@ export default function App() {
               {!availabilityRequests.length && <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">No doctor availability requests yet.</p>}
             </div>
           </section>
+          <details id="clinic-location" className="mt-8 scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
+              <span><span className="block text-[10px] font-extrabold uppercase tracking-[.16em] text-slate-500">Clinic settings · rarely changed</span><span className="mt-1 block text-base font-bold text-slate-800">Location and directions</span><span className="mt-1 block text-xs text-slate-500">{clinicLocationDraft.address || "Add your clinic address so patients can find you."}</span></span>
+              <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">Edit location</span>
+            </summary>
+            <div className="mt-5 border-t border-slate-100 pt-5">
+            <div className="mb-4">
+              <p className="text-xs font-extrabold uppercase tracking-[.16em] text-cyan-700">Clinic profile</p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">Set your clinic location</h2>
+              <p className="mt-1 text-sm text-slate-600">Add the complete address. To choose any point, open Google Maps, right-click (desktop) or long-press (mobile) the location, then paste its coordinates below.</p>
+            </div>
+            <form onSubmit={saveClinicLocation} className="grid gap-3 md:grid-cols-2">
+              <label className="md:col-span-2"><span className="mb-1 block text-xs font-bold text-slate-600">Clinic full address</span><textarea rows="2" maxLength="500" required={!clinicLocationDraft.latitude && !clinicLocationDraft.longitude} value={clinicLocationDraft.address} onChange={(e) => setClinicLocationDraft((v) => ({ ...v, address: e.target.value }))} placeholder="Building, street, area, city, state, PIN code" className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-teal-400"/></label>
+              <label><span className="mb-1 block text-xs font-bold text-slate-600">Latitude (optional)</span><input type="number" step="any" min="-90" max="90" value={clinicLocationDraft.latitude} onChange={(e) => setClinicLocationDraft((v) => ({ ...v, latitude: e.target.value }))} placeholder="28.6139" className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label>
+              <label><span className="mb-1 block text-xs font-bold text-slate-600">Longitude (optional)</span><input type="number" step="any" min="-180" max="180" value={clinicLocationDraft.longitude} onChange={(e) => setClinicLocationDraft((v) => ({ ...v, longitude: e.target.value }))} placeholder="77.2090" className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label>
+              <div className="flex flex-wrap items-center gap-3 md:col-span-2">
+                <button type="submit" className="rounded-xl bg-teal-700 px-5 py-3 text-sm font-extrabold text-white hover:bg-teal-800">Save clinic location</button>
+                <a className="text-sm font-bold text-teal-700 underline" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Open Google Maps to choose location ↗</a>
+                {clinicLocationDraft.latitude !== "" && clinicLocationDraft.longitude !== "" && <a className="text-sm font-bold text-indigo-700 underline" href={`https://www.google.com/maps?q=${clinicLocationDraft.latitude},${clinicLocationDraft.longitude}`} target="_blank" rel="noreferrer">Preview selected point ↗</a>}
+              </div>
+            </form>
+            </div>
+          </details>
         </main>
       )}
       {page === "doctor-portal" && <DoctorPortal onExit={() => setPage("home")} />}
