@@ -82,7 +82,6 @@ export default function DoctorPortal({ onExit }) {
   const scheduledLater = appointments.filter((item) => item.status === "Confirmed" && item.date > tomorrowKey);
   const completedAppointments = appointments.filter((item) => item.status === "Completed");
   const cancelledAppointments = appointments.filter((item) => item.status === "Cancelled");
-  const upcoming = appointments.filter((item) => item.status === "Confirmed" && item.date >= todayKey);
   const filteredAppointments = appointments.filter((item) => {
     if (appointmentView === "today") return item.status === "Confirmed" && item.date === todayKey;
     if (appointmentView === "tomorrow") return item.status === "Confirmed" && item.date === tomorrowKey;
@@ -127,12 +126,13 @@ export default function DoctorPortal({ onExit }) {
       </section>
       {message && <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
       {error && <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {[
           {label:"Today",value:todayAppointments.length,view:"today"},
           {label:"Tomorrow",value:tomorrowAppointments.length,view:"tomorrow"},
           {label:"Scheduled later",value:scheduledLater.length,view:"later"},
           {label:"Completed",value:completedAppointments.length,view:"completed"},
+          {label:"Cancelled",value:cancelledAppointments.length,view:"cancelled"},
           {label:"Availability requests",value:availability.length,view:"availability"},
         ].map((x) => <button type="button" key={x.label} onClick={()=>x.view!=="availability"&&setAppointmentView(x.view)} className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-slate-300 ${appointmentView===x.view?"border-teal-400 ring-2 ring-teal-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
       </section>
