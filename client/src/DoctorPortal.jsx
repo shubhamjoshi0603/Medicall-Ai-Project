@@ -133,7 +133,7 @@ export default function DoctorPortal({ onExit }) {
           {label:"Completed",value:completedAppointments.length,view:"completed"},
           {label:"Cancelled",value:cancelledAppointments.length,view:"cancelled"},
           {label:"Availability requests",value:availability.length,view:"availability"},
-        ].map((x) => <button type="button" key={x.label} onClick={()=>x.view!=="availability"&&setAppointmentView(x.view)} className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-slate-300 ${appointmentView===x.view?"border-teal-400 ring-2 ring-teal-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
+        ].map((x) => <button type="button" key={x.label} onClick={()=>x.view==="availability"?document.getElementById("doctor-availability")?.scrollIntoView({behavior:"smooth"}):setAppointmentView(x.view)} className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-slate-300 ${appointmentView===x.view?"border-teal-400 ring-2 ring-teal-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
       </section>
       <section className="mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">My patient appointments</h2><p className="mt-1 text-sm text-slate-500">Choose a schedule or visit status to focus on the right patients.</p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{filteredAppointments.length} shown · {appointments.length} total</span></div>
@@ -141,7 +141,7 @@ export default function DoctorPortal({ onExit }) {
         </div>
         <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Patient</th><th className="p-4">Phone</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredAppointments.map(a => <tr key={a._id}><td className="p-4 font-semibold">{a.patientName}</td><td className="p-4">{a.phone}</td><td className="p-4">{a.date}</td><td className="p-4">{a.time}</td><td className="p-4">{a.status}</td></tr>)}{!filteredAppointments.length && <tr><td colSpan="5" className="p-10 text-center text-slate-500">No appointments in this view. Try another schedule filter.</td></tr>}</tbody></table></div>
       </section>
-      <section className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
+      <section id="doctor-availability" className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
         <form onSubmit={submitAvailability} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div><h2 className="text-lg font-bold">Submit availability</h2><p className="mt-1 text-sm text-slate-500">Your clinic admin must approve a schedule before it is used for patient bookings.</p></div>
           <label className="block text-sm font-semibold">Day<select className={`${input} mt-2`} value={form.dayOfWeek} onChange={e => setForm({...form,dayOfWeek:e.target.value})}>{DAYS.map((d,i)=><option key={d} value={i}>{d}</option>)}</select></label>
