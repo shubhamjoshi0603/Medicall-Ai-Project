@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 300" fill="none">
+  <defs>
+    <linearGradient id="clinicBg" x1="25" y1="15" x2="510" y2="280" gradientUnits="userSpaceOnUse"><stop stop-color="#EAF3F7"/><stop offset="1" stop-color="#F4F6F8"/></linearGradient>
+    <linearGradient id="building" x1="118" y1="78" x2="420" y2="254" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#CFDCE4"/></linearGradient>
+    <linearGradient id="glass" x1="165" y1="111" x2="390" y2="236" gradientUnits="userSpaceOnUse"><stop stop-color="#8DD8E2"/><stop offset="1" stop-color="#287B9D"/></linearGradient>
+  </defs>
+  <rect x="4" y="4" width="532" height="292" rx="30" fill="url(#clinicBg)"/>
+  <circle cx="430" cy="64" r="38" fill="#D6ECEB"/>
+  <path d="M76 250h393" stroke="#A7B6C0" stroke-width="5" stroke-linecap="round"/>
+  <path d="M103 248V103l55-35h240l48 35v145H103Z" fill="url(#building)" stroke="#A8BBC6" stroke-width="3"/>
+  <path d="M103 103h343v29H103z" fill="#D9E4E9"/>
+  <path d="M158 68h240l48 35H103l55-35Z" fill="#FDFEFF" stroke="#A8BBC6" stroke-width="3"/>
+  <rect x="174" y="139" width="215" height="109" rx="8" fill="url(#glass)" stroke="#D4E5EC" stroke-width="6"/>
+  <path d="M245 139v109m72-109v109" stroke="#D7EEF3" stroke-width="7"/>
+  <path d="M174 190h215" stroke="#D7EEF3" stroke-width="7"/>
+  <rect x="112" y="145" width="44" height="103" rx="5" fill="#E5EDF1"/>
+  <path d="M122 175h24m-12-12v24" stroke="#139A99" stroke-width="7" stroke-linecap="round"/>
+  <rect x="408" y="145" width="28" height="103" rx="5" fill="#E5EDF1"/>
+  <rect x="247" y="87" width="62" height="36" rx="10" fill="#0D9291"/>
+  <path d="M278 95v20m-10-10h20" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 247v-37c0-20 16-36 36-36h5v73H70Z" fill="#5CA58E"/>
+  <circle cx="86" cy="181" r="22" fill="#79BBA3"/>
+  <circle cx="449" cy="224" r="15" fill="#77BBA2"/>
+  <path d="M433 248v-31c0-17 12-29 28-29h3v60h-31Z" fill="#4E9B84"/>
+  <rect x="217" y="260" width="119" height="18" rx="9" fill="#D5E0E5"/>
+</svg>
