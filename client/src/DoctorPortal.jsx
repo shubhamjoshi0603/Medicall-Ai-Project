@@ -114,7 +114,6 @@ export default function DoctorPortal({ onExit }) {
     </main>
   );
 
-  const upcoming = appointments.filter(a => a.status === "Confirmed");
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F3F5F7] via-white to-[#EAF2F4] p-5 shadow-sm sm:p-6">
