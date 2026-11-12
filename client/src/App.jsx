@@ -959,7 +959,7 @@ export default function App() {
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-teal-700">PERSONALIZED CARE</p>
                 <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
-                  {clinic?.clinicName || "Book your appointment"}
+                  {selectedClinicId && clinic?.id === selectedClinicId ? clinic.clinicName : "Book your appointment"}
                 </h2>
                 <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">Meet the right specialist and choose a time that works for you. Our team is here to make your visit simple.</p>
               </div>
@@ -1196,7 +1196,7 @@ export default function App() {
             {selectedClinicId && clinic?.id===selectedClinicId && <div id="patient-clinic-location" className="scroll-mt-28 border-t border-slate-100 bg-cyan-50/60 px-4 py-4 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-cyan-700">SELECTED CLINIC</p><h2 className="mt-1 font-extrabold text-slate-900">{clinic.clinicName}</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-bold text-teal-800">Clinic location</span></div>
               <p className="mt-2 text-sm leading-5 text-slate-600">{clinic.location?.address || "This clinic has not added its full address yet."}</p>
-              {clinic.location?.mapsUrl && <a className="mt-2 inline-flex text-sm font-bold text-teal-700 underline" href={clinic.location.mapsUrl} target="_blank" rel="noreferrer">Open directions in Google Maps ↗</a>}
+              {(clinic.location?.mapsUrl || clinic.location?.address) && <a className="mt-2 inline-flex text-sm font-bold text-teal-700 underline" href={clinic.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clinic.location.address)}`} target="_blank" rel="noreferrer">Open directions in Google Maps ↗</a>}
             </div>}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5 sm:px-8"><p className="text-sm text-slate-500">You are signed in as a patient.</p><button onClick={patientLogout} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Log out of patient account</button></div>
           </section>
