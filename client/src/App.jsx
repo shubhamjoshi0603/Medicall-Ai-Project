@@ -176,6 +176,19 @@ export default function App() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
+  // Automatically dismiss global success and error banners after 10 seconds.
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timeoutId = window.setTimeout(() => setNotice(""), 10000);
+    return () => window.clearTimeout(timeoutId);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!error) return undefined;
+    const timeoutId = window.setTimeout(() => setError(""), 10000);
+    return () => window.clearTimeout(timeoutId);
+  }, [error]);
+
   useEffect(() => {
     if (!token || page !== "dashboard") return;
 
