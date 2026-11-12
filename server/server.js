@@ -584,6 +584,8 @@ const appointmentSchema = new Schema(
     },
     paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed", "Refunded"], default: "Pending" },
     paymentAmount: { type: Number, default: 0, min: 0 },
+    paymentMethod: { type: String, enum: ["", "Razorpay", "Cash", "UPI", "Card", "Other"], default: "" },
+    paidAt: { type: Date, default: null },
     razorpayOrderId: { type: String, default: "" },
     razorpayPaymentId: { type: String, default: "" },
     rescheduleRequest: {
@@ -1334,52 +1336,84 @@ app.patch(
   protect,
   async (req, res) => {
     try {
-      const { status } = req.body || {};
+      const { status, collectPayment = false, paymentMethod = "" } = req.body || {};
 
       if (!["Cancelled", "Completed"].includes(status)) {
-        return res.status(400).json({
-          message: "Invalid status.",
-        });
+        return res.status(400).json({ message: "Invalid appointment status." });
       }
-
       if (!mongoose.isValidObjectId(req.params.id)) {
-        return res.status(400).json({
-          message: "Invalid appointment ID.",
-        });
+        return res.status(400).json({ message: "Invalid appointment ID." });
       }
 
-      const appointment =
-        await Appointment.findOneAndUpdate(
-          {
-            _id: req.params.id,
-            clinicId: req.clinicId,
-            status: "Confirmed",
-          },
-          { status },
-          { new: true }
-        );
+      const appointment = await Appointment.findOne({
+        _id: req.params.id,
+        clinicId: req.clinicId,
+        status: "Confirmed",
+      }).populate("doctorId", "name specialization fee");
 
       if (!appointment) {
-        return res.status(404).json({
-          message: "Appointment not found or already updated.",
-        });
+        return res.status(404).json({ message: "Appointment not found or already updated." });
       }
+
+      let revenueAdded = 0;
+      let paymentRecorded = appointment.paymentStatus === "Paid";
+
+      // Completion alone is not proof that money was received. The clinic UI
+      // sends collectPayment=true only after staff confirms the payment method.
+      if (status === "Completed" && collectPayment === true && appointment.paymentStatus !== "Paid") {
+        const allowedMethods = ["Cash", "UPI", "Card", "Other"];
+        if (!allowedMethods.includes(paymentMethod)) {
+          return res.status(400).json({ message: "Choose Cash, UPI, Card or Other as the received payment method." });
+        }
+        const amount = Number(appointment.paymentAmount) > 0
+          ? Number(appointment.paymentAmount)
+          : Number(appointment.doctorId?.fee || 0);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          return res.status(400).json({ message: "Set a valid consultation fee for this doctor before recording payment." });
+        }
+        appointment.paymentAmount = amount;
+        appointment.paymentStatus = "Paid";
+        appointment.paymentMethod = paymentMethod;
+        appointment.paidAt = new Date();
+        revenueAdded = amount;
+        paymentRecorded = true;
+      }
+
+      appointment.status = status;
+      await appointment.save();
 
       let emailSent = false;
       if (appointment.patientEmail) {
         try {
-          const doctor = await Doctor.findById(appointment.doctorId).select("name");
           const clinic = await Clinic.findById(appointment.clinicId).select("clinicName");
-          emailSent = await sendAppointmentEmail({ to: appointment.patientEmail, patientName: appointment.patientName, clinicName: clinic?.clinicName || "the clinic", doctorName: doctor?.name || "your doctor", date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference });
-        } catch (mailError) { console.error("Appointment status email failed:", mailError.message); }
+          emailSent = await sendAppointmentEmail({
+            to: appointment.patientEmail,
+            patientName: appointment.patientName,
+            clinicName: clinic?.clinicName || "the clinic",
+            doctorName: appointment.doctorId?.name || "your doctor",
+            date: appointment.date,
+            time: appointment.time,
+            status: appointment.status,
+            appointmentId: appointment._id,
+            bookingReference: appointment.bookingReference,
+          });
+        } catch (mailError) {
+          console.error("Appointment status email failed:", mailError.message);
+        }
       }
-      return res.json({ message: emailSent ? "Appointment updated and patient emailed." : "Appointment updated. Email was not sent (missing patient email or SMTP configuration).", emailSent, appointment });
+
+      const message = status === "Completed"
+        ? revenueAdded > 0
+          ? `Visit completed. ₹${revenueAdded.toLocaleString("en-IN")} recorded as ${paymentMethod} revenue for your clinic.`
+          : paymentRecorded
+            ? "Visit completed. This appointment's payment was already recorded; no duplicate revenue was added."
+            : "Visit completed. No payment was recorded, so it has not been added to paid revenue."
+        : "Appointment cancelled.";
+
+      return res.json({ message, emailSent, revenueAdded, appointment });
     } catch (error) {
       console.error("Update appointment error:", error);
-
-      return res.status(500).json({
-        message: "Could not update appointment.",
-      });
+      return res.status(500).json({ message: "Could not update appointment." });
     }
   }
 );
@@ -1538,7 +1572,12 @@ app.post("/api/payments/verify", protectPatient, async (req, res) => {
     const crypto = require("crypto");
     const a = Buffer.from(expected); const b = Buffer.from(String(razorpay_signature || ""));
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(400).json({ message: "Payment signature verification failed." });
-    appointment.paymentStatus = "Paid"; appointment.razorpayPaymentId = razorpay_payment_id; await appointment.save();
+    appointment.paymentStatus = "Paid";
+    appointment.paymentMethod = "Razorpay";
+    appointment.paidAt = new Date();
+    appointment.paymentAmount = Number(appointment.paymentAmount || 0);
+    appointment.razorpayPaymentId = razorpay_payment_id;
+    await appointment.save();
     return res.json({ message: "Payment verified successfully.", paymentStatus: appointment.paymentStatus });
   } catch (e) { console.error("Verify payment:", e); return res.status(500).json({ message: "Could not verify payment." }); }
 });
