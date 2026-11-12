@@ -5,6 +5,7 @@ import DoctorPortal from "./DoctorPortal.jsx";
 import medicallLogo from "./assets/medicall-logo.svg";
 import medicallLogoDark from "./assets/medicall-logo-dark.svg";
 import healthcareHero from "./assets/healthcare-hero.svg";
+import clinicWorkspaceArt from "./assets/clinic-workspace.svg";
 
 const API =
   import.meta.env.VITE_API_URL ||
@@ -1361,7 +1362,7 @@ export default function App() {
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.doctorId?.name || "Doctor"}</div></td>
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.date}</div><div className="mt-1 text-xs text-slate-500">{appointment.time}</div></td>
                       <td className="px-6 py-4">
-                        <div className={`font-bold ${appointment.paymentStatus === "Paid" ? "text-emerald-700" : appointment.status === "Cancelled" ? "text-slate-500" : "text-amber-700"}`}>{appointment.paymentStatus === "Paid" ? (appointment.paymentMethod === "Razorpay" ? "Paid online" : "Paid offline") : appointment.status === "Cancelled" ? "Closed · cancelled" : appointment.paymentStatus === "Failed" ? "Payment failed" : "Awaiting payment"}</div>
+                        <div className={`font-bold ${appointment.paymentStatus === "Paid" ? "text-emerald-700" : appointment.status === "Cancelled" ? "text-slate-500" : "text-amber-700"}`}>{appointment.paymentStatus === "Paid" ? ((appointment.paymentMethod === "Razorpay" || appointment.razorpayPaymentId) ? "Paid online" : "Paid offline") : appointment.status === "Cancelled" ? "Closed · cancelled" : appointment.paymentStatus === "Failed" ? "Payment failed" : "Awaiting payment"}</div>
                         <div className="mt-1 text-xs text-slate-500">{appointment.paymentStatus === "Paid" ? `₹${Number(appointment.paymentAmount || appointment.doctorId?.fee || 0).toLocaleString("en-IN")} · ${appointment.paymentMethod || "Recorded"}` : appointment.status === "Cancelled" ? "No collection due" : `₹${Number(appointment.paymentAmount || appointment.doctorId?.fee || 0).toLocaleString("en-IN")} expected`}</div>
                       </td>
                       <td className="px-6 py-4">
@@ -1392,6 +1393,7 @@ export default function App() {
                 <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700"><Icon name="plus" size={13}/> Team setup</span>
                 <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Add your first doctor</h2>
                 <p className="mt-1 text-sm text-slate-500">Add a specialist to your clinic directory.</p>
+                <img src={clinicWorkspaceArt} alt="Modern clinic building illustration" className="my-3 h-28 w-full rounded-xl bg-slate-50 object-contain"/>
               </div>
               <form onSubmit={addDoctor} className="space-y-4">
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor name</span><input className={`${field} rounded-xl bg-slate-50/70`} placeholder="e.g. Dr. Aditi Sharma" required value={doctorForm.name} onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })} /></label>
