@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import DoctorPortal from "./DoctorPortal.jsx";
 import medicallLogo from "./assets/medicall-logo.svg";
+import medicallLogoDark from "./assets/medicall-logo-dark.svg";
 import healthcareHero from "./assets/healthcare-hero.svg";
 
 const API =
@@ -825,7 +826,7 @@ export default function App() {
           onClick={() => setPage("home")}
           className="flex items-center text-lg font-extrabold tracking-tight sm:text-xl"
         >
-          <img src={medicallLogo} alt="MediCall AI — Care, connected" className="h-11 w-auto sm:h-12" />
+          <img src={theme === "dark" ? medicallLogoDark : medicallLogo} alt="MediCall AI — Care, connected" className="h-11 w-auto sm:h-12" />
         </button>
 
         <nav className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
@@ -923,7 +924,7 @@ export default function App() {
       </div>
 
       {page === "home" && (
-        <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-6 md:py-16 lg:px-10">
+        <main className="mx-auto max-w-[1400px] px-4 py-7 sm:px-6 md:py-10 lg:px-10">
           <section className="relative grid items-center gap-10 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-sm sm:p-9 md:grid-cols-2 md:p-12 lg:p-16">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-teal-100 bg-teal-50 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-teal-800">
@@ -979,7 +980,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="mx-auto mt-16 max-w-6xl grid gap-8 md:grid-cols-[.9fr_1.1fr] md:items-center">
+          <section className="mx-auto mt-10 max-w-6xl grid gap-6 md:grid-cols-[.9fr_1.1fr] md:items-center">
             <div className="rounded-[1.75rem] bg-[#102c3a] p-8 text-white sm:p-10">
               <p className="text-xs font-extrabold uppercase tracking-[.22em] text-cyan-200">Why MediCall AI?</p>
               <h2 className="mt-4 text-3xl font-black leading-tight">Making healthcare access easier for everyone.</h2>
@@ -989,15 +990,15 @@ export default function App() {
               {[{icon:"✦",title:"AI-powered assistance",body:"Ask questions and get guided support through chat or voice."},{icon:"⌖",title:"Clinic discovery",body:"Choose from clinics that have created an account on MediCall AI."},{icon:"▦",title:"Appointment management",body:"Request, review and manage appointments in one place."},{icon:"♡",title:"Connected care teams",body:"Patients, doctors and clinic teams use role-based workspaces."}].map((item) => <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><span className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-50 text-xl text-cyan-800">{item.icon}</span><h3 className="mt-4 font-extrabold text-slate-900">{item.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p></article>)}
             </div>
           </section>
-          <section className="mx-auto mt-12 max-w-6xl rounded-[1.75rem] border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white p-8 text-center sm:p-10">
+          <section className="mx-auto mt-9 max-w-6xl rounded-[1.75rem] border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white p-8 text-center sm:p-10">
             <p className="text-xs font-extrabold uppercase tracking-[.2em] text-cyan-800">One platform · Three experiences</p>
             <h2 className="mt-3 text-3xl font-black text-slate-950">Care works better when everyone is connected.</h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">Patients can find registered clinics, doctors can manage their schedules, and clinics can coordinate appointments and their teams.</p>
             <button className={`${button} mt-6`} onClick={() => { setAuthMode("patient-login"); setPage("auth"); }}>Get Started with MediCall AI →</button>
           </section>
 
-          {patientToken && <section id="booking" className="mt-20 scroll-mt-24 md:mt-24">
-            <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          {patientToken && <section id="booking" className="mt-12 scroll-mt-24 md:mt-14">
+            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-teal-700">PERSONALIZED CARE</p>
                 <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
