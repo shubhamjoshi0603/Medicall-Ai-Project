@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import doctorWorkspaceArt from "./assets/doctor-workspace.svg";
 
 const API = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000/api`;
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -13,6 +14,7 @@ export default function DoctorPortal({ onExit }) {
   const [password, setPassword] = useState("");
   const [appointments, setAppointments] = useState([]);
   const [availability, setAvailability] = useState([]);
+  const [appointmentView, setAppointmentView] = useState("upcoming");
   const [form, setForm] = useState({ dayOfWeek: "1", startTime: "09:00", endTime: "17:00", slotMinutes: "30" });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -67,12 +69,40 @@ export default function DoctorPortal({ onExit }) {
     localStorage.removeItem("medicall_doctor_token"); setToken(""); setDoctor(null); setAppointments([]); setAvailability([]);
   }
 
+  const dateKey = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+  };
+  const todayKey = dateKey(new Date());
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = dateKey(tomorrow);
+  const todayAppointments = appointments.filter((item) => item.status === "Confirmed" && item.date === todayKey);
+  const tomorrowAppointments = appointments.filter((item) => item.status === "Confirmed" && item.date === tomorrowKey);
+  const scheduledLater = appointments.filter((item) => item.status === "Confirmed" && item.date > tomorrowKey);
+  const completedAppointments = appointments.filter((item) => item.status === "Completed");
+  const cancelledAppointments = appointments.filter((item) => item.status === "Cancelled");
+  const upcoming = appointments.filter((item) => item.status === "Confirmed" && item.date >= todayKey);
+  const filteredAppointments = appointments.filter((item) => {
+    if (appointmentView === "today") return item.status === "Confirmed" && item.date === todayKey;
+    if (appointmentView === "tomorrow") return item.status === "Confirmed" && item.date === tomorrowKey;
+    if (appointmentView === "later") return item.status === "Confirmed" && item.date > tomorrowKey;
+    if (appointmentView === "completed") return item.status === "Completed";
+    if (appointmentView === "cancelled") return item.status === "Cancelled";
+    if (appointmentView === "all") return true;
+    return item.status === "Confirmed" && item.date >= todayKey;
+  });
+
   if (!token || !doctor) return (
     <main className="mx-auto grid min-h-[75vh] max-w-5xl items-center px-4 py-12 md:grid-cols-2 md:gap-10">
-      <section className="hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-teal-950 to-teal-700 p-10 text-white md:block">
-        <p className="text-xs font-bold uppercase tracking-[.25em] text-teal-200">MEDICALL AI · DOCTOR PORTAL</p>
-        <h1 className="mt-5 text-4xl font-black">Your clinic. Your schedule. Your patients.</h1>
-        <p className="mt-4 leading-7 text-teal-50/80">Sign in to view appointments assigned to you and submit your weekly availability to the clinic.</p>
+      <section className="relative hidden overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#10283B] via-[#174A64] to-[#087E83] p-10 text-white shadow-xl md:block">
+        <img src={doctorWorkspaceArt} alt="Doctor workspace illustration" className="absolute -bottom-5 -right-5 h-64 w-72 object-contain opacity-95" />
+        <div className="relative z-10 max-w-sm">
+          <p className="text-xs font-bold uppercase tracking-[.25em] text-teal-200">MEDICALL AI · DOCTOR PORTAL</p>
+          <h1 className="mt-5 text-4xl font-black">Your clinic. Your schedule. Your patients.</h1>
+          <p className="mt-4 leading-7 text-teal-50/90">Sign in to view your assigned appointments and share weekly availability with your clinic.</p>
+          <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white"><span className="h-2 w-2 rounded-full bg-emerald-300"/> Connected care workspace</div>
+        </div>
       </section>
       <form onSubmit={login} className="mx-auto w-full max-w-md space-y-5 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-xl">
         <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-700">Doctor access</p><h2 className="mt-2 text-3xl font-black text-slate-950">Doctor login</h2><p className="mt-2 text-sm text-slate-500">Use the email and temporary password provided by your clinic admin.</p></div>
@@ -88,18 +118,29 @@ export default function DoctorPortal({ onExit }) {
   const upcoming = appointments.filter(a => a.status === "Confirmed");
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
-        <div><p className="text-xs font-bold uppercase tracking-widest text-teal-700">Doctor workspace</p><h1 className="mt-1 text-3xl font-black text-slate-950">Welcome, {doctor.name}</h1><p className="mt-1 text-sm text-slate-500">{doctor.specialization} · {doctor.email}</p></div>
-        <button onClick={logout} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">Log out</button>
-      </div>
+      <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F3F5F7] via-white to-[#EAF2F4] p-5 shadow-sm sm:p-6">
+        <img src={doctorWorkspaceArt} alt="Doctor and clinical workspace" className="pointer-events-none absolute -bottom-10 right-4 hidden h-48 w-64 object-contain opacity-90 sm:block"/>
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
+          <div className="max-w-xl"><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-slate-500">Doctor workspace</p><h1 className="mt-1 text-2xl font-extrabold text-slate-900">Welcome, {doctor.name}</h1><p className="mt-1 text-sm text-slate-600">{doctor.specialization} · {doctor.email}</p><p className="mt-1 text-xs text-slate-500">Your assigned schedule and weekly availability, in one place.</p></div>
+          <button onClick={logout} className="relative z-10 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Log out</button>
+        </div>
+      </section>
       {message && <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
       {error && <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-      <section className="mb-7 grid gap-4 sm:grid-cols-3">
-        {[{label:"Total appointments",value:appointments.length},{label:"Upcoming confirmed",value:upcoming.length},{label:"Availability requests",value:availability.length}].map(x => <article key={x.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">{x.label}</p><p className="mt-2 text-4xl font-black">{x.value}</p></article>)}
+      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        {[
+          {label:"Today",value:todayAppointments.length,view:"today"},
+          {label:"Tomorrow",value:tomorrowAppointments.length,view:"tomorrow"},
+          {label:"Scheduled later",value:scheduledLater.length,view:"later"},
+          {label:"Completed",value:completedAppointments.length,view:"completed"},
+          {label:"Availability requests",value:availability.length,view:"availability"},
+        ].map((x) => <button type="button" key={x.label} onClick={()=>x.view!=="availability"&&setAppointmentView(x.view)} className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-slate-300 ${appointmentView===x.view?"border-teal-400 ring-2 ring-teal-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
       </section>
       <section className="mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 p-5"><h2 className="text-lg font-bold">My patient appointments</h2><p className="mt-1 text-sm text-slate-500">Only appointments assigned to your doctor account are shown.</p></div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Patient</th><th className="p-4">Phone</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{appointments.map(a => <tr key={a._id}><td className="p-4 font-semibold">{a.patientName}</td><td className="p-4">{a.phone}</td><td className="p-4">{a.date}</td><td className="p-4">{a.time}</td><td className="p-4">{a.status}</td></tr>)}{!appointments.length && <tr><td colSpan="5" className="p-10 text-center text-slate-500">No appointments assigned yet.</td></tr>}</tbody></table></div>
+        <div className="border-b border-slate-100 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">My patient appointments</h2><p className="mt-1 text-sm text-slate-500">Choose a schedule or visit status to focus on the right patients.</p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{filteredAppointments.length} shown · {appointments.length} total</span></div>
+          <div className="mt-4 flex flex-wrap gap-2">{[["upcoming","Upcoming"],["today","Today"],["tomorrow","Tomorrow"],["later","Later"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]].map(([value,label])=><button key={value} onClick={()=>setAppointmentView(value)} className={`rounded-full border px-3 py-2 text-xs font-bold ${appointmentView===value?"border-slate-700 bg-slate-800 text-white":"border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}>{label}</button>)}</div>
+        </div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Patient</th><th className="p-4">Phone</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredAppointments.map(a => <tr key={a._id}><td className="p-4 font-semibold">{a.patientName}</td><td className="p-4">{a.phone}</td><td className="p-4">{a.date}</td><td className="p-4">{a.time}</td><td className="p-4">{a.status}</td></tr>)}{!filteredAppointments.length && <tr><td colSpan="5" className="p-10 text-center text-slate-500">No appointments in this view. Try another schedule filter.</td></tr>}</tbody></table></div>
       </section>
       <section className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
         <form onSubmit={submitAvailability} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
