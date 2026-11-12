@@ -27,6 +27,7 @@ function Icon({ name, size = 18, className = "" }) {
     send: <><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>,
     volume: <><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6"/><path d="M18 5a10 10 0 0 1 0 14"/></>,
     close: <><path d="m18 6-12 12"/><path d="m6 6 12 12"/></>,
+    check: <path d="m5 12 4 4L19 6"/>,
     message: <><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-4.1a8.5 8.5 0 1 1 16.1-5.4Z"/><path d="M8 11h8M8 14h5"/></>,
     arrow: <><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></>,
     user: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>,
@@ -1449,7 +1450,8 @@ export default function App() {
               <p className="rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-900">This records the amount as received and adds it to collected clinic revenue. It does not transfer money to a bank account.</p>
               <div className="flex flex-wrap justify-end gap-2">
                 <button type="button" onClick={() => setCollectionModal(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="button" disabled={Number(collectionModal.paymentAmount || collectionModal.doctorId?.fee || 0) <= 0} onClick={confirmAppointmentCollection} className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">Confirm received & complete</button>
+                <button type="button" onClick={async () => { const saved = await updateAppointment(collectionModal._id, "Completed"); if (saved) setCollectionModal(null); }} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">Complete as unpaid</button>
+                <button type="button" disabled={Number(collectionModal.paymentAmount || collectionModal.doctorId?.fee || 0) <= 0} onClick={confirmAppointmentCollection} className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">Payment received · Complete</button>
               </div>
             </div>
           </section>
