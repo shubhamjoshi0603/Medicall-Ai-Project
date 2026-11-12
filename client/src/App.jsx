@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import DoctorPortal from "./DoctorPortal.jsx";
+import medicallLogo from "./assets/medicall-logo.svg";
+import healthcareHero from "./assets/healthcare-hero.svg";
 
 const API =
   import.meta.env.VITE_API_URL ||
@@ -161,7 +163,13 @@ export default function App() {
     const occupation = (doctor.specialization || "").toLowerCase();
     return !symptomSpecialty || specialtyTerms.some((term) => occupation.includes(term));
   });
-  const paidRevenue = appointments.filter((item) => item.paymentStatus === "Paid").reduce((sum, item) => sum + Number(item.doctorId?.fee || item.fee || 0), 0);
+  const paidRevenue = appointments
+    .filter((item) => item.paymentStatus === "Paid")
+    .reduce((sum, item) => {
+      const recordedAmount = Number(item.paymentAmount);
+      const consultationFee = Number(item.doctorId?.fee || item.fee || 0);
+      return sum + (recordedAmount > 0 ? recordedAmount : consultationFee);
+    }, 0);
   const pendingPayments = appointments.filter((item) => item.paymentStatus !== "Paid" && item.status !== "Cancelled").length;
   const completedAppointments = appointments.filter((item) => item.status === "Completed").length;
 
@@ -692,14 +700,50 @@ export default function App() {
     } catch (err) { setError(err.response?.data?.message || "Could not update availability."); }
   }
 
-  async function updateAppointment(id, status) {
+  async function updateAppointment(id, status, extra = {}) {
     try {
-      await api.patch(`/appointments/${id}/status`, { status });
-      setNotice(`Appointment marked ${status.toLowerCase()}.`);
+      const { data } = await api.patch(`/appointments/${id}/status`, { status, ...extra });
+      setNotice(data.message || `Appointment marked ${status.toLowerCase()}.`);
       await loadDashboard();
     } catch (err) {
       setError(err.response?.data?.message || "Could not update appointment.");
     }
+  }
+
+  async function completeAppointment(appointment) {
+    const alreadyPaid = appointment.paymentStatus === "Paid";
+    let collection = {};
+
+    if (!alreadyPaid) {
+      const rawMethod = window.prompt(
+        "How did the patient pay? Enter Cash, UPI, Card or Other.",
+        "Cash"
+      );
+      if (!rawMethod) return;
+      const method = rawMethod.trim().toLowerCase();
+      const paymentMethod = ({ cash: "Cash", upi: "UPI", card: "Card", other: "Other" })[method];
+      if (!paymentMethod) {
+        setError("Choose Cash, UPI, Card or Other. No payment was recorded.");
+        return;
+      }
+      const amount = Number(appointment.paymentAmount) > 0
+        ? Number(appointment.paymentAmount)
+        : Number(appointment.doctorId?.fee || 0);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setError("Add a valid consultation fee to this doctor before completing and collecting payment.");
+        return;
+      }
+      const confirmed = window.confirm(
+        `Confirm that ₹${amount.toLocaleString("en-IN")} was received by the clinic via ${paymentMethod}?`
+      );
+      if (!confirmed) return;
+      collection = { collectPayment: true, paymentMethod };
+    } else {
+      const confirmed = window.confirm("This appointment is already marked as paid. Mark the visit as completed?");
+      if (!confirmed) return;
+    }
+
+    await updateAppointment(appointment._id, "Completed", collection);
   }
 
   async function saveClinicLocation(event) {
@@ -781,10 +825,7 @@ export default function App() {
           onClick={() => setPage("home")}
           className="flex items-center text-lg font-extrabold tracking-tight sm:text-xl"
         >
-          <span className="mr-2 grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-700 text-white shadow-lg shadow-teal-700/20">
-            <Icon name="plus" size={21} />
-          </span>
-          <span className="text-slate-900">MediCall <span className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">AI</span><span className="ml-2 hidden rounded-full bg-teal-50 px-2 py-1 align-middle text-[9px] font-extrabold uppercase tracking-[.18em] text-teal-700 sm:inline-block">Care, connected</span></span>
+          <img src={medicallLogo} alt="MediCall AI — Care, connected" className="h-11 w-auto sm:h-12" />
         </button>
 
         <nav className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
@@ -913,6 +954,7 @@ export default function App() {
             </div>
 
             <div className="relative rounded-[1.5rem] bg-gradient-to-br from-teal-700 to-teal-600 p-5 text-white shadow-lg shadow-teal-900/10 sm:p-7 md:p-9">
+              <img src={healthcareHero} alt="Illustration representing connected healthcare" className="pointer-events-none absolute -right-12 -top-10 hidden h-56 w-72 object-contain opacity-35 mix-blend-screen md:block" />
               <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full border border-white/15" />
               <div className="absolute -bottom-16 -left-12 h-48 w-48 rounded-full border border-white/15" />
               <div className="relative rounded-2xl border border-white/20 bg-white/10 p-7 text-center shadow-sm backdrop-blur sm:p-9">
@@ -1164,7 +1206,7 @@ export default function App() {
               </article>)}{!patientAppointments.length && <p className="text-sm text-slate-500">No appointments linked to this patient account yet. Book using the same email address as your account.</p>}
               {patientAppointments.length > 3 && <button onClick={() => setShowAllPatientAppointments((value) => !value)} className="mt-2 rounded-xl border border-teal-200 px-4 py-2.5 text-sm font-bold text-teal-800 hover:bg-teal-50">{showAllPatientAppointments ? "Show latest 3 bookings" : `View all bookings (${patientAppointments.length})`}</button>}</div>
             </div>
-            <section className="border-t border-slate-100 bg-gradient-to-br from-indigo-50/80 via-white to-teal-50/70 px-4 py-5 sm:px-5">
+            <section className="smart-care-card border-t border-slate-100 bg-gradient-to-br from-indigo-50/80 via-white to-teal-50/70 px-4 py-5 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-100 text-indigo-700"><Icon name="spark" size={18}/></span><div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-indigo-700">SMART CARE FINDER</p><h2 className="text-lg font-black text-slate-950">Find the right specialist</h2></div></div>
                 <span className="rounded-full border border-indigo-100 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-indigo-700">Guidance, not diagnosis</span>
@@ -1255,8 +1297,8 @@ export default function App() {
 
           <section className="mb-7 grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
             <article className="overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-[#171c45] via-[#252b62] to-[#34418a] p-6 text-white shadow-[0_16px_40px_rgba(35,43,98,.18)]">
-              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-indigo-200">Clinic intelligence</p><h2 className="mt-2 text-xl font-black">Performance at a glance</h2><p className="mt-1 text-sm text-indigo-100/80">Calculated from your clinic's appointment and payment records.</p></div><span className="rounded-xl bg-white/10 p-3"><Icon name="spark" size={22}/></span></div>
-              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="rounded-xl border border-white/10 bg-white/10 p-4"><p className="text-xs text-indigo-100">Verified paid revenue</p><p className="mt-2 text-2xl font-black">₹{paidRevenue.toLocaleString("en-IN")}</p></div><div className="rounded-xl border border-white/10 bg-white/10 p-4"><p className="text-xs text-indigo-100">Completed visits</p><p className="mt-2 text-2xl font-black">{completedAppointments}</p></div><div className="col-span-2 rounded-xl border border-white/10 bg-white/10 p-4 sm:col-span-1"><p className="text-xs text-indigo-100">Payment pending</p><p className="mt-2 text-2xl font-black">{pendingPayments}</p></div></div>
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-indigo-200">Clinic intelligence</p><h2 className="mt-2 text-xl font-black">Performance at a glance</h2><p className="mt-1 text-sm text-indigo-100/80">Consultation fees recorded as received are added to your clinic revenue.</p></div><span className="rounded-xl bg-white/10 p-3"><Icon name="spark" size={22}/></span></div>
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="rounded-xl border border-white/10 bg-white/10 p-4"><p className="text-xs text-indigo-100">Collected visit revenue</p><p className="mt-2 text-2xl font-black">₹{paidRevenue.toLocaleString("en-IN")}</p><p className="mt-1 text-[10px] text-indigo-100/80">Recorded payments only</p></div><div className="rounded-xl border border-white/10 bg-white/10 p-4"><p className="text-xs text-indigo-100">Completed visits</p><p className="mt-2 text-2xl font-black">{completedAppointments}</p></div><div className="col-span-2 rounded-xl border border-white/10 bg-white/10 p-4 sm:col-span-1"><p className="text-xs text-indigo-100">Payment pending</p><p className="mt-2 text-2xl font-black">{pendingPayments}</p></div></div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-teal-700">AI conversion insight</p><h2 className="mt-2 text-xl font-black text-slate-950">Turn conversations into care</h2><p className="mt-2 text-sm leading-6 text-slate-500">{analytics?.totalConversations ? `${analytics.convertedConversations || 0} of ${analytics.totalConversations} tracked conversations led to an appointment (${analytics.conversionRate || 0}%).` : "Conversation metrics will appear after patients start using the AI chat or voice assistant."}</p><div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-indigo-500" style={{ width: `${Math.min(100, Math.max(0, Number(analytics?.conversionRate || 0)))}%` }}/></div><div className="mt-3 flex justify-between text-xs text-slate-500"><span>AI conversion</span><strong className="text-slate-800">{analytics?.conversionRate || 0}%</strong></div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Improvement tip: review unanswered questions and make sure doctor specializations, fees and availability are up to date.</p></article>
           </section>
@@ -1270,10 +1312,10 @@ export default function App() {
               <span className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{appointments.length} total</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   <tr>
-                    <th className="px-6 py-4">Patient</th><th className="px-6 py-4">Specialist</th><th className="px-6 py-4">Appointment</th><th className="px-6 py-4">Status</th><th className="px-6 py-4">Actions</th>
+                    <th className="px-6 py-4">Patient</th><th className="px-6 py-4">Specialist</th><th className="px-6 py-4">Appointment</th><th className="px-6 py-4">Payment</th><th className="px-6 py-4">Status</th><th className="px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1286,17 +1328,21 @@ export default function App() {
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.doctorId?.name || "Doctor"}</div></td>
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.date}</div><div className="mt-1 text-xs text-slate-500">{appointment.time}</div></td>
                       <td className="px-6 py-4">
+                        <div className={`font-bold ${appointment.paymentStatus === "Paid" ? "text-emerald-700" : "text-amber-700"}`}>{appointment.paymentStatus === "Paid" ? "Paid" : appointment.paymentStatus || "Pending"}</div>
+                        <div className="mt-1 text-xs text-slate-500">₹{Number(appointment.paymentAmount || appointment.doctorId?.fee || 0).toLocaleString("en-IN")}{appointment.paymentMethod ? ` · ${appointment.paymentMethod}` : ""}</div>
+                      </td>
+                      <td className="px-6 py-4">
                         <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${appointment.status === "Confirmed" ? "bg-emerald-50 text-emerald-700" : appointment.status === "Cancelled" ? "bg-rose-50 text-rose-700" : appointment.status === "Completed" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{appointment.status}</span>
                       </td>
                       <td className="px-6 py-4">
                         {appointment.rescheduleRequest?.status === "Pending" ? <div className="flex flex-wrap items-center gap-2"><button className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white" onClick={async () => { try { await api.patch(`/appointments/${appointment._id}/reschedule-request`, { decision: "approve" }); setNotice("Reschedule approved; patient email sent if SMTP is configured."); await loadDashboard(); } catch (e) { setError(e.response?.data?.message || "Could not approve request."); } }}>Approve {appointment.rescheduleRequest.date} {appointment.rescheduleRequest.time}</button><button className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700" onClick={async () => { try { await api.patch(`/appointments/${appointment._id}/reschedule-request`, { decision: "reject" }); setNotice("Reschedule request rejected; patient notified if SMTP is configured."); await loadDashboard(); } catch (e) { setError(e.response?.data?.message || "Could not reject request."); } }}>Reject</button></div> : appointment.status === "Confirmed" ? <div className="flex items-center gap-3">
-                          <button className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-teal-300 hover:text-teal-700" onClick={() => updateAppointment(appointment._id, "Completed")}>Mark complete</button>
+                          <button className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100" onClick={() => completeAppointment(appointment)}>{appointment.paymentStatus === "Paid" ? "Complete visit" : `Complete & collect ₹${Number(appointment.paymentAmount || appointment.doctorId?.fee || 0).toLocaleString("en-IN")}`}</button>
                           <button className="px-2 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700" onClick={() => updateAppointment(appointment._id, "Cancelled")}>Cancel</button>
                         </div> : <span className="text-xs text-slate-400">No actions</span>}
                       </td>
                     </tr>
                   ))}
-                  {!appointments.length && <tr><td colSpan="5" className="px-6 py-14 text-center">
+                  {!appointments.length && <tr><td colSpan="6" className="px-6 py-14 text-center">
                     <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-400"><Icon name="message" size={22} /></span>
                     <p className="mt-3 font-semibold text-slate-700">No appointments yet</p><p className="mt-1 text-sm text-slate-500">New patient bookings will appear here.</p>
                   </td></tr>}
