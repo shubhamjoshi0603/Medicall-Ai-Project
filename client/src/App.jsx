@@ -397,7 +397,7 @@ export default function App() {
       const reply = data.reply || "Sorry, please try again.";
       setChatMessages((previous) => [...previous, { role: "assistant", text: reply }]);
       if (data.bookingCreated && token) await loadDashboard();
-      if (readReplyAloud) await speak(reply, true);
+      if (readReplyAloud) await speak(reply, true, data.languageCode || "");
     } catch (err) {
       console.error("Chat error:", err.response?.data || err.message);
       setChatMessages((previous) => [...previous, {
@@ -604,12 +604,12 @@ export default function App() {
     }
   }
 
-  async function speak(text, waitForEnd = false) {
+  async function speak(text, waitForEnd = false, languageCodeOverride = "") {
     try {
       const englishOnly = /^[\x00-\x7F]*$/.test(text) && /\b(the|and|your|please|how|what|would|appointment|doctor|hello|thank)\b/i.test(text);
       const { data } = await axios.post(`${API}/tts`, {
         text: String(text || "").slice(0, 2500),
-        languageCode: englishOnly ? "en-IN" : "hi-IN",
+        languageCode: languageCodeOverride || (englishOnly ? "en-IN" : "hi-IN"),
       }, { timeout: 50000 });
       if (!data.audio) throw new Error("TTS returned no audio.");
       const audio = new Audio(`data:${data.mimeType || "audio/mpeg"};base64,${data.audio}`);
@@ -1156,7 +1156,7 @@ export default function App() {
             <div id="patient-appointments" className="scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold text-slate-900">My appointments</h2><button onClick={loadPatientAppointments} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh</button></div>
               <div className="space-y-3">{(showAllPatientAppointments ? patientAppointments : patientAppointments.slice(0, 3)).map((appt) => <article key={appt._id} className="rounded-2xl border border-slate-200 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 text-xs font-semibold text-teal-700">Booking ID: {appt.bookingReference || appt._id}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
                 {selectedClinicId && appt.clinicId?._id === selectedClinicId && appt.clinicId?.location?.address && <div className="mt-2 text-xs text-slate-600"><span className="font-semibold">Clinic:</span> {appt.clinicId.location.address} <a className="ml-1 font-bold text-teal-700 underline" href={appt.clinicId.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appt.clinicId.location.address)}`} target="_blank" rel="noreferrer">Get directions</a></div>}{appt.doctorUnavailableNotice && <p className="mt-2 text-sm font-semibold text-amber-700">Doctor unavailable. Suggested dates: {(appt.alternativeDates || []).join(", ")}. Your appointment has not been changed.</p>}</div>
                 <div className="flex flex-wrap gap-2">{appt.status === "Confirmed" && <><button onClick={() => cancelPatientAppointment(appt._id)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700">Cancel</button>{appt.paymentStatus !== "Paid" && <button onClick={() => payAppointment(appt)} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Pay online</button>}</>}</div></div>
                 {appt.status === "Confirmed" && <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><input type="date" min={new Date().toISOString().slice(0,10)} className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.date || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], date: e.target.value } }))}/><input type="time" min="09:00" max="16:59" className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.time || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], time: e.target.value } }))}/><button onClick={() => requestReschedule(appt._id)} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-bold text-teal-800">Request reschedule</button></div>}
