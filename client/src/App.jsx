@@ -57,8 +57,14 @@ export default function App() {
       localStorage.setItem("medicall_theme", theme);
     } catch {}
     document.documentElement.style.colorScheme = theme;
+    document.documentElement.dataset.theme = theme;
+    document.body.dataset.theme = theme;
   }, [theme]);
   const [clinic, setClinic] = useState(null);
+  const [selectedClinicId, setSelectedClinicId] = useState(() => {
+    try { return localStorage.getItem("medicall_selected_clinic") || ""; }
+    catch { return ""; }
+  });
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [booking, setBooking] = useState(emptyBooking);
@@ -140,13 +146,27 @@ export default function App() {
     { terms: ["stomach", "digestion", "acidity", "liver", "abdomen"], specialty: "Gastroenterology" },
   ];
   const matchedSpecialty = symptomGuidance.find((item) => item.terms.some((term) => symptomQuery.toLowerCase().includes(term)))?.specialty || "General Physician";
-  const recommendedDoctors = doctors.filter((doctor) => !symptomSpecialty || (doctor.specialization || "").toLowerCase().includes(symptomSpecialty.toLowerCase()));
+  const specialtyAliases = {
+    "General Physician": ["general physician", "general medicine", "family medicine", "internal medicine"],
+    "Orthopaedics": ["orthopaedics", "orthopedics", "orthopaedic", "orthopedic"],
+    "Paediatrics": ["paediatrics", "pediatrics", "paediatric", "pediatric"],
+    "Dentistry": ["dentistry", "dentist", "dental"],
+    "Dermatology": ["dermatology", "dermatologist", "skin"],
+    "Ophthalmology": ["ophthalmology", "ophthalmologist", "eye"],
+    "Gastroenterology": ["gastroenterology", "gastroenterologist", "gastro"],
+    "Cardiology": ["cardiology", "cardiologist", "cardiac"],
+  };
+  const specialtyTerms = specialtyAliases[symptomSpecialty] || [symptomSpecialty.toLowerCase()];
+  const recommendedDoctors = doctors.filter((doctor) => {
+    const occupation = (doctor.specialization || "").toLowerCase();
+    return !symptomSpecialty || specialtyTerms.some((term) => occupation.includes(term));
+  });
   const paidRevenue = appointments.filter((item) => item.paymentStatus === "Paid").reduce((sum, item) => sum + Number(item.doctorId?.fee || item.fee || 0), 0);
   const pendingPayments = appointments.filter((item) => item.paymentStatus !== "Paid" && item.status !== "Cancelled").length;
   const completedAppointments = appointments.filter((item) => item.status === "Completed").length;
 
   useEffect(() => {
-    loadClinic();
+    loadClinic(selectedClinicId);
     return () => {
       try {
         if (mediaRecorderRef.current?.state === "recording") {
@@ -211,6 +231,14 @@ export default function App() {
         patientEmail: previous.patientEmail || patient?.email || "",
       }));
     } catch (err) {
+      if (clinicId) {
+        try { localStorage.removeItem("medicall_selected_clinic"); } catch {}
+        setSelectedClinicId("");
+        setClinic(null);
+        setDoctors([]);
+        await loadClinic("");
+        return;
+      }
       setClinics([]); setClinic(null); setDoctors([]);
       console.error("Clinic loading failed:", err.message);
     }
@@ -219,6 +247,11 @@ export default function App() {
   async function chooseClinic(clinicId) {
     setClinic(null);
     setDoctors([]);
+    setSelectedClinicId(clinicId || "");
+    try {
+      if (clinicId) localStorage.setItem("medicall_selected_clinic", clinicId);
+      else localStorage.removeItem("medicall_selected_clinic");
+    } catch {}
     setBooking((previous) => ({ ...previous, doctorId: "" }));
     await loadClinic(clinicId);
   }
@@ -303,8 +336,8 @@ export default function App() {
     setNotice("");
 
     try {
-      if (!clinic?.id) {
-        throw new Error("Clinic is unavailable. Please try again later.");
+      if (!selectedClinicId || !clinic?.id || selectedClinicId !== clinic.id) {
+        throw new Error("Please select a registered clinic before booking your appointment.");
       }
 
       const { data } = await axios.post(`${API}/public/appointments`, {
@@ -342,6 +375,10 @@ export default function App() {
   async function sendMessage(message, readReplyAloud = false) {
     const cleanMessage = String(message || "").trim();
     if (!cleanMessage || chatLoading) return;
+    if (!selectedClinicId || selectedClinicId !== clinic?.id) {
+      setChatMessages((previous) => [...previous, { role: "assistant", text: "Please choose a registered clinic from the clinic selector above before I recommend doctors, share clinic directions or help book an appointment." }]);
+      return;
+    }
 
     setChatInput("");
     setError("");
@@ -990,7 +1027,7 @@ export default function App() {
                 <div className="grid gap-5 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Choose a registered clinic *</span>
-                    <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={clinic?.id || ""} onChange={(e) => chooseClinic(e.target.value)}>
+                    <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={selectedClinicId} onChange={(e) => chooseClinic(e.target.value)}>
                       <option value="">Select a clinic</option>
                       {clinics.map((item) => <option key={item._id} value={item._id}>{item.clinicName}</option>)}
                     </select>
@@ -1037,7 +1074,7 @@ export default function App() {
                   </label>
                 </div>
 
-                <button className={`${button} mt-6 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl text-base shadow-lg shadow-teal-700/20`} disabled={busy || !clinic || !doctors.length}>
+                <button className={`${button} mt-6 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl text-base shadow-lg shadow-teal-700/20`} disabled={busy || !selectedClinicId || !clinic || !doctors.length}>
                   {busy ? "Submitting your request…" : "Confirm appointment request →"}
                 </button>
                 <p className="mt-4 flex items-start justify-center gap-2 text-center text-xs leading-5 text-slate-500"><span className="text-teal-700">✓</span> Your details are sent securely to the clinic for processing.</p>
@@ -1086,47 +1123,81 @@ export default function App() {
       )}
 
       {page === "patient-dashboard" && (
-        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-          <nav className="mb-5 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <a href="#patient-profile" className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">My profile</a>
-            <a href="#patient-appointments" className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Appointments</a>            <a href="#patient-clinic-location" className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Clinic location</a>
+        <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
+          <nav className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+            <a href="#patient-profile" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">My profile</a>
+            <a href="#patient-appointments" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Appointments</a>
+            {selectedClinicId && clinic?.id === selectedClinicId && <a href="#patient-clinic-location" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Clinic location</a>}
           </nav>
           <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-            <div id="patient-profile" className="scroll-mt-28 bg-gradient-to-r from-[#123747] to-[#087e83] p-8 text-white sm:p-10"><p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-100">PATIENT PORTAL</p><h1 className="mt-3 text-3xl font-black sm:text-4xl">Hello, {patient?.fullName || "there"}!</h1><p className="mt-3 max-w-xl text-sm leading-6 text-teal-50">Your MediCall patient account is ready. You can return to the clinic website to book a visit.</p></div>
-            <div className="grid gap-5 p-6 sm:grid-cols-2 sm:p-8">
-              <div className="rounded-2xl border border-slate-200 p-5"><p className="text-sm font-semibold text-slate-500">Full name</p><p className="mt-2 text-lg font-bold text-slate-900">{patient?.fullName || "—"}</p></div>
-              <div className="rounded-2xl border border-slate-200 p-5"><p className="text-sm font-semibold text-slate-500">Email address</p><p className="mt-2 break-all text-lg font-bold text-slate-900">{patient?.email || "—"}</p></div>
-              <div className="rounded-2xl border border-slate-200 p-5"><p className="text-sm font-semibold text-slate-500">Phone number</p><p className="mt-2 text-lg font-bold text-slate-900">{patient?.phone || "—"}</p></div>
-              <div className="flex flex-col justify-center gap-3 rounded-2xl bg-teal-50 p-5"><p className="font-bold text-teal-950">Ready to see a doctor?</p><p className="text-sm leading-5 text-teal-800">Choose a specialist and submit an appointment request.</p><button className={`${button} w-full`} onClick={() => setPage("home")}>Book an appointment →</button></div>
+            <div id="patient-profile" className="patient-hero scroll-mt-28 bg-gradient-to-r from-[#123747] to-[#087e83] px-6 py-5 text-white sm:px-7 sm:py-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-white/15 text-xl font-black text-white">{(patient?.fullName || "P").trim().charAt(0).toUpperCase()}</span>
+                  <div><p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-100">PATIENT PORTAL · CARE, CONNECTED</p><h1 className="mt-1 text-2xl font-black sm:text-3xl">Welcome back, {patient?.fullName || "there"}!</h1><p className="mt-1 text-sm text-teal-50">Your health appointments, all in one place.</p></div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white">{patientAppointments.length} appointment{patientAppointments.length===1?"":"s"}</span>
+                  {selectedClinicId && clinic?.id===selectedClinicId && <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white">{clinic.clinicName}</span>}
+                </div>
+              </div>
             </div>
-            <div id="patient-appointments" className="scroll-mt-28 border-t border-slate-100 p-6 sm:p-8">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+              <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Full name</p><p className="mt-1.5 text-base font-bold text-slate-900">{patient?.fullName || "—"}</p></div>
+              <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email address</p><p className="mt-1.5 break-all text-base font-bold text-slate-900">{patient?.email || "—"}</p></div>
+              <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Phone number</p><p className="mt-1.5 text-base font-bold text-slate-900">{patient?.phone || "—"}</p></div>
+              <div className="flex flex-col justify-center gap-2 rounded-2xl bg-teal-50 p-4"><p className="font-bold text-teal-950">Ready to see a doctor?</p><p className="text-sm leading-5 text-teal-800">Choose a clinic and find the right specialist.</p><button className={`${button} w-full py-2.5`} onClick={() => setPage("home")}>Book an appointment →</button></div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 px-4 pb-4 sm:px-5">
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Confirmed</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.status==="Confirmed").length}</p></div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Completed</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.status==="Completed").length}</p></div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Paid visits</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.paymentStatus==="Paid").length}</p></div>
+            </div>
+            <div id="patient-appointments" className="scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold text-slate-900">My appointments</h2><button onClick={loadPatientAppointments} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh</button></div>
-              <div className="space-y-4">{(showAllPatientAppointments ? patientAppointments : patientAppointments.slice(0, 3)).map((appt) => <article key={appt._id} className="rounded-2xl border border-slate-200 p-4">
+              <div className="space-y-3">{(showAllPatientAppointments ? patientAppointments : patientAppointments.slice(0, 3)).map((appt) => <article key={appt._id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
-                {appt.clinicId?.location?.address && <div className="mt-2 text-xs text-slate-600"><span className="font-semibold">Clinic:</span> {appt.clinicId.location.address} <a className="ml-1 font-bold text-teal-700 underline" href={appt.clinicId.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appt.clinicId.location.address)}`} target="_blank" rel="noreferrer">Get directions</a></div>}{appt.doctorUnavailableNotice && <p className="mt-2 text-sm font-semibold text-amber-700">Doctor unavailable. Suggested dates: {(appt.alternativeDates || []).join(", ")}. Your appointment has not been changed.</p>}</div>
+                {selectedClinicId && appt.clinicId?._id === selectedClinicId && appt.clinicId?.location?.address && <div className="mt-2 text-xs text-slate-600"><span className="font-semibold">Clinic:</span> {appt.clinicId.location.address} <a className="ml-1 font-bold text-teal-700 underline" href={appt.clinicId.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appt.clinicId.location.address)}`} target="_blank" rel="noreferrer">Get directions</a></div>}{appt.doctorUnavailableNotice && <p className="mt-2 text-sm font-semibold text-amber-700">Doctor unavailable. Suggested dates: {(appt.alternativeDates || []).join(", ")}. Your appointment has not been changed.</p>}</div>
                 <div className="flex flex-wrap gap-2">{appt.status === "Confirmed" && <><button onClick={() => cancelPatientAppointment(appt._id)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700">Cancel</button>{appt.paymentStatus !== "Paid" && <button onClick={() => payAppointment(appt)} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Pay online</button>}</>}</div></div>
                 {appt.status === "Confirmed" && <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><input type="date" min={new Date().toISOString().slice(0,10)} className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.date || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], date: e.target.value } }))}/><input type="time" min="09:00" max="16:59" className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.time || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], time: e.target.value } }))}/><button onClick={() => requestReschedule(appt._id)} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-bold text-teal-800">Request reschedule</button></div>}
                 {appt.rescheduleRequest?.status === "Pending" && <p className="mt-2 text-xs font-semibold text-amber-700">Reschedule request pending clinic approval: {appt.rescheduleRequest.date} at {appt.rescheduleRequest.time}</p>}
               </article>)}{!patientAppointments.length && <p className="text-sm text-slate-500">No appointments linked to this patient account yet. Book using the same email address as your account.</p>}
               {patientAppointments.length > 3 && <button onClick={() => setShowAllPatientAppointments((value) => !value)} className="mt-2 rounded-xl border border-teal-200 px-4 py-2.5 text-sm font-bold text-teal-800 hover:bg-teal-50">{showAllPatientAppointments ? "Show latest 3 bookings" : `View all bookings (${patientAppointments.length})`}</button>}</div>
             </div>
-            <section className="border-t border-slate-100 bg-gradient-to-br from-indigo-50/80 via-white to-teal-50/70 p-6 sm:p-8">
-              <div className="flex flex-wrap items-center gap-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-100 text-indigo-700"><Icon name="spark" size={20}/></span><div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-indigo-700">Smart care finder</p><h2 className="text-xl font-black text-slate-950">Find a relevant specialist</h2></div></div>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Describe your concern in a few words. MediCall AI will suggest a medical specialty and show matching doctors from the selected registered clinic. This is navigation guidance, not a diagnosis.</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]"><input value={symptomQuery} onChange={(e) => setSymptomQuery(e.target.value)} placeholder="e.g. skin rash, knee pain, fever, tooth pain" className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/><button onClick={() => setSymptomSpecialty(matchedSpecialty)} className="rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-700/15 hover:bg-indigo-800">Find specialist</button></div>
-              {symptomSpecialty && <button onClick={() => setSymptomSpecialty("")} className="mt-2 text-xs font-semibold text-slate-500 underline">Clear recommendation</button>}
-              {symptomSpecialty && <div className="mt-4 rounded-2xl border border-indigo-100 bg-white p-4"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Suggested specialty</p><p className="mt-1 text-lg font-black text-slate-900">{symptomSpecialty}</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{recommendedDoctors.slice(0,4).map((doctor) => <div key={doctor._id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"><div><p className="text-sm font-bold text-slate-800">{doctor.name}</p><p className="text-xs text-slate-500">{doctor.specialization}</p></div><span className="text-sm font-extrabold text-teal-800">₹{doctor.fee}</span></div>)}</div>{!recommendedDoctors.length && <p className="mt-2 text-sm text-amber-700">No matching specialist is listed in the currently selected clinic. Try another registered clinic or choose a general physician.</p>}<button onClick={() => setPage("home")} className="mt-4 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white">Continue to clinic booking</button></div>}
-              <p className="mt-3 text-[11px] leading-5 text-slate-500">For severe chest pain, difficulty breathing, stroke symptoms, heavy bleeding or another emergency, seek emergency medical care immediately instead of using online recommendations.</p>
+            <section className="border-t border-slate-100 bg-gradient-to-br from-indigo-50/80 via-white to-teal-50/70 px-4 py-5 sm:px-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-100 text-indigo-700"><Icon name="spark" size={18}/></span><div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-indigo-700">SMART CARE FINDER</p><h2 className="text-lg font-black text-slate-950">Find the right specialist</h2></div></div>
+                <span className="rounded-full border border-indigo-100 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-indigo-700">Guidance, not diagnosis</span>
+              </div>
+              <p className="mt-2 max-w-2xl text-sm leading-5 text-slate-600">Choose a clinic and describe your concern. We’ll match it with real doctors listed by that clinic.</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[0.85fr_1.15fr]">
+                <label className="block"><span className="mb-1 block text-[11px] font-bold text-slate-600">Selected clinic</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"><option value="">Choose a clinic first</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
+                <label className="block"><span className="mb-1 block text-[11px] font-bold text-slate-600">What symptoms or concern do you have?</span><input value={symptomQuery} onChange={(e)=>setSymptomQuery(e.target.value)} placeholder="e.g. skin rash, knee pain, fever, tooth pain" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/></label>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2"><button onClick={()=>{if(!symptomQuery.trim()){setError("Please describe your symptoms first.");return;}if(!selectedClinicId){setError("Please select a clinic first.");return;}setSymptomSpecialty(matchedSpecialty);}} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-800">Find matching doctors</button>{symptomSpecialty && <button onClick={()=>{setSymptomSpecialty("");setSymptomQuery("");}} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600">Clear</button>}</div>
+              {symptomSpecialty && selectedClinicId && clinic?.id===selectedClinicId && <div className="mt-3 rounded-2xl border border-indigo-100 bg-white p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">Suggested medical specialty</p><p className="mt-1 text-lg font-black text-slate-900">{symptomSpecialty}</p><p className="mt-1 text-xs text-slate-500">Based on the words you entered; this is not a medical diagnosis.</p></div>
+                  <div className="rounded-xl bg-indigo-50 px-3 py-2 text-right"><p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Clinic</p><p className="text-sm font-bold text-indigo-950">{clinic.clinicName}</p></div>
+                </div>
+                {clinic.location?.address && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Clinic location</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{clinic.location.address}</p></div><a className="shrink-0 text-xs font-bold text-teal-700 underline" href={clinic.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clinic.location.address)}`} target="_blank" rel="noreferrer">Directions ↗</a></div>}
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {recommendedDoctors.slice(0,4).map((doctor)=><article key={doctor._id} className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+                    <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-extrabold text-slate-900">{doctor.name}</p><p className="mt-0.5 text-xs font-semibold text-indigo-700">{doctor.specialization}</p><p className="mt-1 text-[10px] text-slate-500">Listed at {clinic.clinicName}</p></div><p className="shrink-0 text-sm font-black text-teal-800">₹{doctor.fee}</p></div>
+                    <button onClick={()=>{setBooking((old)=>({...old,doctorId:doctor._id}));setPage("home");window.setTimeout(()=>document.getElementById("booking")?.scrollIntoView({behavior:"smooth",block:"start"}),120);}} className="mt-2 rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Book this doctor →</button>
+                  </article>)}
+                </div>
+                {!recommendedDoctors.length && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">No doctor with this specialty is currently listed at {clinic.clinicName}. Please contact the clinic or select another clinic. For general concerns, consider speaking with a General Physician.</p>}
+                {recommendedDoctors.length>0 && <p className="mt-2 text-[10px] text-slate-500">Showing up to four matching doctors from this selected clinic.</p>}
+              </div>}
+              {!selectedClinicId && <p className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-white/80 p-3 text-xs text-indigo-800">Select a registered clinic to see its doctors, address and directions.</p>}
+              <p className="mt-3 text-[10px] leading-4 text-slate-500">For severe chest pain, difficulty breathing, stroke symptoms, heavy bleeding or another emergency, seek emergency medical care immediately.</p>
             </section>
-            <div id="patient-clinic-location" className="scroll-mt-28 border-t border-slate-100 bg-cyan-50/60 px-6 py-6 sm:px-8">
-              <h2 className="font-extrabold text-slate-900">Clinic locations</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">Saved clinic addresses and map directions for your bookings.</p>
-              {[...new Map(patientAppointments.filter((appt) => appt.clinicId?._id).map((appt) => [appt.clinicId._id, appt.clinicId])).values()].map((item) => <div key={item._id} className="mt-3 rounded-xl border border-cyan-100 bg-white p-4">
-                <p className="font-bold text-cyan-950">{item.clinicName}</p>
-                <p className="mt-1 text-sm text-slate-600">{item.location?.address || "Clinic has not added its location yet."}</p>
-                {item.location?.mapsUrl && <a className="mt-2 inline-block text-sm font-bold text-teal-700 underline" href={item.location.mapsUrl} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>}
-              </div>)}
-            </div>
+            {selectedClinicId && clinic?.id===selectedClinicId && <div id="patient-clinic-location" className="scroll-mt-28 border-t border-slate-100 bg-cyan-50/60 px-4 py-4 sm:px-5">
+              <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-cyan-700">SELECTED CLINIC</p><h2 className="mt-1 font-extrabold text-slate-900">{clinic.clinicName}</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-bold text-teal-800">Clinic location</span></div>
+              <p className="mt-2 text-sm leading-5 text-slate-600">{clinic.location?.address || "This clinic has not added its full address yet."}</p>
+              {clinic.location?.mapsUrl && <a className="mt-2 inline-flex text-sm font-bold text-teal-700 underline" href={clinic.location.mapsUrl} target="_blank" rel="noreferrer">Open directions in Google Maps ↗</a>}
+            </div>}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5 sm:px-8"><p className="text-sm text-slate-500">You are signed in as a patient.</p><button onClick={patientLogout} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Log out of patient account</button></div>
           </section>
         </main>
@@ -1324,6 +1395,10 @@ export default function App() {
               <Icon name="close" />
             </button>
           </header>
+          <div className="border-b border-slate-100 bg-white px-3 py-2">
+            <label className="flex items-center gap-2 text-[11px] font-bold text-slate-500"><span className="shrink-0">Clinic context</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700"><option value="">Select a clinic for AI recommendations</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
+            {selectedClinicId && clinic?.id===selectedClinicId && clinic.location?.address && <p className="mt-1 truncate text-[10px] text-slate-500">📍 {clinic.location.address}</p>}
+          </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto bg-[#f8fafc] p-4">
             {chatMessages.map((message, index) => (
