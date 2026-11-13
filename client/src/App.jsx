@@ -114,6 +114,9 @@ export default function App() {
   const [symptomQuery, setSymptomQuery] = useState("");
   const [symptomSpecialty, setSymptomSpecialty] = useState("");
   const [patientAuth, setPatientAuth] = useState({ fullName: "", email: "", phone: "", password: "" });
+  const [showPatientPassword, setShowPatientPassword] = useState(false);
+  const [showClinicPassword, setShowClinicPassword] = useState(false);
+  const [showDoctorSetupPassword, setShowDoctorSetupPassword] = useState(false);
   const [auth, setAuth] = useState({
     clinicName: "",
     adminName: "",
@@ -122,7 +125,7 @@ export default function App() {
   });
 
   const [clinicView, setClinicView] = useState("overview");
-  const [clinicProfileDraft, setClinicProfileDraft] = useState({ clinicName: "", adminName: "", email: "", businessHours: [] });
+  const [clinicProfileDraft, setClinicProfileDraft] = useState({ clinicName: "", adminName: "", email: "", aiAgentName: "MediCall AI", businessHours: [] });
   const [patientProfileEditing, setPatientProfileEditing] = useState(false);
   const [patientProfileDraft, setPatientProfileDraft] = useState({ fullName: "", email: "", phone: "" });
   const [adminClinic, setAdminClinic] = useState(null);
@@ -347,6 +350,7 @@ export default function App() {
         clinicName: me.data.clinic?.clinicName || "",
         adminName: me.data.clinic?.adminName || "",
         email: me.data.clinic?.email || "",
+        aiAgentName: me.data.clinic?.aiAgentName || "MediCall AI",
         businessHours: (me.data.clinic?.businessHours?.length ? me.data.clinic.businessHours : [0,1,2,3,4,5,6].map((dayOfWeek) => ({ dayOfWeek, isOpen: dayOfWeek !== 0, openTime: "09:00", closeTime: "17:00" }))).map((item) => ({ ...item })),
       });
       setClinicLocationDraft({
@@ -745,6 +749,16 @@ export default function App() {
     } catch (err) {
       setError(err.response?.data?.message || "Could not add doctor.");
     }
+  }
+
+  async function updateDoctorFee(doctor, delta) {
+    const nextFee = Math.max(0, Number(doctor.fee || 0) + delta);
+    try {
+      const { data } = await api.patch(`/doctors/${doctor._id}/fee`, { fee: nextFee });
+      setAdminDoctors((current) => current.map((item) => item._id === doctor._id ? data.doctor : item));
+      setNotice(`${doctor.name} consultation fee is now ₹${nextFee}. This applies to new bookings.`);
+      await loadClinic();
+    } catch (err) { setError(err.response?.data?.message || "Could not update consultation fee."); }
   }
 
   async function removeDoctor(doctor) {
@@ -1234,14 +1248,14 @@ export default function App() {
                 <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Phone number</span><input className={`${field} rounded-xl bg-slate-50`} type="tel" placeholder="Your phone number" required value={patientAuth.phone} onChange={(e) => setPatientAuth({ ...patientAuth, phone: e.target.value })} /></label>
               </>}
               <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Email address</span><input className={`${field} rounded-xl bg-slate-50`} type="email" placeholder="you@example.com" required value={patientAuth.email} onChange={(e) => setPatientAuth({ ...patientAuth, email: e.target.value })} /></label>
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><input className={`${field} rounded-xl bg-slate-50`} type="password" minLength={8} placeholder="At least 8 characters" required value={patientAuth.password} onChange={(e) => setPatientAuth({ ...patientAuth, password: e.target.value })} /></label>
+              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><div className="relative"><input className={`${field} rounded-xl bg-slate-50 pr-20`} type={showPatientPassword ? "text" : "password"} minLength={8} placeholder="At least 8 characters" required value={patientAuth.password} onChange={(e) => setPatientAuth({ ...patientAuth, password: e.target.value })} /><button type="button" onClick={() => setShowPatientPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showPatientPassword ? "Hide" : "Show"}</button></div></label>
             </> : <>
               {authMode.endsWith("register") && <>
                 <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Clinic name</span><input className={`${field} rounded-xl bg-slate-50`} placeholder="Clinic name" required value={auth.clinicName} onChange={(e) => setAuth({ ...auth, clinicName: e.target.value })} /></label>
                 <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Admin name</span><input className={`${field} rounded-xl bg-slate-50`} placeholder="Admin name" required value={auth.adminName} onChange={(e) => setAuth({ ...auth, adminName: e.target.value })} /></label>
               </>}
               <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Email address</span><input className={`${field} rounded-xl bg-slate-50`} type="email" placeholder="clinic@example.com" required value={auth.email} onChange={(e) => setAuth({ ...auth, email: e.target.value })} /></label>
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><input className={`${field} rounded-xl bg-slate-50`} type="password" minLength={8} placeholder="At least 8 characters" required value={auth.password} onChange={(e) => setAuth({ ...auth, password: e.target.value })} /></label>
+              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><div className="relative"><input className={`${field} rounded-xl bg-slate-50 pr-20`} type={showClinicPassword ? "text" : "password"} minLength={8} placeholder="At least 8 characters" required value={auth.password} onChange={(e) => setAuth({ ...auth, password: e.target.value })} /><button type="button" onClick={() => setShowClinicPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showClinicPassword ? "Hide" : "Show"}</button></div></label>
             </>}
             <button className={`${button} w-full rounded-xl py-4`} disabled={busy}>{busy ? "Please wait…" : authMode.endsWith("register") ? "Create account" : "Sign in securely"}</button>
             <p className="text-center text-sm text-slate-500">{authMode.endsWith("register") ? "Already have an account?" : "New to MediCall?"} <button type="button" className="font-bold text-teal-700 hover:text-teal-900" onClick={() => setAuthMode(authMode.endsWith("register") ? authMode.replace("register", "login") : authMode.replace("login", "register"))}>{authMode.endsWith("register") ? "Sign in" : "Create account"}</button></p>
@@ -1355,7 +1369,7 @@ export default function App() {
             <div className="mb-7 flex items-center gap-3 px-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg"><Icon name="plus" size={22}/></span><span className="min-w-0"><strong className="block truncate text-sm font-black">{adminClinic?.clinicName || "MAX HEALTHCARE"}</strong><span className="text-[10px] font-semibold tracking-wider text-blue-200">CLINIC WORKSPACE</span></span></div>
             <p className="px-3 pb-2 text-[9px] font-extrabold tracking-[.2em] text-blue-200/70">CLINICAL</p>
             {[[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["team","Doctors & team","user"],["settings","Clinic settings","plus"]].map(([key,label,icon]) => <button key={key} onClick={() => {setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold transition ${clinicView===key?"bg-blue-500/25 text-white ring-1 ring-blue-300/30":"text-blue-100/75 hover:bg-white/10 hover:text-white"}`}><Icon name={icon} size={17}/>{label}</button>)}
-            <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-[10px] font-bold text-blue-100">Managed by</p><p className="mt-1 truncate text-xs font-extrabold text-white">{adminClinic?.adminName || "Clinic admin"}</p><button onClick={logout} className="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-left text-xs font-bold text-blue-100 hover:bg-white/15">Sign out</button></div>
+            <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-[10px] font-bold text-blue-100">Managed by</p><button onClick={logout} className="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-left text-xs font-bold text-blue-100 hover:bg-white/15">Sign out</button></div>
           </aside>
           <nav className="clinic-mobile-nav mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">{[[ "overview","Overview"],["analytics","Analytics"],["appointments","Appointments"],["team","Team"],["settings","Settings"]].map(([key,label])=><button key={key} onClick={()=>{setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold ${clinicView===key?"bg-blue-700 text-white":"text-slate-600 hover:bg-blue-50"}`}>{label}</button>)}</nav>
 
@@ -1508,7 +1522,7 @@ export default function App() {
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor name</span><input className={`${field} rounded-xl bg-slate-50/70`} placeholder="e.g. Dr. Aditi Sharma" required value={doctorForm.name} onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })} /></label>
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Specialization</span><input className={`${field} rounded-xl bg-slate-50/70`} placeholder="e.g. Orthopaedics" required value={doctorForm.specialization} onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })} /></label>
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Consultation fee (₹)</span><input className={`${field} rounded-xl bg-slate-50/70`} type="number" min="0" placeholder="500" value={doctorForm.fee} onChange={(e) => setDoctorForm({ ...doctorForm, fee: e.target.value })} /></label>
-                <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3"><p className="text-sm font-bold text-teal-900">Doctor portal account (optional)</p><p className="mt-1 text-xs text-teal-800">Add an email and temporary password so this doctor can sign in separately. Both fields are required together.</p><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor email</span><input className={`${field} rounded-xl bg-white`} type="email" placeholder="doctor@example.com" value={doctorForm.email} onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })} /></label><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Temporary password (minimum 8 characters)</span><input className={`${field} rounded-xl bg-white`} type="password" minLength="8" placeholder="Create initial password" value={doctorForm.password} onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })} /></label></div>
+                <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3"><p className="text-sm font-bold text-teal-900">Doctor portal account (optional)</p><p className="mt-1 text-xs text-teal-800">Add an email and temporary password so this doctor can sign in separately. Both fields are required together.</p><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor email</span><input className={`${field} rounded-xl bg-white`} type="email" placeholder="doctor@example.com" value={doctorForm.email} onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })} /></label><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Temporary password (minimum 8 characters)</span><div className="relative"><input className={`${field} rounded-xl bg-white pr-20`} type={showDoctorSetupPassword ? "text" : "password"} minLength="8" placeholder="Create initial password" value={doctorForm.password} onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })} /><button type="button" onClick={() => setShowDoctorSetupPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showDoctorSetupPassword ? "Hide" : "Show"}</button></div></label></div>
                 <button className={`${button} flex w-full items-center justify-center gap-2 rounded-xl`}><Icon name="plus" size={16} /> Add doctor</button>
               </form>
             </div>
@@ -1546,7 +1560,7 @@ export default function App() {
           <section data-clinic-panel="settings" hidden={clinicView !== "settings"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-5"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-blue-700">Clinic settings</p><h2 className="mt-1 text-xl font-black text-slate-900">Practice profile & opening hours</h2><p className="mt-1 text-sm text-slate-500">Keep public clinic details and weekly schedule up to date.</p></div>
             <form onSubmit={saveClinicProfile} className="grid gap-4 md:grid-cols-2">
-              {[[ "clinicName","Clinic name"],["adminName","Admin / contact person"],["email","Clinic email"]].map(([key,label])=><label key={key} className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><input required type={key==="email"?"email":"text"} value={clinicProfileDraft[key]} onChange={(e)=>setClinicProfileDraft((old)=>({...old,[key]:e.target.value}))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none focus:border-blue-500"/></label>)}
+              {[[ "clinicName","Clinic name"],["adminName","Admin / contact person"],["email","Clinic email"],["aiAgentName","AI assistant name"]].map(([key,label])=><label key={key} className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><input required type={key==="email"?"email":"text"} maxLength={key==="aiAgentName"?50:undefined} value={clinicProfileDraft[key] || ""} onChange={(e)=>setClinicProfileDraft((old)=>({...old,[key]:e.target.value}))} placeholder={key==="aiAgentName"?"e.g. MediCall Assistant":"Enter "+label.toLowerCase()} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none focus:border-blue-500"/>{key==="aiAgentName" && <span className="mt-1 block text-[11px] text-slate-500">This name is shown to patients when they chat with your clinic assistant.</span>}</label>)}
               <div className="md:col-span-2"><div className="mb-3"><h3 className="font-extrabold text-slate-900">Weekly opening hours</h3><p className="mt-1 text-xs font-semibold text-blue-700">Open {(clinicProfileDraft.businessHours || []).filter((item) => item.isOpen).length} days per week</p><p className="mt-1 text-xs text-slate-500">Select operating days and the opening / closing time.</p></div><div className="space-y-2">{(clinicProfileDraft.businessHours||[]).map((item,index)=><div key={item.dayOfWeek} className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3"><span className="text-xs font-bold text-slate-700">{clinicDays[item.dayOfWeek]}</span><label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600"><input type="checkbox" checked={item.isOpen} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,isOpen:e.target.checked}:h)}))}/> Open</label><input type="time" disabled={!item.isOpen} value={item.openTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,openTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/><input type="time" disabled={!item.isOpen} value={item.closeTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,closeTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/></div>)}</div></div>
               <button className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-blue-800 md:col-span-2">Save clinic profile & hours</button>
             </form>
