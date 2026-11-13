@@ -404,3 +404,45 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
 .patient-dashboard .patient-appointment-card button[class*="text-teal-700"] { color:#2854b8; }
 .patient-dashboard .patient-appointments-list { border-color:#dce5f2; }
 @media(max-width:640px){.patient-dashboard{padding:12px!important;border-radius:12px;}}
+
+
+/* Dashboard contrast and chart polish for both appearance modes. */
+.app-shell[data-theme="light"] .clinic-dashboard { background:#edf3ff; color:#17243a; }
+.app-shell[data-theme="dark"] .clinic-dashboard { background:#0b1424 !important; color:#e8effb; }
+.app-shell[data-theme="dark"] .clinic-dashboard > section:first-child { border-color:#263b59 !important; background:linear-gradient(115deg,#14233a 0%,#172b49 58%,#1b3760 100%) !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar { background:linear-gradient(180deg,#091426 0%,#102442 72%,#173b78 100%); border-right-color:#2b4161; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar a { color:#c8d6ea; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar a:hover,
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar a:focus-visible { background:#29466e; color:#fff; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-stat-card,
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-ai-metrics article,
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-insights article,
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-monthly-insights article,
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-appointments,
+.app-shell[data-theme="dark"] .clinic-dashboard article { background:#142238 !important; border-color:#2b405c !important; color:#e8effb; box-shadow:0 8px 24px rgba(0,0,0,.16); }
+.app-shell[data-theme="dark"] .clinic-dashboard h1,
+.app-shell[data-theme="dark"] .clinic-dashboard h2,
+.app-shell[data-theme="dark"] .clinic-dashboard h3,
+.app-shell[data-theme="dark"] .clinic-dashboard strong,
+.app-shell[data-theme="dark"] .clinic-dashboard .text-slate-900,
+.app-shell[data-theme="dark"] .clinic-dashboard .text-slate-950,
+.app-shell[data-theme="dark"] .clinic-dashboard .text-slate-800 { color:#f1f6ff !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .text-slate-700,
+.app-shell[data-theme="dark"] .clinic-dashboard .text-slate-600,
+.app-shell[data-theme="dark"] .clinic-dashboard .text-slate-500,
+.app-shell[data-theme="dark"] .clinic-dashboard .text-slate-400 { color:#aebed3 !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .bg-white,
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-monthly-insights .bg-white { background:#1b2d47 !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .bg-slate-50,
+.app-shell[data-theme="dark"] .clinic-dashboard .bg-slate-100 { background:#1c304b !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .border-slate-100,
+.app-shell[data-theme="dark"] .clinic-dashboard .border-slate-200 { border-color:#2b405c !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-appointments thead { background:#1b2d47 !important; color:#c8d6ea; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-appointments tbody tr:hover { background:#1b304c !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-monthly-insights .rounded-full.bg-white { background:#142238 !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-monthly-insights .bg-blue-50 { background:#1c3458 !important; color:#a9c6ff !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-insights .bg-amber-50 { background:#49371d !important; color:#ffe0a3 !important; }
+@media (max-width:1023px) {
+  .app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar { background:#142238; border:1px solid #2b405c; }
+  .app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar a { color:#c8d6ea; }
+}
