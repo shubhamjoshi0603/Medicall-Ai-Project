@@ -202,6 +202,29 @@ export default function App() {
     return { key, label: day.toLocaleDateString("en-IN", { weekday: "short" }), count: appointments.filter((item) => item.date === key && item.status !== "Cancelled").length };
   });
   const weeklyMaxAppointments = Math.max(1, ...weeklyAppointmentActivity.map((day) => day.count));
+  const monthlyAppointmentActivity = Array.from({ length: 30 }, (_, index) => {
+    const day = new Date();
+    day.setDate(day.getDate() - (29 - index));
+    const key = dateKey(day);
+    return {
+      key,
+      label: day.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+      count: appointments.filter((item) => item.date === key && item.status !== "Cancelled").length,
+    };
+  });
+  const monthlyMaxAppointments = Math.max(1, ...monthlyAppointmentActivity.map((day) => day.count));
+  const outcomeCounts = [
+    { label: "Completed", count: completedAppointments, color: "#16a36a" },
+    { label: "Upcoming", count: appointments.filter((item) => item.status === "Confirmed" && item.date >= todayDateKey).length, color: "#2854b8" },
+    { label: "Cancelled", count: cancelledAppointmentsCount, color: "#94a3b8" },
+  ];
+  const outcomeTotal = Math.max(1, outcomeCounts.reduce((sum, item) => sum + item.count, 0));
+  const outcomeGradient = `conic-gradient(${outcomeCounts.map((item, index) => {
+    const start = outcomeCounts.slice(0, index).reduce((sum, previous) => sum + previous.count, 0) / outcomeTotal * 100;
+    const end = start + item.count / outcomeTotal * 100;
+    return `${item.color} ${start}% ${end}%`;
+  }).join(", ")})`;
+
   const filteredClinicAppointments = appointments.filter((item) => {
     if (appointmentFilter === "today") return item.status === "Confirmed" && item.date === todayDateKey;
     if (appointmentFilter === "tomorrow") return item.status === "Confirmed" && item.date === tomorrowDateKey;
@@ -1331,6 +1354,31 @@ export default function App() {
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500"><span>Payment pending: {pendingPayments}</span><span>Completed visits: {completedAppointments}</span></div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-teal-700">AI conversion insight</p><h2 className="mt-2 text-xl font-black text-slate-950">Turn conversations into care</h2><p className="mt-2 text-sm leading-6 text-slate-500">{analytics?.totalConversations ? `${analytics.convertedConversations || 0} of ${analytics.totalConversations} tracked conversations led to an appointment (${analytics.conversionRate || 0}%).` : "Conversation metrics will appear after patients start using the AI chat or voice assistant."}</p><div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-indigo-500" style={{ width: `${Math.min(100, Math.max(0, Number(analytics?.conversionRate || 0)))}%` }}/></div><div className="mt-3 flex justify-between text-xs text-slate-500"><span>AI conversion</span><strong className="text-slate-800">{analytics?.conversionRate || 0}%</strong></div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Improvement tip: review unanswered questions and make sure doctor specializations, fees and availability are up to date.</p></article>
+          </section>
+
+          <section className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr] clinic-monthly-insights">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Appointment activity</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">30-day trend</h2></div>
+                <span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Icon name="message" size={19}/></span>
+              </div>
+              <div className="mt-5 flex h-36 items-end gap-[3px] border-b border-slate-100 px-1" role="img" aria-label="Appointments per day over the last 30 days">
+                {monthlyAppointmentActivity.map((day) => <div key={day.key} title={`${day.label}: ${day.count} appointments`} className="flex h-full min-w-0 flex-1 items-end"><div className="w-full rounded-t-sm bg-gradient-to-t from-blue-700 to-blue-400" style={{ height: day.count ? `${Math.max(5, day.count / monthlyMaxAppointments * 100)}%` : "2px", opacity: day.count ? 1 : .16 }}/></div>)}
+              </div>
+              <div className="mt-2 flex justify-between text-[10px] text-slate-400"><span>{monthlyAppointmentActivity[0]?.label}</span><span>Last 30 days</span><span>Today</span></div>
+              <p className="mt-3 text-xs text-slate-400">Confirmed and completed appointments by appointment date. Hover over a bar for its daily count.</p>
+            </article>
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Booking outcomes</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Appointment split</h2>
+              <div className="mt-5 flex items-center justify-center">
+                <div className="grid h-36 w-36 place-items-center rounded-full" style={{ background: outcomeGradient }}>
+                  <div className="grid h-24 w-24 place-items-center rounded-full bg-white text-center"><div><strong className="block text-2xl text-slate-900">{outcomeCounts.reduce((sum, item) => sum + item.count, 0)}</strong><span className="text-[10px] font-semibold text-slate-500">Total visits</span></div></div>
+                </div>
+              </div>
+              <div className="mt-5 space-y-3">
+                {outcomeCounts.map((item) => <div key={item.label} className="flex items-center justify-between text-xs"><span className="flex items-center gap-2 text-slate-600"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }}/>{item.label}</span><strong className="text-slate-900">{item.count} <span className="font-normal text-slate-400">({Math.round(item.count / outcomeTotal * 100)}%)</span></strong></div>)}
+              </div>
+            </article>
           </section>
 
           <section className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
