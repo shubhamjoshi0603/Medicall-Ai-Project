@@ -46,6 +46,25 @@ const emptyBooking = {
   reason: "",
 };
 
+function downloadCsv(filename, rows) {
+  if (!rows.length) return;
+  const escapeCell = (value) => {
+    const raw = String(value ?? "");
+    const safe = /^[=+@-]/.test(raw) ? `'${raw}` : raw;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+  const csv = rows.map((row) => row.map(escapeCell).join(",")).join("\r\n");
+  const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function App() {
   const [page, setPage] = useState("home");
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
@@ -139,6 +158,7 @@ export default function App() {
   const [collectionModal, setCollectionModal] = useState(null);
   const [collectionMethod, setCollectionMethod] = useState("Cash");
   const [appointmentFilter, setAppointmentFilter] = useState("upcoming");
+  const [patientSearch, setPatientSearch] = useState("");
   const [adminDoctors, setAdminDoctors] = useState([]);
   const [availabilityRequests, setAvailabilityRequests] = useState([]);
   const [doctorForm, setDoctorForm] = useState({
@@ -243,6 +263,26 @@ export default function App() {
     if (appointmentFilter === "all") return true;
     return item.status === "Confirmed" && item.date >= todayDateKey;
   });
+
+  const clinicPatients = Object.values(appointments.reduce((groups, item) => {
+    const identity = String(item.patientEmail || item.phone || item.patientName || item._id).trim().toLowerCase();
+    if (!groups[identity]) groups[identity] = { identity, patientName: item.patientName || "Patient", email: item.patientEmail || "", phone: item.phone || "", appointments: [] };
+    groups[identity].appointments.push(item);
+    return groups;
+  }, {})).map((patientRecord) => {
+    const history = [...patientRecord.appointments].sort((a, b) => `${b.date || ""} ${b.time || ""}`.localeCompare(`${a.date || ""} ${a.time || ""}`));
+    return { ...patientRecord, totalVisits: history.length, completedVisits: history.filter((item) => item.status === "Completed").length, upcomingVisits: history.filter((item) => item.status === "Confirmed" && item.date >= todayDateKey).length, lastAppointment: history[0]?.date || "—" };
+  }).sort((a, b) => a.patientName.localeCompare(b.patientName));
+
+  const filteredClinicPatients = clinicPatients.filter((item) => {
+    const query = patientSearch.trim().toLowerCase();
+    return !query || [item.patientName, item.email, item.phone].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+
+  const doctorWorkload = adminDoctors.map((doctor) => {
+    const doctorAppointments = appointments.filter((item) => String(item.doctorId?._id || item.doctorId || "") === String(doctor._id));
+    return { ...doctor, totalAppointments: doctorAppointments.length, upcomingAppointments: doctorAppointments.filter((item) => item.status === "Confirmed" && item.date >= todayDateKey).length, completedAppointments: doctorAppointments.filter((item) => item.status === "Completed").length };
+  }).sort((a, b) => b.totalAppointments - a.totalAppointments);
 
   useEffect(() => {
     loadClinic(localStorage.getItem("medicall_selected_clinic") || "");
@@ -1363,10 +1403,10 @@ export default function App() {
           <aside className="clinic-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[232px] flex-col border-r border-slate-200 px-3 py-5 text-white shadow-xl lg:flex" aria-label="Clinic dashboard navigation">
             <div className="mb-7 flex items-center gap-3 px-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg"><Icon name="plus" size={22}/></span><span className="min-w-0"><strong className="block truncate text-sm font-black">{adminClinic?.clinicName || "MAX HEALTHCARE"}</strong><span className="text-[10px] font-semibold tracking-wider text-blue-200">CLINIC WORKSPACE</span></span></div>
             <p className="px-3 pb-2 text-[9px] font-extrabold tracking-[.2em] text-blue-200/70">CLINICAL</p>
-            {[[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["team","Doctors & team","user"],["settings","Clinic settings","plus"]].map(([key,label,icon]) => <button key={key} onClick={() => {setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold transition ${clinicView===key?"bg-blue-500/25 text-white ring-1 ring-blue-300/30":"text-blue-100/75 hover:bg-white/10 hover:text-white"}`}><Icon name={icon} size={17}/>{label}</button>)}
+            {[[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["patients","Patients","user"],["team","Doctors & team","user"],["reports","Reports","check"],["settings","Clinic settings","plus"]].map(([key,label,icon]) => <button key={key} onClick={() => {setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold transition ${clinicView===key?"bg-blue-500/25 text-white ring-1 ring-blue-300/30":"text-blue-100/75 hover:bg-white/10 hover:text-white"}`}><Icon name={icon} size={17}/>{label}</button>)}
             <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-[10px] font-bold text-blue-100">Managed by</p><button onClick={logout} className="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-left text-xs font-bold text-blue-100 hover:bg-white/15">Sign out</button></div>
           </aside>
-          <nav className="clinic-mobile-nav mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">{[[ "overview","Overview"],["analytics","Analytics"],["appointments","Appointments"],["team","Team"],["settings","Settings"]].map(([key,label])=><button key={key} onClick={()=>{setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold ${clinicView===key?"bg-blue-700 text-white":"text-slate-600 hover:bg-blue-50"}`}>{label}</button>)}</nav>
+          <nav className="clinic-mobile-nav mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">{[[ "overview","Overview"],["analytics","Analytics"],["appointments","Appointments"],["patients","Patients"],["team","Team"],["reports","Reports"],["settings","Settings"]].map(([key,label])=><button key={key} onClick={()=>{setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold ${clinicView===key?"bg-blue-700 text-white":"text-slate-600 hover:bg-blue-50"}`}>{label}</button>)}</nav>
 
           <section id="clinic-analytics" data-clinic-panel="overview" hidden={clinicView !== "overview"} className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {[
@@ -1504,6 +1544,24 @@ export default function App() {
           </section>
 
 
+
+          <section data-clinic-panel="patients" hidden={clinicView !== "patients"} className="mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Patient directory</p><h2 className="mt-1 text-xl font-black text-slate-950">Patients</h2><p className="mt-1 text-sm text-slate-500">A clinic-scoped view built from your appointment records.</p></div>
+              <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">{clinicPatients.length} unique patients</span><button type="button" onClick={() => downloadCsv(`medicall-patients-${todayDateKey}.csv`, [["Patient name","Email","Phone","Total appointments","Completed visits","Upcoming visits","Last appointment"], ...clinicPatients.map((item) => [item.patientName,item.email,item.phone,item.totalVisits,item.completedVisits,item.upcomingVisits,item.lastAppointment])])} disabled={!clinicPatients.length} className="rounded-xl bg-blue-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Export patients CSV</button></div>
+            </div>
+            <div className="border-b border-slate-100 p-4 sm:px-6"><input value={patientSearch} onChange={(event) => setPatientSearch(event.target.value)} placeholder="Search by patient name, email or phone..." className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 sm:max-w-md"/></div>
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:px-6">{[{label:"Unique patients",value:clinicPatients.length},{label:"Returning patients",value:clinicPatients.filter((item) => item.totalVisits > 1).length},{label:"Upcoming visits",value:clinicPatients.reduce((sum, item) => sum + item.upcomingVisits, 0)},{label:"Completed visits",value:clinicPatients.reduce((sum, item) => sum + item.completedVisits, 0)}].map((item) => <article key={item.label} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{item.label}</p><p className="mt-1 text-2xl font-black text-slate-900">{item.value}</p></article>)}</div>
+            <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Patient</th><th className="px-5 py-3">Contact</th><th className="px-5 py-3">Appointments</th><th className="px-5 py-3">Upcoming</th><th className="px-5 py-3">Last appointment</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredClinicPatients.map((item) => <tr key={item.identity} className="hover:bg-slate-50/70"><td className="px-5 py-4 font-semibold text-slate-800">{item.patientName}</td><td className="px-5 py-4"><div className="text-slate-700">{item.phone || "Phone not provided"}</div><div className="mt-1 text-xs text-slate-500">{item.email || "Email not provided"}</div></td><td className="px-5 py-4"><strong>{item.totalVisits}</strong><span className="ml-2 text-xs text-slate-500">· {item.completedVisits} completed</span></td><td className="px-5 py-4">{item.upcomingVisits}</td><td className="px-5 py-4 text-slate-600">{item.lastAppointment}</td></tr>)}{!filteredClinicPatients.length && <tr><td colSpan="5" className="px-5 py-12 text-center text-sm text-slate-500">{clinicPatients.length ? "No patients match your search." : "Patient records will appear after appointments are booked."}</td></tr>}</tbody></table></div>
+            <p className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500">Patient details are shown only to the authenticated clinic team. Records are grouped by email, then phone when email is unavailable.</p>
+          </section>
+
+          <section data-clinic-panel="reports" hidden={clinicView !== "reports"} className="mb-7 space-y-5">
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6"><div><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Clinic reporting</p><h2 className="mt-1 text-xl font-black text-slate-950">Reports & exports</h2><p className="mt-1 text-sm text-slate-500">Download clinic appointment and patient summaries for offline review.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => downloadCsv(`medicall-appointments-${todayDateKey}.csv`, [["Booking ID","Patient","Email","Phone","Doctor","Date","Time","Status","Payment status","Payment method","Amount (INR)"], ...appointments.map((item) => [item.bookingReference || item._id,item.patientName,item.patientEmail,item.phone,item.doctorId?.name || "Doctor",item.date,item.time,item.status,item.paymentStatus || "Pending",item.paymentMethod || "",amountForAppointment(item)])])} disabled={!appointments.length} className="rounded-xl bg-blue-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Export appointments CSV</button><button type="button" onClick={() => downloadCsv(`medicall-doctor-workload-${todayDateKey}.csv`, [["Doctor","Specialization","Total appointments","Upcoming appointments","Completed appointments","Status"], ...doctorWorkload.map((item) => [item.name,item.specialization,item.totalAppointments,item.upcomingAppointments,item.completedAppointments,item.isActive ? "Active" : "Unavailable"])])} disabled={!doctorWorkload.length} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Export doctor report</button></div></div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[{label:"Total appointments",value:appointments.length},{label:"Completed visits",value:completedAppointments},{label:"Cancelled bookings",value:cancelledAppointmentsCount},{label:"Collected revenue",value:`₹${paidRevenue.toLocaleString("en-IN")}`}].map((item) => <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">{item.label}</p><p className="mt-2 text-2xl font-black text-slate-900">{item.value}</p></article>)}</div>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 p-5"><h3 className="font-bold text-slate-900">Doctor workload</h3><p className="mt-1 text-xs text-slate-500">Appointment counts are calculated from this clinic’s records.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Doctor</th><th className="px-5 py-3">Total</th><th className="px-5 py-3">Upcoming</th><th className="px-5 py-3">Completed</th><th className="px-5 py-3">Availability</th></tr></thead><tbody className="divide-y divide-slate-100">{doctorWorkload.map((item) => <tr key={item._id}><td className="px-5 py-4"><div className="font-semibold text-slate-800">{item.name}</div><div className="text-xs text-slate-500">{item.specialization}</div></td><td className="px-5 py-4 font-bold">{item.totalAppointments}</td><td className="px-5 py-4">{item.upcomingAppointments}</td><td className="px-5 py-4">{item.completedAppointments}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.isActive ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.isActive ? "Active" : "Unavailable"}</span></td></tr>)}{!doctorWorkload.length && <tr><td colSpan="5" className="px-5 py-10 text-center text-sm text-slate-500">Add doctors to see workload reports.</td></tr>}</tbody></table></div></div>
+            <p className="text-[11px] text-slate-500">Revenue uses recorded payments only. CSV exports contain patient contact information; store and share them securely.</p>
+          </section>
 
           <section id="clinic-team" data-clinic-panel="team" hidden={clinicView !== "team"} className="grid scroll-mt-28 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
             <div className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
