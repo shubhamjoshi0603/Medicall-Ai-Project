@@ -286,11 +286,11 @@ export default function App() {
   }, [error]);
 
   useEffect(() => {
-    if (!token || page !== "dashboard") return;
+    if (!token || page !== "dashboard" || clinicView === "settings") return;
 
-    const timer = setInterval(loadDashboard, 10000);
+    const timer = setInterval(loadDashboard, 30000);
     return () => clearInterval(timer);
-  }, [token, page]);
+  }, [token, page, clinicView]);
 
   async function loadClinic(clinicId = "") {
     try {
@@ -1185,10 +1185,11 @@ export default function App() {
                     <span className="mb-2 block text-sm font-bold text-slate-700">Preferred time *</span>
                     <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={booking.time} onChange={(e) => setBooking({ ...booking, time: e.target.value })}>
                       <option value="">Choose a time</option>
-                      {Array.from({ length: 16 }, (_, i) => {
-                        const hour = 9 + Math.floor(i / 2);
+                      {Array.from({ length: 48 }, (_, i) => {
+                        const hour = Math.floor(i / 2);
                         const minute = i % 2 ? "30" : "00";
                         const time = `${String(hour).padStart(2, "0")}:${minute}`;
+                        if (!selectedClinicHours || selectedClinicHours.isOpen === false || time < selectedClinicHours.openTime || time >= selectedClinicHours.closeTime) return null;
                         return <option key={time} value={time}>{time}</option>;
                       })}
                     </select>
@@ -1324,6 +1325,7 @@ export default function App() {
             {selectedClinicId && clinic?.id===selectedClinicId && <div id="patient-clinic-location" className="scroll-mt-28 border-t border-slate-100 bg-cyan-50/60 px-4 py-4 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-cyan-700">SELECTED CLINIC</p><h2 className="mt-1 font-extrabold text-slate-900">{clinic.clinicName}</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-bold text-teal-800">Clinic location</span></div>
               <p className="mt-2 text-sm leading-5 text-slate-600">{clinic.location?.address || "This clinic has not added its full address yet."}</p>
+              <div className="mt-3 rounded-xl border border-cyan-100 bg-white/80 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-800">Opening hours</p><div className="mt-2 grid gap-1 sm:grid-cols-2">{(clinic.businessHours || []).map((hours)=><p key={hours.dayOfWeek} className="text-xs text-slate-600"><strong className="inline-block w-24 text-slate-800">{clinicDays[hours.dayOfWeek]}</strong>{hours.isOpen ? `${hours.openTime} – ${hours.closeTime}` : "Closed"}</p>)}</div></div>
               {(clinic.location?.mapsUrl || clinic.location?.address) && <a className="mt-2 inline-flex text-sm font-bold text-teal-700 underline" href={clinic.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clinic.location.address)}`} target="_blank" rel="noreferrer">Open directions in Google Maps ↗</a>}
             </div>}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5 sm:px-8"><p className="text-sm text-slate-500">You are signed in as a patient.</p><button onClick={patientLogout} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Log out of patient account</button></div>
