@@ -346,9 +346,13 @@ app.post("/api/chat", async (req, res) => {
         }
         const [year, month, day] = session.date.split('-').map(Number); const [hour, minute] = session.time.split(':').map(Number);
         const apptDate = new Date(year, month - 1, day, hour, minute);
-        if (apptDate.getTime() <= Date.now() || apptDate.getFullYear() !== year || apptDate.getMonth() !== month-1 || apptDate.getDate() !== day || hour < 9 || hour >= 17 || minute > 59) {
+        const dayOfWeek = apptDate.getDay();
+        const clinicHours = (clinic.businessHours || []).find((item) => item.dayOfWeek === dayOfWeek);
+        const outsideClinicHours = !clinicHours || clinicHours.isOpen === false || `${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}` < (clinicHours?.openTime || "09:00") || `${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}` >= (clinicHours?.closeTime || "17:00");
+        if (apptDate.getTime() <= Date.now() || apptDate.getFullYear() !== year || apptDate.getMonth() !== month-1 || apptDate.getDate() !== day || minute > 59 || outsideClinicHours) {
           session.step = apptDate.getTime() <= Date.now() ? 'date' : 'time'; bookingSessions.set(conversationId, session);
-          return res.json({ reply: session.step === 'date' ? "That date must be in the future. What future date would you prefer?" : "That time is outside clinic hours (09:00–17:00). What time would you prefer?", bookingCreated: false, bookingState: session.step });
+          const reply = session.step === 'date' ? "That date must be in the future. What future date would you prefer?" : (!clinicHours || clinicHours.isOpen === false ? "The clinic is closed on that day. Please choose one of its working days." : `The clinic is open from ${clinicHours.openTime} to ${clinicHours.closeTime}. Please choose a time within these hours.`);
+          return res.json({ reply, bookingCreated: false, bookingState: session.step });
         }
         try {
           const appointment = await Appointment.create({ clinicId: clinic._id, doctorId: doctor._id, patientName: session.patientName, patientEmail: session.patientEmail, phone: session.phone, date: session.date, time: session.time, reason: session.reason || '' });
@@ -947,7 +951,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
     const adminName = String(req.body?.adminName || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const businessHours = req.body?.businessHours;
-    if (!clinicName || !adminName || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!clinicName || !adminName || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ message: "Enter a clinic name, admin name and valid email address." });
     }
     if (clinicName.length > 120 || adminName.length > 100) return res.status(400).json({ message: "Clinic or admin name is too long." });
@@ -956,7 +960,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
       const dayOfWeek = Number(item.dayOfWeek);
       const openTime = String(item.openTime || "09:00");
       const closeTime = String(item.closeTime || "17:00");
-      if (dayOfWeek !== index || !/^\\d{2}:\\d{2}$/.test(openTime) || !/^\\d{2}:\\d{2}$/.test(closeTime) || (item.isOpen && openTime >= closeTime)) throw new Error("Check the opening and closing times for each working day.");
+      if (dayOfWeek !== index || !/^\d{2}:\d{2}$/.test(openTime) || !/^\d{2}:\d{2}$/.test(closeTime) || (item.isOpen && openTime >= closeTime)) throw new Error("Check the opening and closing times for each working day.");
       return { dayOfWeek, isOpen: Boolean(item.isOpen), openTime, closeTime };
     });
     const clinic = await Clinic.findByIdAndUpdate(req.clinicId, { $set: { clinicName, adminName, email, businessHours: normalizedHours } }, { new: true, runValidators: true }).select("clinicName adminName email location businessHours");
@@ -1016,7 +1020,7 @@ app.patch("/api/patient-auth/profile", protectPatient, async (req, res) => {
     const fullName = String(req.body?.fullName || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const phone = String(req.body?.phone || "").trim();
-    if (!fullName || !phone || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) return res.status(400).json({ message: "Enter your name, valid email and phone number." });
+    if (!fullName || !phone || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)) return res.status(400).json({ message: "Enter your name, valid email and phone number." });
     if (fullName.length > 100 || phone.length > 20) return res.status(400).json({ message: "Name or phone number is too long." });
     const patient = await Patient.findByIdAndUpdate(req.patientId, { $set: { fullName, email, phone } }, { new: true, runValidators: true });
     if (!patient) return res.status(404).json({ message: "Patient account not found." });
