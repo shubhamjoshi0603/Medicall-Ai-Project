@@ -951,7 +951,8 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
     const clinicName = String(req.body?.clinicName || "").trim();
     const adminName = String(req.body?.adminName || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
-    const businessHours = req.body?.businessHours;\n    const aiAgentName = String(req.body?.aiAgentName || "MediCall AI").trim().slice(0, 50) || "MediCall AI";
+   const businessHours = req.body?.businessHours;
+   const aiAgentName = String(req.body?.aiAgentName || "MediCall AI").trim().slice(0, 50) || "MediCall AI";
     if (!clinicName || !adminName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ message: "Enter a clinic name, admin name and valid email address." });
     }
