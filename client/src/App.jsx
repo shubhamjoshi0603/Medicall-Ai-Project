@@ -1190,7 +1190,7 @@ export default function App() {
       )}
 
       {page === "patient-dashboard" && (
-        <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
+        <main className="patient-dashboard mx-auto max-w-6xl px-4 py-5 sm:px-6">
           <nav className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
             <a href="#patient-profile" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">My profile</a>
             <a href="#patient-appointments" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Appointments</a>
@@ -1335,7 +1335,7 @@ export default function App() {
 
           <section className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Appointments overview</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Last 7 days</h2></div><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Icon name="calendar" size={19}/></span></div>
+              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Appointments overview</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Last 7 days</h2></div><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Icon name="message" size={19}/></span></div>
               <div className="mt-5 flex h-36 items-end justify-between gap-3 border-b border-slate-100 px-1">
                 {weeklyAppointmentActivity.map((day) => <div key={day.key} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-bold text-slate-500">{day.count || ""}</span><div className="w-full max-w-12 rounded-t-lg bg-gradient-to-t from-blue-700 to-blue-500 transition-all" style={{ height: day.count ? `${Math.max(8, day.count / weeklyMaxAppointments * 100)}%` : "3px", opacity: day.count ? 1 : .16 }} /><span className="text-[10px] font-semibold text-slate-500">{day.label}</span></div>)}
               </div>
