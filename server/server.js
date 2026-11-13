@@ -1046,7 +1046,7 @@ async function publicClinicsHandler(req, res) {
     const doctors = await Doctor.find({ clinicId: selectedClinic._id, isActive: true }).sort({ name: 1 });
     return res.json({
       clinics,
-      clinic: { id: selectedClinic._id, clinicName: selectedClinic.clinicName, location: selectedClinic.location || {}, businessHours: selectedClinic.businessHours || [] },
+      clinic: { id: selectedClinic._id, clinicName: selectedClinic.clinicName, aiAgentName: selectedClinic.aiAgentName || "MediCall AI", location: selectedClinic.location || {}, businessHours: selectedClinic.businessHours || [] },
       doctors,
     });
   } catch (error) {
