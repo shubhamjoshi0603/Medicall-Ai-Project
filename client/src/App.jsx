@@ -1630,7 +1630,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-50 text-teal-700"><Icon name="spark" size={21} /></span>
-                <div><h2 className="font-semibold tracking-tight">MediCall AI</h2>
+                <div><h2 className="font-semibold tracking-tight">{clinic?.aiAgentName || "MediCall AI"}</h2>
                 <p className="mt-0.5 text-xs text-slate-500">Clinic assistant · Hindi & English</p></div>
               </div>
             </div>
