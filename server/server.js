@@ -486,6 +486,7 @@ const clinicSchema = new Schema(
       required: true,
       trim: true,
     },
+    aiAgentName: { type: String, default: "MediCall AI", trim: true, maxlength: 50 },
     email: {
       type: String,
       required: true,
