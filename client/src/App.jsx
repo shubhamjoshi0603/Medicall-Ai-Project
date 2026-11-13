@@ -54,7 +54,7 @@ function downloadCsv(filename, rows) {
     return `"${safe.replace(/"/g, '""')}"`;
   };
   const csv = rows.map((row) => row.map(escapeCell).join(",")).join("\r\n");
-  const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -62,7 +62,7 @@ function downloadCsv(filename, rows) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function App() {
@@ -265,7 +265,7 @@ export default function App() {
   });
 
   const clinicPatients = Object.values(appointments.reduce((groups, item) => {
-    const identity = String(item.patientEmail || item.phone || item.patientName || item._id).trim().toLowerCase();
+    const identity = String(item.patientEmail || item.phone || item._id).trim().toLowerCase();
     if (!groups[identity]) groups[identity] = { identity, patientName: item.patientName || "Patient", email: item.patientEmail || "", phone: item.phone || "", appointments: [] };
     groups[identity].appointments.push(item);
     return groups;
