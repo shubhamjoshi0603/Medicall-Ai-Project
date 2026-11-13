@@ -951,7 +951,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
     const adminName = String(req.body?.adminName || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const businessHours = req.body?.businessHours;
-    if (!clinicName || !adminName || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)) {
+    if (!clinicName || !adminName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ message: "Enter a clinic name, admin name and valid email address." });
     }
     if (clinicName.length > 120 || adminName.length > 100) return res.status(400).json({ message: "Clinic or admin name is too long." });
@@ -1020,7 +1020,7 @@ app.patch("/api/patient-auth/profile", protectPatient, async (req, res) => {
     const fullName = String(req.body?.fullName || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const phone = String(req.body?.phone || "").trim();
-    if (!fullName || !phone || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)) return res.status(400).json({ message: "Enter your name, valid email and phone number." });
+    if (!fullName || !phone || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: "Enter your name, valid email and phone number." });
     if (fullName.length > 100 || phone.length > 20) return res.status(400).json({ message: "Name or phone number is too long." });
     const patient = await Patient.findByIdAndUpdate(req.patientId, { $set: { fullName, email, phone } }, { new: true, runValidators: true });
     if (!patient) return res.status(404).json({ message: "Patient account not found." });
