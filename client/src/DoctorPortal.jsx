@@ -4,8 +4,8 @@ import doctorWorkspaceArt from "./assets/doctor-workspace.svg";
 
 const API = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000/api`;
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const input = "w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-50";
-const btn = "rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50";
+const input = "w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50";
+const btn = "doctor-primary-button rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-50";
 
 export default function DoctorPortal({ onExit }) {
   const [token, setToken] = useState(() => localStorage.getItem("medicall_doctor_token") || "");
@@ -115,7 +115,7 @@ export default function DoctorPortal({ onExit }) {
   );
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main className="doctor-dashboard mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F3F5F7] via-white to-[#EAF2F4] p-5 shadow-sm sm:p-6">
         <img src={doctorWorkspaceArt} alt="Doctor and clinical workspace" className="pointer-events-none absolute -bottom-10 right-4 hidden h-48 w-64 object-contain opacity-90 sm:block"/>
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
@@ -133,7 +133,7 @@ export default function DoctorPortal({ onExit }) {
           {label:"Completed",value:completedAppointments.length,view:"completed"},
           {label:"Cancelled",value:cancelledAppointments.length,view:"cancelled"},
           {label:"Availability requests",value:availability.length,view:"availability"},
-        ].map((x) => <button type="button" key={x.label} onClick={()=>x.view==="availability"?document.getElementById("doctor-availability")?.scrollIntoView({behavior:"smooth"}):setAppointmentView(x.view)} className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-slate-300 ${appointmentView===x.view?"border-teal-400 ring-2 ring-teal-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
+        ].map((x) => <button type="button" key={x.label} onClick={()=>x.view==="availability"?document.getElementById("doctor-availability")?.scrollIntoView({behavior:"smooth"}):setAppointmentView(x.view)} className={`doctor-summary-card rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-blue-300 ${appointmentView===x.view?"border-blue-400 ring-2 ring-blue-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
       </section>
       <section className="mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">My patient appointments</h2><p className="mt-1 text-sm text-slate-500">Choose a schedule or visit status to focus on the right patients.</p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{filteredAppointments.length} shown · {appointments.length} total</span></div>
