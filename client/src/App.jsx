@@ -121,6 +121,10 @@ export default function App() {
     password: "",
   });
 
+  const [clinicView, setClinicView] = useState("overview");
+  const [clinicProfileDraft, setClinicProfileDraft] = useState({ clinicName: "", adminName: "", email: "", businessHours: [] });
+  const [patientProfileEditing, setPatientProfileEditing] = useState(false);
+  const [patientProfileDraft, setPatientProfileDraft] = useState({ fullName: "", email: "", phone: "" });
   const [adminClinic, setAdminClinic] = useState(null);
   const [stats, setStats] = useState({});
   const [appointments, setAppointments] = useState([]);
@@ -143,6 +147,8 @@ export default function App() {
   });
 
   const today = new Date().toLocaleDateString("en-CA");
+  const clinicDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const selectedClinicHours = clinic?.businessHours?.find((item) => item.dayOfWeek === (booking.date ? new Date(`${booking.date}T12:00:00`).getDay() : -1));
   const symptomGuidance = [
     { terms: ["skin", "rash", "itch", "acne", "hair"], specialty: "Dermatology" },
     { terms: ["heart", "chest", "blood pressure", "bp", "palpitation"], specialty: "Cardiology" },
@@ -258,7 +264,7 @@ export default function App() {
   useEffect(() => {
     if (!patientToken) return;
     axios.get(`${API}/patient-auth/me`, { headers: { Authorization: `Bearer ${patientToken}` } })
-      .then(({ data }) => { setPatient(data.patient); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); })
+      .then(({ data }) => { setPatient(data.patient); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); })
       .catch(() => { localStorage.removeItem("medicall_patient_token"); setPatientToken(""); setPatient(null); });
   }, [patientToken]);
 
@@ -337,6 +343,12 @@ export default function App() {
       ]);
 
       setAdminClinic(me.data.clinic);
+      setClinicProfileDraft({
+        clinicName: me.data.clinic?.clinicName || "",
+        adminName: me.data.clinic?.adminName || "",
+        email: me.data.clinic?.email || "",
+        businessHours: (me.data.clinic?.businessHours?.length ? me.data.clinic.businessHours : [0,1,2,3,4,5,6].map((dayOfWeek) => ({ dayOfWeek, isOpen: dayOfWeek !== 0, openTime: "09:00", closeTime: "17:00" }))).map((item) => ({ ...item })),
+      });
       setClinicLocationDraft({
         address: me.data.clinic?.location?.address || "",
         latitude: me.data.clinic?.location?.latitude ?? "",
@@ -409,7 +421,12 @@ export default function App() {
       if (!selectedClinicId || !clinic?.id || selectedClinicId !== clinic.id) {
         throw new Error("Please select a registered clinic before booking your appointment.");
       }
-
+      if (details.date && details.time) {
+        const selectedDay = new Date(`${details.date}T12:00:00`).getDay();
+        const hours = clinic.businessHours?.find((item) => item.dayOfWeek === selectedDay);
+        if (!hours || hours.isOpen === false) throw new Error("The clinic is closed on this day. Please choose one of its working days.");
+        if (details.time < hours.openTime || details.time >= hours.closeTime) throw new Error(`The clinic is open from ${hours.openTime} to ${hours.closeTime}. Please choose a time within these hours.`);
+      }
       const { data } = await axios.post(`${API}/public/appointments`, {
         clinicId: clinic.id,
         ...details,
@@ -794,6 +811,24 @@ export default function App() {
     if (saved) setCollectionModal(null);
   }
 
+  async function saveClinicProfile(event) {
+    event.preventDefault();
+    try {
+      const { data } = await api.patch("/clinic/profile", clinicProfileDraft);
+      setAdminClinic((current) => ({ ...current, ...data.clinic }));
+      setNotice(data.message || "Clinic profile updated.");
+    } catch (err) { setError(err.response?.data?.message || "Could not update clinic profile."); }
+  }
+  async function savePatientProfile(event) {
+    event.preventDefault();
+    try {
+      const { data } = await axios.patch(`${API}/patient-auth/profile`, patientProfileDraft, { headers: { Authorization: `Bearer ${patientToken}` } });
+      setPatient(data.patient);
+      setBooking((old) => ({ ...old, patientName: data.patient.fullName, patientEmail: data.patient.email, phone: data.patient.phone }));
+      setPatientProfileEditing(false);
+      setNotice(data.message || "Your profile was updated.");
+    } catch (err) { setError(err.response?.data?.message || "Could not update your profile."); }
+  }
   async function saveClinicLocation(event) {
     event.preventDefault();
     try {
@@ -1158,6 +1193,8 @@ export default function App() {
                       })}
                     </select>
                   </label>
+                  {booking.date && (!selectedClinicHours || selectedClinicHours.isOpen === false) && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800 sm:col-span-2">The clinic is closed on {clinicDays[new Date(`${booking.date}T12:00:00`).getDay()]}. Please select one of its working days.</p>}
+                  {booking.date && selectedClinicHours?.isOpen && <p className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-semibold text-blue-800 sm:col-span-2">Clinic hours on {clinicDays[selectedClinicHours.dayOfWeek]}: {selectedClinicHours.openTime}–{selectedClinicHours.closeTime}. Choose a time within these hours.</p>}
                   <label className="block sm:col-span-2">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Reason for visit <span className="font-normal text-slate-400">(optional)</span></span>
                     <textarea className={`${field} rounded-xl bg-slate-50/70 px-4`} rows={4} placeholder="Tell us briefly what you need help with" value={booking.reason} onChange={(e) => setBooking({ ...booking, reason: e.target.value })} />
@@ -1214,7 +1251,7 @@ export default function App() {
 
       {page === "patient-dashboard" && (
         <main className="patient-dashboard mx-auto max-w-6xl px-4 py-5 sm:px-6">
-          <nav className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+          <nav className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"><button onClick={()=>setPatientProfileEditing(false)} className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-blue-50">My account</button><button onClick={()=>setPatientProfileEditing(true)} className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-blue-50">Edit profile</button>
             <a href="#patient-profile" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">My profile</a>
             <a href="#patient-appointments" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Appointments</a>
             {selectedClinicId && clinic?.id === selectedClinicId && <a href="#patient-clinic-location" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Clinic location</a>}
@@ -1232,6 +1269,7 @@ export default function App() {
                 </div>
               </div>
             </div>
+            {patientProfileEditing && <form onSubmit={savePatientProfile} className="grid gap-3 border-b border-slate-100 bg-blue-50/50 p-4 sm:grid-cols-2 sm:p-5"><label className="text-xs font-bold text-slate-600">Full name<input required value={patientProfileDraft.fullName} onChange={(e)=>setPatientProfileDraft((v)=>({...v,fullName:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Email address<input required type="email" value={patientProfileDraft.email} onChange={(e)=>setPatientProfileDraft((v)=>({...v,email:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Phone number<input required type="tel" value={patientProfileDraft.phone} onChange={(e)=>setPatientProfileDraft((v)=>({...v,phone:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><div className="flex items-end gap-2"><button className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white">Save changes</button><button type="button" onClick={()=>setPatientProfileEditing(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">Cancel</button></div></form>}
             <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
               <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Full name</p><p className="mt-1.5 text-base font-bold text-slate-900">{patient?.fullName || "—"}</p></div>
               <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email address</p><p className="mt-1.5 break-all text-base font-bold text-slate-900">{patient?.email || "—"}</p></div>
@@ -1294,7 +1332,7 @@ export default function App() {
       )}
 
       {page === "dashboard" && (
-        <main id="dashboard-top" className="clinic-dashboard mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:pl-[260px] lg:pr-10">
+        <main id="dashboard-top" data-clinic-view={clinicView} className="clinic-dashboard mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:pl-[260px] lg:pr-10">
           <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F5F7F9] via-white to-[#EAF2F6] p-5 shadow-sm sm:p-6">
             <img src={healthcareHero} alt="Healthcare team illustration" className="pointer-events-none absolute -right-8 -bottom-20 hidden h-64 w-80 object-contain opacity-80 lg:block" />
             <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1311,12 +1349,15 @@ export default function App() {
               </button>
             </div>
           </section>
-          <nav className="clinic-sidebar mb-7 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm" aria-label="Clinic dashboard sections">
-            {[ ["Overview", "dashboard-top"], ["Appointments", "clinic-appointments"], ["AI analytics", "clinic-analytics"], ["Team", "clinic-team"], ["Location settings", "clinic-location"] ].map(([label, target]) => <a key={target} href={`#${target}`} className="rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700">{label}</a>)}
-            <span className="clinic-sidebar-status ml-auto hidden rounded-xl bg-emerald-50 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 sm:inline-flex">● Clinic workspace active</span>
-          </nav>
+          <aside className="clinic-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[232px] flex-col border-r border-slate-200 px-3 py-5 text-white shadow-xl lg:flex" aria-label="Clinic dashboard navigation">
+            <div className="mb-7 flex items-center gap-3 px-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg"><Icon name="plus" size={22}/></span><span className="min-w-0"><strong className="block truncate text-sm font-black">{adminClinic?.clinicName || "MAX HEALTHCARE"}</strong><span className="text-[10px] font-semibold tracking-wider text-blue-200">CLINIC WORKSPACE</span></span></div>
+            <p className="px-3 pb-2 text-[9px] font-extrabold tracking-[.2em] text-blue-200/70">CLINICAL</p>
+            {[[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["team","Doctors & team","user"],["settings","Clinic settings","plus"]].map(([key,label,icon]) => <button key={key} onClick={() => {setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold transition ${clinicView===key?"bg-blue-500/25 text-white ring-1 ring-blue-300/30":"text-blue-100/75 hover:bg-white/10 hover:text-white"}`}><Icon name={icon} size={17}/>{label}</button>)}
+            <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-[10px] font-bold text-blue-100">Managed by</p><p className="mt-1 truncate text-xs font-extrabold text-white">{adminClinic?.adminName || "Clinic admin"}</p><button onClick={logout} className="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-left text-xs font-bold text-blue-100 hover:bg-white/15">Sign out</button></div>
+          </aside>
+          <nav className="clinic-mobile-nav mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">{[[ "overview","Overview"],["analytics","Analytics"],["appointments","Appointments"],["team","Team"],["settings","Settings"]].map(([key,label])=><button key={key} onClick={()=>{setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold ${clinicView===key?"bg-blue-700 text-white":"text-slate-600 hover:bg-blue-50"}`}>{label}</button>)}</nav>
 
-          <section id="clinic-analytics" className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <section id="clinic-analytics" data-clinic-panel="overview" hidden={clinicView !== "overview"} className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {[
               { label: "Today", value: todayAppointmentsCount, note: "Confirmed visits", icon: "message", tint: "bg-slate-100 text-slate-700", filter: "today" },
               { label: "Tomorrow", value: tomorrowAppointmentsCount, note: "Next-day schedule", icon: "arrow", tint: "bg-blue-50 text-blue-700", filter: "tomorrow" },
@@ -1338,12 +1379,12 @@ export default function App() {
             ))}
           </section>
 
-          <section className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 clinic-ai-metrics">
+          <section data-clinic-panel="analytics" hidden={clinicView !== "analytics"} className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 clinic-ai-metrics">
             {[{ label: "AI conversations", value: analytics?.totalConversations ?? 0 }, { label: "Booked from AI", value: analytics?.convertedConversations ?? 0 }, { label: "AI conversion", value: `${analytics?.conversionRate ?? 0}%` }, { label: "Chat / Voice", value: `${analytics?.chatConversations ?? 0} / ${analytics?.voiceConversations ?? 0}` }].map((item) => <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{item.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{item.value}</p></article>)}
             <p className="sm:col-span-2 xl:col-span-4 text-xs text-slate-500">Conversion = unique tracked AI conversations that created an appointment ÷ total unique AI conversations. Chat and voice are counted separately using the conversation channel sent by the website.</p>
           </section>
 
-          <section className="mb-7 grid gap-4 lg:grid-cols-[1.15fr_.85fr] clinic-insights">
+          <section data-clinic-panel="overview" hidden={clinicView !== "overview"} className="mb-7 grid gap-4 lg:grid-cols-[1.15fr_.85fr] clinic-insights">
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-50 p-6 text-slate-900 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-slate-500">Clinic intelligence</p><h2 className="mt-2 text-xl font-black">Performance at a glance</h2><p className="mt-1 text-sm text-slate-600">Consultation fees recorded as received are added to your clinic revenue.</p></div><span className="rounded-xl border border-slate-200 bg-white p-3 text-slate-500"><Icon name="spark" size={22}/></span></div>
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1356,7 +1397,7 @@ export default function App() {
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-teal-700">AI conversion insight</p><h2 className="mt-2 text-xl font-black text-slate-950">Turn conversations into care</h2><p className="mt-2 text-sm leading-6 text-slate-500">{analytics?.totalConversations ? `${analytics.convertedConversations || 0} of ${analytics.totalConversations} tracked conversations led to an appointment (${analytics.conversionRate || 0}%).` : "Conversation metrics will appear after patients start using the AI chat or voice assistant."}</p><div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-indigo-500" style={{ width: `${Math.min(100, Math.max(0, Number(analytics?.conversionRate || 0)))}%` }}/></div><div className="mt-3 flex justify-between text-xs text-slate-500"><span>AI conversion</span><strong className="text-slate-800">{analytics?.conversionRate || 0}%</strong></div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Improvement tip: review unanswered questions and make sure doctor specializations, fees and availability are up to date.</p></article>
           </section>
 
-          <section className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr] clinic-monthly-insights">
+          <section data-clinic-panel="analytics" hidden={clinicView !== "analytics"} className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr] clinic-monthly-insights">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Appointment activity</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">30-day trend</h2></div>
@@ -1381,7 +1422,7 @@ export default function App() {
             </article>
           </section>
 
-          <section className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
+          <section data-clinic-panel="analytics" hidden={clinicView !== "analytics"} className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Appointments overview</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Last 7 days</h2></div><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Icon name="message" size={19}/></span></div>
               <div className="mt-5 flex h-36 items-end justify-between gap-3 border-b border-slate-100 px-1">
@@ -1392,7 +1433,7 @@ export default function App() {
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Quick stats</p><div className="mt-4 space-y-4">{[{label:"Today's appointments",value:todayAppointmentsCount},{label:"Tomorrow",value:tomorrowAppointmentsCount},{label:"AI bookings",value:analytics?.convertedConversations ?? 0}].map((item)=><div key={item.label} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0"><span className="text-sm text-slate-500">{item.label}</span><strong className="text-xl text-slate-900">{item.value}</strong></div>)}</div></article>
           </section>
 
-          <section id="clinic-appointments" className="clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
+          <section id="clinic-appointments" data-clinic-panel="appointments" hidden={clinicView !== "appointments"} className="clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
             <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">Appointments</h2>
@@ -1453,7 +1494,7 @@ export default function App() {
 
 
 
-          <section id="clinic-team" className="grid scroll-mt-28 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+          <section id="clinic-team" data-clinic-panel="team" hidden={clinicView !== "team"} className="grid scroll-mt-28 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
             <div className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
               <div className="mb-5">
                 <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700"><Icon name="plus" size={13}/> Team setup</span>
@@ -1493,14 +1534,22 @@ export default function App() {
             </div>
           </section>
 
-          <section className="mt-7 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+          <section data-clinic-panel="team" hidden={clinicView !== "team"} className="mt-7 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-4"><h2 className="text-lg font-semibold text-slate-950">Doctor availability approvals</h2><p className="mt-1 text-sm text-slate-500">Review weekly schedules submitted by doctors before they are used for patient bookings.</p></div>
             <div className="space-y-3">
               {availabilityRequests.map((item) => <article key={item._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-4"><div><p className="font-semibold text-slate-800">{item.doctorId?.name || "Doctor"} · { ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][item.dayOfWeek] }</p><p className="mt-1 text-xs text-slate-500">{item.startTime}–{item.endTime} · {item.slotMinutes}-minute slots</p></div><div className="flex items-center gap-2">{item.approved ? <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">Approved</span> : <><button onClick={() => reviewAvailability(item._id, true)} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Approve</button><button onClick={() => reviewAvailability(item._id, false)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600">Reject</button></>}</div></article>)}
               {!availabilityRequests.length && <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">No doctor availability requests yet.</p>}
             </div>
           </section>
-          <details id="clinic-location" className="mt-8 scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <section data-clinic-panel="settings" hidden={clinicView !== "settings"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-5"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-blue-700">Clinic settings</p><h2 className="mt-1 text-xl font-black text-slate-900">Practice profile & opening hours</h2><p className="mt-1 text-sm text-slate-500">Keep public clinic details and weekly schedule up to date.</p></div>
+            <form onSubmit={saveClinicProfile} className="grid gap-4 md:grid-cols-2">
+              {[[ "clinicName","Clinic name"],["adminName","Admin / contact person"],["email","Clinic email"]].map(([key,label])=><label key={key} className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><input required type={key==="email"?"email":"text"} value={clinicProfileDraft[key]} onChange={(e)=>setClinicProfileDraft((old)=>({...old,[key]:e.target.value}))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none focus:border-blue-500"/></label>)}
+              <div className="md:col-span-2"><div className="mb-3"><h3 className="font-extrabold text-slate-900">Weekly opening hours</h3><p className="mt-1 text-xs text-slate-500">Select operating days and the opening / closing time.</p></div><div className="space-y-2">{(clinicProfileDraft.businessHours||[]).map((item,index)=><div key={item.dayOfWeek} className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3"><span className="text-xs font-bold text-slate-700">{clinicDays[item.dayOfWeek]}</span><label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600"><input type="checkbox" checked={item.isOpen} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,isOpen:e.target.checked}:h)}))}/> Open</label><input type="time" disabled={!item.isOpen} value={item.openTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,openTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/><input type="time" disabled={!item.isOpen} value={item.closeTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,closeTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/></div>)}</div></div>
+              <button className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-blue-800 md:col-span-2">Save clinic profile & hours</button>
+            </form>
+          </section>
+          <details id="clinic-location" data-clinic-panel="settings" hidden={clinicView !== "settings"} open className="mt-8 scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
               <span><span className="block text-[10px] font-extrabold uppercase tracking-[.16em] text-slate-500">Clinic settings · rarely changed</span><span className="mt-1 block text-base font-bold text-slate-800">Location and directions</span><span className="mt-1 block text-xs text-slate-500">{clinicLocationDraft.address || "Add your clinic address so patients can find you."}</span></span>
               <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">Edit location</span>
