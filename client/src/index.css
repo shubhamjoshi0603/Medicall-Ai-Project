@@ -393,3 +393,14 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   .clinic-dashboard .clinic-stat-card p:nth-child(2) { font-size:1.6rem; }
   .doctor-dashboard { padding:12px; border-radius:14px; }
 }
+
+/* Patient portal: light blue workspace and compact appointment cards. */
+.patient-dashboard { min-height:calc(100vh - 72px); border-radius:18px; background:#edf3ff; padding:18px 22px!important; }
+.patient-dashboard > nav { border-color:#dce5f2; box-shadow:0 4px 16px rgba(35,62,110,.05); }
+.patient-dashboard > nav a { color:#52627b; }
+.patient-dashboard > nav a:hover { background:#e8efff; color:#2854b8; }
+.patient-dashboard .patient-appointment-card { border-color:#dce5f2; border-radius:14px; box-shadow:0 4px 14px rgba(35,62,110,.045); }
+.patient-dashboard .patient-appointment-card button[class*="bg-teal-700"] { background:#2854b8; }
+.patient-dashboard .patient-appointment-card button[class*="text-teal-700"] { color:#2854b8; }
+.patient-dashboard .patient-appointments-list { border-color:#dce5f2; }
+@media(max-width:640px){.patient-dashboard{padding:12px!important;border-radius:12px;}}
