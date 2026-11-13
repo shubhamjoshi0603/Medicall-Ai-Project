@@ -12,6 +12,7 @@ export default function DoctorPortal({ onExit }) {
   const [doctor, setDoctor] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [appointments, setAppointments] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [appointmentView, setAppointmentView] = useState("upcoming");
@@ -107,7 +108,7 @@ export default function DoctorPortal({ onExit }) {
         <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-700">Doctor access</p><h2 className="mt-2 text-3xl font-black text-slate-950">Doctor login</h2><p className="mt-2 text-sm text-slate-500">Use the email and temporary password provided by your clinic admin.</p></div>
         {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         <label className="block text-sm font-semibold">Email address<input className={`${input} mt-2`} type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="doctor@clinic.com" /></label>
-        <label className="block text-sm font-semibold">Password<input className={`${input} mt-2`} type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" /></label>
+        <label className="block text-sm font-semibold">Password<span className="relative mt-2 block"><input className={`${input} pr-16`} type={showPassword ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" /><button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showPassword ? "Hide" : "Show"}</button></span></label>
         <button className={`${btn} w-full`} disabled={busy}>{busy ? "Signing in…" : "Sign in to doctor portal"}</button>
         <button type="button" onClick={onExit} className="w-full text-sm font-semibold text-slate-500">← Back to patient website</button>
       </form>
