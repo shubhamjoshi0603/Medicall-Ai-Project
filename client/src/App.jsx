@@ -1051,16 +1051,27 @@ export default function App() {
             </div>
 
             <div className="relative rounded-[1.5rem] bg-gradient-to-br from-teal-700 to-teal-600 p-5 text-white shadow-lg shadow-teal-900/10 sm:p-7 md:p-9">
-              <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-3 py-1.5 text-[11px] font-bold tracking-wide text-blue-700 shadow-sm"><span className="h-2 w-2 rounded-full bg-emerald-500" /> CLINIC WORKSPACE</div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">Good day, ${adminClinic?.clinicName || "Your clinic"}</h1>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Your clinic at a glance. Manage appointments, care teams and daily operations from one place.</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600"><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🩺 ${adminDoctors.length} doctors</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">📅 ${todayAppointmentsCount} visits today</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🤖 ${adminClinic?.aiAgentName || "MediCall AI"} assistant</span></div>
-              </div>
-              <div className="flex shrink-0 items-center gap-3 self-stretch sm:self-center">
-                <img src={clinicWorkspaceArt} alt="Illustration of a modern clinic team" className="hidden h-24 w-28 rounded-2xl object-contain sm:block md:h-28 md:w-36" />
-                <button className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50" onClick={loadDashboard}><Icon name="arrow" size={16} /> Refresh</button>
+              <img src={healthcareHero} alt="Illustration representing connected healthcare" className="pointer-events-none absolute -right-12 -top-10 hidden h-56 w-72 object-contain opacity-35 mix-blend-screen md:block" />
+              <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full border border-white/15" />
+              <div className="absolute -bottom-16 -left-12 h-48 w-48 rounded-full border border-white/15" />
+              <div className="relative rounded-2xl border border-white/20 bg-white/10 p-7 text-center shadow-sm backdrop-blur sm:p-9">
+                <div className="mx-auto grid h-20 w-20 place-items-center rounded-2xl border border-white/20 bg-white text-teal-700 shadow-lg">
+                  <Icon name="spark" size={34} />
+                </div>
+                <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-teal-100">MEDICALL AI ASSISTANT</p>
+                <h2 className="mt-3 text-2xl font-black sm:text-3xl">
+                  How can we help today?
+                </h2>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-teal-50">
+                  Ask about doctors, consultation fees or appointments. Chat in Hindi or English.
+                </p>
+                <button
+                  className="mt-6 w-full rounded-xl bg-white px-5 py-4 text-sm font-extrabold text-teal-800 shadow-lg transition hover:bg-teal-50"
+                  onClick={() => setChatOpen(true)}
+                >
+                  Talk to MediCall AI <span className="ml-1">→</span>
+                </button>
+                <div className="mt-5 flex justify-center gap-2 text-xs text-teal-50"><span>✓ Hindi & English</span><span>·</span><span>✓ Voice input</span></div>
               </div>
             </div>
           </section>
@@ -1339,21 +1350,16 @@ export default function App() {
       {page === "dashboard" && (
         <main id="dashboard-top" data-clinic-view={clinicView} className="clinic-dashboard mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:pl-[260px] lg:pr-10">
           <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F5F7F9] via-white to-[#EAF2F6] p-5 shadow-sm sm:p-6">
-            <img src={healthcareHero} alt="Healthcare team illustration" className="pointer-events-none absolute -right-8 -bottom-20 hidden h-64 w-80 object-contain opacity-80 lg:block" />
-            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="max-w-2xl">
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Clinic workspace
-                </div>
-                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-[28px]">Clinic overview</h1>
-                <p className="mt-1 text-sm text-slate-600"><span className="font-semibold text-slate-800">{adminClinic?.clinicName || "Your clinic"}</span> · Managed by {adminClinic?.adminName || "Clinic admin"}</p>
-                <p className="mt-1 text-xs text-slate-500">Review the daily schedule, track visits and keep your team organised.</p>
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-3 py-1.5 text-[11px] font-bold tracking-wide text-blue-700 shadow-sm"><span className="h-2 w-2 rounded-full bg-emerald-500" /> CLINIC WORKSPACE</div>
+                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">Good day, ${adminClinic?.clinicName || "Your clinic"}</h1>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Your clinic at a glance. Manage appointments, care teams and daily operations from one place.</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600"><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🩺 ${adminDoctors.length} doctors</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">📅 ${todayAppointmentsCount} visits today</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🤖 ${adminClinic?.aiAgentName || "MediCall AI"} assistant</span></div>
               </div>
-              <button className="relative z-10 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50" onClick={loadDashboard}>
-                <Icon name="arrow" size={16} /> Refresh
-              </button>
+              <div className="flex shrink-0 items-center gap-3 self-stretch sm:self-center"><img src={clinicWorkspaceArt} alt="Illustration of a modern clinic team" className="hidden h-24 w-28 rounded-2xl object-contain sm:block md:h-28 md:w-36"/><button className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50" onClick={loadDashboard}><Icon name="arrow" size={16}/> Refresh</button></div>
             </div>
-          </section>
+</section>
           <aside className="clinic-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[232px] flex-col border-r border-slate-200 px-3 py-5 text-white shadow-xl lg:flex" aria-label="Clinic dashboard navigation">
             <div className="mb-7 flex items-center gap-3 px-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg"><Icon name="plus" size={22}/></span><span className="min-w-0"><strong className="block truncate text-sm font-black">{adminClinic?.clinicName || "MAX HEALTHCARE"}</strong><span className="text-[10px] font-semibold tracking-wider text-blue-200">CLINIC WORKSPACE</span></span></div>
             <p className="px-3 pb-2 text-[9px] font-extrabold tracking-[.2em] text-blue-200/70">CLINICAL</p>
