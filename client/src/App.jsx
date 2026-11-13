@@ -195,6 +195,13 @@ export default function App() {
   const tomorrowAppointmentsCount = appointments.filter((item) => item.status === "Confirmed" && item.date === tomorrowDateKey).length;
   const scheduledLaterCount = appointments.filter((item) => item.status === "Confirmed" && item.date > tomorrowDateKey).length;
   const cancelledAppointmentsCount = appointments.filter((item) => item.status === "Cancelled").length;
+  const weeklyAppointmentActivity = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date();
+    day.setDate(day.getDate() - (6 - index));
+    const key = dateKey(day);
+    return { key, label: day.toLocaleDateString("en-IN", { weekday: "short" }), count: appointments.filter((item) => item.date === key && item.status !== "Cancelled").length };
+  });
+  const weeklyMaxAppointments = Math.max(1, ...weeklyAppointmentActivity.map((day) => day.count));
   const filteredClinicAppointments = appointments.filter((item) => {
     if (appointmentFilter === "today") return item.status === "Confirmed" && item.date === todayDateKey;
     if (appointmentFilter === "tomorrow") return item.status === "Confirmed" && item.date === tomorrowDateKey;
@@ -1324,6 +1331,17 @@ export default function App() {
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500"><span>Payment pending: {pendingPayments}</span><span>Completed visits: {completedAppointments}</span></div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-teal-700">AI conversion insight</p><h2 className="mt-2 text-xl font-black text-slate-950">Turn conversations into care</h2><p className="mt-2 text-sm leading-6 text-slate-500">{analytics?.totalConversations ? `${analytics.convertedConversations || 0} of ${analytics.totalConversations} tracked conversations led to an appointment (${analytics.conversionRate || 0}%).` : "Conversation metrics will appear after patients start using the AI chat or voice assistant."}</p><div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-indigo-500" style={{ width: `${Math.min(100, Math.max(0, Number(analytics?.conversionRate || 0)))}%` }}/></div><div className="mt-3 flex justify-between text-xs text-slate-500"><span>AI conversion</span><strong className="text-slate-800">{analytics?.conversionRate || 0}%</strong></div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Improvement tip: review unanswered questions and make sure doctor specializations, fees and availability are up to date.</p></article>
+          </section>
+
+          <section className="mb-7 grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Appointments overview</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Last 7 days</h2></div><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Icon name="calendar" size={19}/></span></div>
+              <div className="mt-5 flex h-36 items-end justify-between gap-3 border-b border-slate-100 px-1">
+                {weeklyAppointmentActivity.map((day) => <div key={day.key} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-bold text-slate-500">{day.count || ""}</span><div className="w-full max-w-12 rounded-t-lg bg-gradient-to-t from-blue-700 to-blue-500 transition-all" style={{ height: day.count ? `${Math.max(8, day.count / weeklyMaxAppointments * 100)}%` : "3px", opacity: day.count ? 1 : .16 }} /><span className="text-[10px] font-semibold text-slate-500">{day.label}</span></div>)}
+              </div>
+              <p className="mt-3 text-xs text-slate-400">Confirmed and completed appointments by booking date.</p>
+            </article>
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Quick stats</p><div className="mt-4 space-y-4">{[{label:"Today's appointments",value:todayAppointmentsCount},{label:"Tomorrow",value:tomorrowAppointmentsCount},{label:"AI bookings",value:analytics?.convertedConversations ?? 0}].map((item)=><div key={item.label} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0"><span className="text-sm text-slate-500">{item.label}</span><strong className="text-xl text-slate-900">{item.value}</strong></div>)}</div></article>
           </section>
 
           <section id="clinic-appointments" className="clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
