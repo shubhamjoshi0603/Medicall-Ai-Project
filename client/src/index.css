@@ -353,3 +353,43 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
 .app-shell[data-theme="dark"] .bg-white\/85 { background-color: rgba(20, 36, 58, .9) !important; }
 .app-shell[data-theme="dark"] .text-white { color: #FFFFFF !important; }
 .app-shell[data-theme="dark"] .bg-white\/10 { background-color: rgba(255,255,255,.11) !important; }
+
+
+/* MediCall clinic workspace: compact blue healthcare SaaS layout inspired by the supplied reference. */
+.clinic-dashboard { min-height: calc(100vh - 72px); background: #edf3ff; }
+.clinic-dashboard > section:first-child { border-color: #dbe5f5; background: linear-gradient(115deg,#fff 0%,#f4f7ff 58%,#e7efff 100%); }
+.clinic-sidebar {
+  position: fixed; z-index: 30; left: 0; top: 80px; bottom: 0;
+  width: 232px; overflow-y: auto; border: 0; border-radius: 0;
+  border-right: 1px solid #243b5c; background: linear-gradient(180deg,#101d33 0%,#142b4b 72%,#1e4290 100%);
+  padding: 22px 14px; box-shadow: 8px 0 24px rgba(15,35,70,.08);
+  align-content: flex-start; flex-direction: column; align-items: stretch;
+}
+.clinic-sidebar a { display:flex; align-items:center; width:100%; min-height:42px; border-radius:10px; padding:11px 13px; color:#c4d2e8; font-size:12px; font-weight:700; }
+.clinic-sidebar a:hover, .clinic-sidebar a:focus-visible { background:#263e60; color:#fff; }
+.clinic-sidebar-status { margin: auto 0 0; background:rgba(16,185,129,.12)!important; color:#a7f3d0!important; }
+.clinic-dashboard .clinic-stat-card, .clinic-dashboard .clinic-ai-metrics article, .clinic-dashboard .clinic-insights article, .clinic-dashboard .clinic-appointments {
+  border-color:#dce5f2; border-radius:15px; box-shadow:0 5px 18px rgba(35,62,110,.055);
+}
+.clinic-dashboard .clinic-stat-card:hover { border-color:#9db8e8; box-shadow:0 9px 24px rgba(35,62,110,.10); }
+.clinic-dashboard .clinic-stat-card > div > div > p:nth-child(2) { color:#17243a; }
+.clinic-dashboard .clinic-appointments thead { background:#f2f5fb; }
+.clinic-dashboard .clinic-appointments tbody tr:hover { background:#f6f8fd; }
+.clinic-dashboard .clinic-appointments button[class*="bg-slate-800"] { background:#2854b8; border-color:#2854b8; }
+.clinic-dashboard .clinic-appointments button[class*="text-teal-"] { color:#2854b8; }
+.doctor-dashboard { background:#edf3ff; min-height:calc(100vh - 72px); border-radius:20px; padding:22px; }
+.doctor-dashboard .doctor-summary-card { border-color:#dce5f2; box-shadow:0 5px 18px rgba(35,62,110,.055); }
+.doctor-dashboard .doctor-primary-button { background:#2854b8; }
+.doctor-dashboard .doctor-primary-button:hover { background:#1e4290; }
+@media (max-width: 1023px) {
+  .clinic-dashboard { padding-left: 1rem; }
+  .clinic-sidebar { position:static; width:auto; height:auto; margin-bottom:20px; border:1px solid #dce5f2; border-radius:14px; background:#fff; box-shadow:0 3px 12px rgba(35,62,110,.04); flex-direction:row; align-items:center; padding:8px; }
+  .clinic-sidebar a { width:auto; min-height:38px; color:#52627b; padding:9px 12px; }
+  .clinic-sidebar a:hover { background:#edf3ff; color:#2854b8; }
+  .clinic-sidebar-status { display:none!important; }
+}
+@media (max-width: 640px) {
+  .clinic-dashboard .clinic-stat-card { padding:12px; }
+  .clinic-dashboard .clinic-stat-card p:nth-child(2) { font-size:1.6rem; }
+  .doctor-dashboard { padding:12px; border-radius:14px; }
+}
