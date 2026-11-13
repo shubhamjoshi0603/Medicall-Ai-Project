@@ -114,6 +114,9 @@ export default function App() {
   const [symptomQuery, setSymptomQuery] = useState("");
   const [symptomSpecialty, setSymptomSpecialty] = useState("");
   const [patientAuth, setPatientAuth] = useState({ fullName: "", email: "", phone: "", password: "" });
+  const [showPatientPassword, setShowPatientPassword] = useState(false);
+  const [showClinicPassword, setShowClinicPassword] = useState(false);
+  const [showDoctorSetupPassword, setShowDoctorSetupPassword] = useState(false);
   const [auth, setAuth] = useState({
     clinicName: "",
     adminName: "",
@@ -122,7 +125,7 @@ export default function App() {
   });
 
   const [clinicView, setClinicView] = useState("overview");
-  const [clinicProfileDraft, setClinicProfileDraft] = useState({ clinicName: "", adminName: "", email: "", businessHours: [] });
+  const [clinicProfileDraft, setClinicProfileDraft] = useState({ clinicName: "", adminName: "", email: "", aiAgentName: "MediCall AI", businessHours: [] });
   const [patientProfileEditing, setPatientProfileEditing] = useState(false);
   const [patientProfileDraft, setPatientProfileDraft] = useState({ fullName: "", email: "", phone: "" });
   const [adminClinic, setAdminClinic] = useState(null);
@@ -347,6 +350,7 @@ export default function App() {
         clinicName: me.data.clinic?.clinicName || "",
         adminName: me.data.clinic?.adminName || "",
         email: me.data.clinic?.email || "",
+        aiAgentName: me.data.clinic?.aiAgentName || "MediCall AI",
         businessHours: (me.data.clinic?.businessHours?.length ? me.data.clinic.businessHours : [0,1,2,3,4,5,6].map((dayOfWeek) => ({ dayOfWeek, isOpen: dayOfWeek !== 0, openTime: "09:00", closeTime: "17:00" }))).map((item) => ({ ...item })),
       });
       setClinicLocationDraft({
@@ -747,6 +751,16 @@ export default function App() {
     }
   }
 
+  async function updateDoctorFee(doctor, delta) {
+    const nextFee = Math.max(0, Number(doctor.fee || 0) + delta);
+    try {
+      const { data } = await api.patch(`/doctors/${doctor._id}/fee`, { fee: nextFee });
+      setAdminDoctors((current) => current.map((item) => item._id === doctor._id ? data.doctor : item));
+      setNotice(`${doctor.name} consultation fee is now ₹${nextFee}. This applies to new bookings.`);
+      await loadClinic();
+    } catch (err) { setError(err.response?.data?.message || "Could not update consultation fee."); }
+  }
+
   async function removeDoctor(doctor) {
     const first = window.confirm(`Remove ${doctor.name} from your clinic team?`);
     if (!first) return;
@@ -1120,7 +1134,7 @@ export default function App() {
                       <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-xl font-black ${booking.doctorId === doctor._id ? "bg-teal-600 text-white" : "bg-white text-teal-700 shadow-sm"}`}>{doctor.name?.trim()?.charAt(0)?.toUpperCase() || "D"}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-base font-extrabold text-slate-900 sm:text-lg">{doctor.name}</span>
-                        <span className="mt-1 block text-sm text-slate-500">{doctor.specialization}</span>
+                        <span className="mt-1 block text-sm text-slate-500">{doctor.specialization}</span><span className="mt-1 block text-[11px] text-slate-500">At this clinic since {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "date unavailable"}</span>
                         <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-teal-700"><span>✓</span> Select specialist</span>
                       </span>
                       <span className="text-right">
@@ -1234,14 +1248,14 @@ export default function App() {
                 <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Phone number</span><input className={`${field} rounded-xl bg-slate-50`} type="tel" placeholder="Your phone number" required value={patientAuth.phone} onChange={(e) => setPatientAuth({ ...patientAuth, phone: e.target.value })} /></label>
               </>}
               <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Email address</span><input className={`${field} rounded-xl bg-slate-50`} type="email" placeholder="you@example.com" required value={patientAuth.email} onChange={(e) => setPatientAuth({ ...patientAuth, email: e.target.value })} /></label>
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><input className={`${field} rounded-xl bg-slate-50`} type="password" minLength={8} placeholder="At least 8 characters" required value={patientAuth.password} onChange={(e) => setPatientAuth({ ...patientAuth, password: e.target.value })} /></label>
+              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><div className="relative"><input className={`${field} rounded-xl bg-slate-50 pr-20`} type={showPatientPassword ? "text" : "password"} minLength={8} placeholder="At least 8 characters" required value={patientAuth.password} onChange={(e) => setPatientAuth({ ...patientAuth, password: e.target.value })} /><button type="button" onClick={() => setShowPatientPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showPatientPassword ? "Hide" : "Show"}</button></div></label>
             </> : <>
               {authMode.endsWith("register") && <>
                 <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Clinic name</span><input className={`${field} rounded-xl bg-slate-50`} placeholder="Clinic name" required value={auth.clinicName} onChange={(e) => setAuth({ ...auth, clinicName: e.target.value })} /></label>
                 <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Admin name</span><input className={`${field} rounded-xl bg-slate-50`} placeholder="Admin name" required value={auth.adminName} onChange={(e) => setAuth({ ...auth, adminName: e.target.value })} /></label>
               </>}
               <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Email address</span><input className={`${field} rounded-xl bg-slate-50`} type="email" placeholder="clinic@example.com" required value={auth.email} onChange={(e) => setAuth({ ...auth, email: e.target.value })} /></label>
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><input className={`${field} rounded-xl bg-slate-50`} type="password" minLength={8} placeholder="At least 8 characters" required value={auth.password} onChange={(e) => setAuth({ ...auth, password: e.target.value })} /></label>
+              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><div className="relative"><input className={`${field} rounded-xl bg-slate-50 pr-20`} type={showClinicPassword ? "text" : "password"} minLength={8} placeholder="At least 8 characters" required value={auth.password} onChange={(e) => setAuth({ ...auth, password: e.target.value })} /><button type="button" onClick={() => setShowClinicPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showClinicPassword ? "Hide" : "Show"}</button></div></label>
             </>}
             <button className={`${button} w-full rounded-xl py-4`} disabled={busy}>{busy ? "Please wait…" : authMode.endsWith("register") ? "Create account" : "Sign in securely"}</button>
             <p className="text-center text-sm text-slate-500">{authMode.endsWith("register") ? "Already have an account?" : "New to MediCall?"} <button type="button" className="font-bold text-teal-700 hover:text-teal-900" onClick={() => setAuthMode(authMode.endsWith("register") ? authMode.replace("register", "login") : authMode.replace("login", "register"))}>{authMode.endsWith("register") ? "Sign in" : "Create account"}</button></p>
@@ -1312,7 +1326,7 @@ export default function App() {
                 {clinic.location?.address && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Clinic location</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{clinic.location.address}</p></div><a className="shrink-0 text-xs font-bold text-teal-700 underline" href={clinic.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clinic.location.address)}`} target="_blank" rel="noreferrer">Directions ↗</a></div>}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {recommendedDoctors.slice(0,4).map((doctor)=><article key={doctor._id} className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
-                    <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-extrabold text-slate-900">{doctor.name}</p><p className="mt-0.5 text-xs font-semibold text-indigo-700">{doctor.specialization}</p><p className="mt-1 text-[10px] text-slate-500">Listed at {clinic.clinicName}</p></div><p className="shrink-0 text-sm font-black text-teal-800">₹{doctor.fee}</p></div>
+                    <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-extrabold text-slate-900">{doctor.name}</p><p className="mt-0.5 text-xs font-semibold text-indigo-700">{doctor.specialization}</p><p className="mt-1 text-[10px] text-slate-500">Listed at {clinic.clinicName}</p><p className="mt-1 text-[10px] font-medium text-slate-500">Joined clinic: {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }) : "Date not available"}</p></div><p className="shrink-0 text-sm font-black text-teal-800">₹{doctor.fee}</p></div>
                     <button onClick={()=>{setBooking((old)=>({...old,doctorId:doctor._id}));setPage("home");window.setTimeout(()=>document.getElementById("booking")?.scrollIntoView({behavior:"smooth",block:"start"}),120);}} className="mt-2 rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Book this doctor →</button>
                   </article>)}
                 </div>
@@ -1336,26 +1350,21 @@ export default function App() {
       {page === "dashboard" && (
         <main id="dashboard-top" data-clinic-view={clinicView} className="clinic-dashboard mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:pl-[260px] lg:pr-10">
           <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F5F7F9] via-white to-[#EAF2F6] p-5 shadow-sm sm:p-6">
-            <img src={healthcareHero} alt="Healthcare team illustration" className="pointer-events-none absolute -right-8 -bottom-20 hidden h-64 w-80 object-contain opacity-80 lg:block" />
-            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="max-w-2xl">
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Clinic workspace
-                </div>
-                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-[28px]">Clinic overview</h1>
-                <p className="mt-1 text-sm text-slate-600"><span className="font-semibold text-slate-800">{adminClinic?.clinicName || "Your clinic"}</span> · Managed by {adminClinic?.adminName || "Clinic admin"}</p>
-                <p className="mt-1 text-xs text-slate-500">Review the daily schedule, track visits and keep your team organised.</p>
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-3 py-1.5 text-[11px] font-bold tracking-wide text-blue-700 shadow-sm"><span className="h-2 w-2 rounded-full bg-emerald-500" /> CLINIC WORKSPACE</div>
+                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">Good day, ${adminClinic?.clinicName || "Your clinic"}</h1>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Your clinic at a glance. Manage appointments, care teams and daily operations from one place.</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600"><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🩺 ${adminDoctors.length} doctors</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">📅 ${todayAppointmentsCount} visits today</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🤖 ${adminClinic?.aiAgentName || "MediCall AI"} assistant</span></div>
               </div>
-              <button className="relative z-10 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50" onClick={loadDashboard}>
-                <Icon name="arrow" size={16} /> Refresh
-              </button>
+              <div className="flex shrink-0 items-center gap-3 self-stretch sm:self-center"><img src={clinicWorkspaceArt} alt="Illustration of a modern clinic team" className="hidden h-24 w-28 rounded-2xl object-contain sm:block md:h-28 md:w-36"/><button className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50" onClick={loadDashboard}><Icon name="arrow" size={16}/> Refresh</button></div>
             </div>
-          </section>
+</section>
           <aside className="clinic-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[232px] flex-col border-r border-slate-200 px-3 py-5 text-white shadow-xl lg:flex" aria-label="Clinic dashboard navigation">
             <div className="mb-7 flex items-center gap-3 px-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg"><Icon name="plus" size={22}/></span><span className="min-w-0"><strong className="block truncate text-sm font-black">{adminClinic?.clinicName || "MAX HEALTHCARE"}</strong><span className="text-[10px] font-semibold tracking-wider text-blue-200">CLINIC WORKSPACE</span></span></div>
             <p className="px-3 pb-2 text-[9px] font-extrabold tracking-[.2em] text-blue-200/70">CLINICAL</p>
             {[[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["team","Doctors & team","user"],["settings","Clinic settings","plus"]].map(([key,label,icon]) => <button key={key} onClick={() => {setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold transition ${clinicView===key?"bg-blue-500/25 text-white ring-1 ring-blue-300/30":"text-blue-100/75 hover:bg-white/10 hover:text-white"}`}><Icon name={icon} size={17}/>{label}</button>)}
-            <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-[10px] font-bold text-blue-100">Managed by</p><p className="mt-1 truncate text-xs font-extrabold text-white">{adminClinic?.adminName || "Clinic admin"}</p><button onClick={logout} className="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-left text-xs font-bold text-blue-100 hover:bg-white/15">Sign out</button></div>
+            <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-[10px] font-bold text-blue-100">Managed by</p><button onClick={logout} className="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-left text-xs font-bold text-blue-100 hover:bg-white/15">Sign out</button></div>
           </aside>
           <nav className="clinic-mobile-nav mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">{[[ "overview","Overview"],["analytics","Analytics"],["appointments","Appointments"],["team","Team"],["settings","Settings"]].map(([key,label])=><button key={key} onClick={()=>{setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold ${clinicView===key?"bg-blue-700 text-white":"text-slate-600 hover:bg-blue-50"}`}>{label}</button>)}</nav>
 
@@ -1508,7 +1517,7 @@ export default function App() {
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor name</span><input className={`${field} rounded-xl bg-slate-50/70`} placeholder="e.g. Dr. Aditi Sharma" required value={doctorForm.name} onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })} /></label>
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Specialization</span><input className={`${field} rounded-xl bg-slate-50/70`} placeholder="e.g. Orthopaedics" required value={doctorForm.specialization} onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })} /></label>
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Consultation fee (₹)</span><input className={`${field} rounded-xl bg-slate-50/70`} type="number" min="0" placeholder="500" value={doctorForm.fee} onChange={(e) => setDoctorForm({ ...doctorForm, fee: e.target.value })} /></label>
-                <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3"><p className="text-sm font-bold text-teal-900">Doctor portal account (optional)</p><p className="mt-1 text-xs text-teal-800">Add an email and temporary password so this doctor can sign in separately. Both fields are required together.</p><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor email</span><input className={`${field} rounded-xl bg-white`} type="email" placeholder="doctor@example.com" value={doctorForm.email} onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })} /></label><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Temporary password (minimum 8 characters)</span><input className={`${field} rounded-xl bg-white`} type="password" minLength="8" placeholder="Create initial password" value={doctorForm.password} onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })} /></label></div>
+                <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3"><p className="text-sm font-bold text-teal-900">Doctor portal account (optional)</p><p className="mt-1 text-xs text-teal-800">Add an email and temporary password so this doctor can sign in separately. Both fields are required together.</p><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor email</span><input className={`${field} rounded-xl bg-white`} type="email" placeholder="doctor@example.com" value={doctorForm.email} onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })} /></label><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Temporary password (minimum 8 characters)</span><div className="relative"><input className={`${field} rounded-xl bg-white pr-20`} type={showDoctorSetupPassword ? "text" : "password"} minLength="8" placeholder="Create initial password" value={doctorForm.password} onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })} /><button type="button" onClick={() => setShowDoctorSetupPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showDoctorSetupPassword ? "Hide" : "Show"}</button></div></label></div>
                 <button className={`${button} flex w-full items-center justify-center gap-2 rounded-xl`}><Icon name="plus" size={16} /> Add doctor</button>
               </form>
             </div>
@@ -1525,7 +1534,7 @@ export default function App() {
                       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-700 text-base font-black text-white shadow-md shadow-teal-700/15">{(doctor.name || "D").replace(/^dr\.?\s*/i, "").slice(0, 1).toUpperCase()}</span>
                       <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-extrabold text-slate-900">{doctor.name}</p><span className={`rounded-full px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider ${doctor.isActive ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{doctor.isActive ? "Active" : "Unavailable"}</span></div>
                         <p className="mt-1 truncate text-xs font-medium text-slate-500">{doctor.specialization}</p><p className="mt-1 truncate text-[10px] text-slate-400">{doctor.email || "Doctor portal login not configured"}</p>
-                        <div className="mt-3 flex items-center justify-between gap-2"><p className="text-sm font-extrabold text-teal-800">₹{doctor.fee}<span className="ml-1 text-[10px] font-medium text-slate-400">/ visit</span></p><button onClick={() => removeDoctor(doctor)} className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-rose-600 transition hover:bg-rose-50">Remove doctor</button></div>
+                        <div className="mt-3 flex items-center justify-between gap-2"><div><p className="text-sm font-extrabold text-teal-800">₹{doctor.fee}<span className="ml-1 text-[10px] font-medium text-slate-400">/ visit</span></p><div className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1"><button type="button" aria-label="Decrease consultation fee by 50 rupees" onClick={() => updateDoctorFee(doctor,-50)} className="grid h-7 w-8 place-items-center rounded-md text-sm font-black text-slate-700 hover:bg-rose-50 hover:text-rose-700">−</button><span className="px-1 text-[10px] font-bold text-slate-500">₹50</span><button type="button" aria-label="Increase consultation fee by 50 rupees" onClick={() => updateDoctorFee(doctor,50)} className="grid h-7 w-8 place-items-center rounded-md text-sm font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-700">+</button></div><p className="mt-1 text-[9px] text-slate-400">Adjust future visit fee</p></div><button onClick={() => removeDoctor(doctor)} className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-rose-600 transition hover:bg-rose-50">Remove doctor</button></div>
                         {doctor.isActive ? <button className="mt-3 w-full rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-[11px] font-bold text-amber-800 transition hover:bg-amber-100" onClick={async () => { const fromDate = window.prompt("Unavailable from date (YYYY-MM-DD)", new Date().toISOString().slice(0,10)); if (!fromDate) return; const toDate = window.prompt("Unavailable through date (YYYY-MM-DD, optional)", fromDate) || ""; try { const { data } = await api.post(`/doctors/${doctor._id}/unavailable`, { fromDate, toDate }); setNotice(data.message); await loadDashboard(); } catch (e) { setError(e.response?.data?.message || "Could not notify patients."); } }}>Mark unavailable & notify patients</button> : <button className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[11px] font-bold text-emerald-800 transition hover:bg-emerald-100" onClick={async () => { try { const { data } = await api.patch(`/doctors/${doctor._id}/availability-status`, { isActive: true }); setNotice(data.message); await loadDashboard(); await loadClinic(); } catch (e) { setError(e.response?.data?.message || "Could not reactivate doctor."); } }}>Reactivate doctor</button>}
                       </div>
                     </div>
@@ -1546,7 +1555,7 @@ export default function App() {
           <section data-clinic-panel="settings" hidden={clinicView !== "settings"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-5"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-blue-700">Clinic settings</p><h2 className="mt-1 text-xl font-black text-slate-900">Practice profile & opening hours</h2><p className="mt-1 text-sm text-slate-500">Keep public clinic details and weekly schedule up to date.</p></div>
             <form onSubmit={saveClinicProfile} className="grid gap-4 md:grid-cols-2">
-              {[[ "clinicName","Clinic name"],["adminName","Admin / contact person"],["email","Clinic email"]].map(([key,label])=><label key={key} className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><input required type={key==="email"?"email":"text"} value={clinicProfileDraft[key]} onChange={(e)=>setClinicProfileDraft((old)=>({...old,[key]:e.target.value}))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none focus:border-blue-500"/></label>)}
+              {[[ "clinicName","Clinic name"],["adminName","Admin / contact person"],["email","Clinic email"],["aiAgentName","AI assistant name"]].map(([key,label])=><label key={key} className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><input required type={key==="email"?"email":"text"} maxLength={key==="aiAgentName"?50:undefined} value={clinicProfileDraft[key] || ""} onChange={(e)=>setClinicProfileDraft((old)=>({...old,[key]:e.target.value}))} placeholder={key==="aiAgentName"?"e.g. MediCall Assistant":"Enter "+label.toLowerCase()} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none focus:border-blue-500"/>{key==="aiAgentName" && <span className="mt-1 block text-[11px] text-slate-500">This name is shown to patients when they chat with your clinic assistant.</span>}</label>)}
               <div className="md:col-span-2"><div className="mb-3"><h3 className="font-extrabold text-slate-900">Weekly opening hours</h3><p className="mt-1 text-xs font-semibold text-blue-700">Open {(clinicProfileDraft.businessHours || []).filter((item) => item.isOpen).length} days per week</p><p className="mt-1 text-xs text-slate-500">Select operating days and the opening / closing time.</p></div><div className="space-y-2">{(clinicProfileDraft.businessHours||[]).map((item,index)=><div key={item.dayOfWeek} className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3"><span className="text-xs font-bold text-slate-700">{clinicDays[item.dayOfWeek]}</span><label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600"><input type="checkbox" checked={item.isOpen} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,isOpen:e.target.checked}:h)}))}/> Open</label><input type="time" disabled={!item.isOpen} value={item.openTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,openTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/><input type="time" disabled={!item.isOpen} value={item.closeTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,closeTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/></div>)}</div></div>
               <button className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-blue-800 md:col-span-2">Save clinic profile & hours</button>
             </form>
@@ -1627,7 +1636,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-50 text-teal-700"><Icon name="spark" size={21} /></span>
-                <div><h2 className="font-semibold tracking-tight">MediCall AI</h2>
+                <div><h2 className="font-semibold tracking-tight">{clinic?.aiAgentName || "MediCall AI"}</h2>
                 <p className="mt-0.5 text-xs text-slate-500">Clinic assistant · Hindi & English</p></div>
               </div>
             </div>

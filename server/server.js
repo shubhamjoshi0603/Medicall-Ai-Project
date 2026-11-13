@@ -486,6 +486,7 @@ const clinicSchema = new Schema(
       required: true,
       trim: true,
     },
+    aiAgentName: { type: String, default: "MediCall AI", trim: true, maxlength: 50 },
     email: {
       type: String,
       required: true,
@@ -887,7 +888,7 @@ app.get("/api/auth/me", protect, async (req, res) => {
   try {
     const clinic = await Clinic.findById(
       req.clinicId
-    ).select("clinicName adminName email location businessHours");
+    ).select("clinicName adminName email aiAgentName location businessHours");
 
     if (!clinic) {
       return res.status(404).json({
@@ -950,7 +951,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
     const clinicName = String(req.body?.clinicName || "").trim();
     const adminName = String(req.body?.adminName || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
-    const businessHours = req.body?.businessHours;
+    const businessHours = req.body?.businessHours;\n    const aiAgentName = String(req.body?.aiAgentName || "MediCall AI").trim().slice(0, 50) || "MediCall AI";
     if (!clinicName || !adminName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ message: "Enter a clinic name, admin name and valid email address." });
     }
@@ -963,7 +964,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
       if (dayOfWeek !== index || !/^\d{2}:\d{2}$/.test(openTime) || !/^\d{2}:\d{2}$/.test(closeTime) || (item.isOpen && openTime >= closeTime)) throw new Error("Check the opening and closing times for each working day.");
       return { dayOfWeek, isOpen: Boolean(item.isOpen), openTime, closeTime };
     });
-    const clinic = await Clinic.findByIdAndUpdate(req.clinicId, { $set: { clinicName, adminName, email, businessHours: normalizedHours } }, { new: true, runValidators: true }).select("clinicName adminName email location businessHours");
+    const clinic = await Clinic.findByIdAndUpdate(req.clinicId, { $set: { clinicName, adminName, email, aiAgentName, businessHours: normalizedHours } }, { new: true, runValidators: true }).select("clinicName adminName email location businessHours");
     return res.json({ message: "Clinic profile and opening hours updated.", clinic });
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ message: "That email address is already registered." });
@@ -1045,7 +1046,7 @@ async function publicClinicsHandler(req, res) {
     const doctors = await Doctor.find({ clinicId: selectedClinic._id, isActive: true }).sort({ name: 1 });
     return res.json({
       clinics,
-      clinic: { id: selectedClinic._id, clinicName: selectedClinic.clinicName, location: selectedClinic.location || {}, businessHours: selectedClinic.businessHours || [] },
+      clinic: { id: selectedClinic._id, clinicName: selectedClinic.clinicName, aiAgentName: selectedClinic.aiAgentName || "MediCall AI", location: selectedClinic.location || {}, businessHours: selectedClinic.businessHours || [] },
       doctors,
     });
   } catch (error) {
@@ -1215,12 +1216,12 @@ app.post("/api/doctor-auth/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid doctor email or password." });
     }
     const token = jwt.sign({ role: "doctor", doctorId: doctor._id.toString(), clinicId: doctor.clinicId.toString() }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    return res.json({ token, doctor: { id: doctor._id, name: doctor.name, email: doctor.email, specialization: doctor.specialization, clinicId: doctor.clinicId } });
+    return res.json({ token, doctor: { id: doctor._id, name: doctor.name, email: doctor.email, specialization: doctor.specialization, fee: doctor.fee, createdAt: doctor.createdAt, clinicId: doctor.clinicId } });
   } catch (error) { console.error("Doctor login error:", error); return res.status(500).json({ message: "Doctor login failed." }); }
 });
 
 app.get("/api/doctor/me", protectDoctor, async (req, res) => {
-  const doctor = await Doctor.findOne({ _id: req.doctorId, clinicId: req.clinicId, isActive: true }).select("name email specialization fee clinicId");
+  const doctor = await Doctor.findOne({ _id: req.doctorId, clinicId: req.clinicId, isActive: true }).select("name email specialization fee clinicId createdAt");
   if (!doctor) return res.status(404).json({ message: "Doctor account not found." });
   return res.json({ doctor });
 });
@@ -1304,6 +1305,17 @@ app.get("/api/doctors", protect, async (req, res) => {
       message: "Could not load doctors.",
     });
   }
+});
+
+// Update a doctor's consultation fee for future bookings. Existing appointments retain their recorded payment amount.
+app.patch("/api/doctors/:id/fee", protect, async (req, res) => {
+  try {
+    const fee = Number(req.body?.fee);
+    if (!Number.isFinite(fee) || fee < 0 || fee > 1000000) return res.status(400).json({ message: "Enter a valid consultation fee between ₹0 and ₹10,00,000." });
+    const doctor = await Doctor.findOneAndUpdate({ _id: req.params.id, clinicId: req.clinicId }, { $set: { fee } }, { new: true, runValidators: true }).select("-password");
+    if (!doctor) return res.status(404).json({ message: "Doctor not found in this clinic." });
+    return res.json({ message: "Consultation fee updated. This applies to new bookings.", doctor });
+  } catch (error) { console.error("Update doctor fee error:", error); return res.status(500).json({ message: "Could not update consultation fee." }); }
 });
 
 // ==================== ADD DOCTOR ====================
