@@ -446,3 +446,16 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   .app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar { background:#142238; border:1px solid #2b405c; }
   .app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar a { color:#c8d6ea; }
 }
+
+/* Clinic workspace navigation and focus states */
+.clinic-dashboard { position:relative; }
+.clinic-dashboard .clinic-sidebar { background:linear-gradient(180deg,#101e34 0%,#142b4b 68%,#214c91 100%); }
+.clinic-dashboard [data-clinic-panel][hidden] { display:none !important; }
+.clinic-dashboard[data-clinic-view] { min-height:calc(100vh - 76px); }
+.clinic-dashboard .clinic-mobile-nav button { white-space:nowrap; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-mobile-nav { background:#142238; border-color:#2b405c; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-mobile-nav button:not(.bg-blue-700) { color:#c8d6ea; }
+.app-shell[data-theme="dark"] .clinic-dashboard input,
+.app-shell[data-theme="dark"] .clinic-dashboard textarea,
+.app-shell[data-theme="dark"] .clinic-dashboard select { background:#1b2d47 !important; border-color:#354d6d !important; color:#f1f6ff !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard label { color:#c7d5e8; }

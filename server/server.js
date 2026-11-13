@@ -346,9 +346,13 @@ app.post("/api/chat", async (req, res) => {
         }
         const [year, month, day] = session.date.split('-').map(Number); const [hour, minute] = session.time.split(':').map(Number);
         const apptDate = new Date(year, month - 1, day, hour, minute);
-        if (apptDate.getTime() <= Date.now() || apptDate.getFullYear() !== year || apptDate.getMonth() !== month-1 || apptDate.getDate() !== day || hour < 9 || hour >= 17 || minute > 59) {
+        const dayOfWeek = apptDate.getDay();
+        const clinicHours = (clinic.businessHours || []).find((item) => item.dayOfWeek === dayOfWeek);
+        const outsideClinicHours = !clinicHours || clinicHours.isOpen === false || `${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}` < (clinicHours?.openTime || "09:00") || `${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}` >= (clinicHours?.closeTime || "17:00");
+        if (apptDate.getTime() <= Date.now() || apptDate.getFullYear() !== year || apptDate.getMonth() !== month-1 || apptDate.getDate() !== day || minute > 59 || outsideClinicHours) {
           session.step = apptDate.getTime() <= Date.now() ? 'date' : 'time'; bookingSessions.set(conversationId, session);
-          return res.json({ reply: session.step === 'date' ? "That date must be in the future. What future date would you prefer?" : "That time is outside clinic hours (09:00–17:00). What time would you prefer?", bookingCreated: false, bookingState: session.step });
+          const reply = session.step === 'date' ? "That date must be in the future. What future date would you prefer?" : (!clinicHours || clinicHours.isOpen === false ? "The clinic is closed on that day. Please choose one of its working days." : `The clinic is open from ${clinicHours.openTime} to ${clinicHours.closeTime}. Please choose a time within these hours.`);
+          return res.json({ reply, bookingCreated: false, bookingState: session.step });
         }
         try {
           const appointment = await Appointment.create({ clinicId: clinic._id, doctorId: doctor._id, patientName: session.patientName, patientEmail: session.patientEmail, phone: session.phone, date: session.date, time: session.time, reason: session.reason || '' });
@@ -499,6 +503,16 @@ const clinicSchema = new Schema(
       longitude: { type: Number, default: null },
       mapsUrl: { type: String, default: "" },
     },
+    businessHours: {
+      type: [{
+        dayOfWeek: { type: Number, min: 0, max: 6, required: true },
+        isOpen: { type: Boolean, default: true },
+        openTime: { type: String, default: "09:00" },
+        closeTime: { type: String, default: "17:00" },
+      }],
+      default: () => [0,1,2,3,4,5,6].map((dayOfWeek) => ({ dayOfWeek, isOpen: dayOfWeek !== 0, openTime: "09:00", closeTime: "17:00" })),
+    },
+
   },
   { timestamps: true }
 );
@@ -854,6 +868,8 @@ app.post("/api/auth/login", async (req, res) => {
         clinicName: clinic.clinicName,
         adminName: clinic.adminName,
         email: clinic.email,
+        location: clinic.location || {},
+        businessHours: clinic.businessHours || [],
       },
     });
   } catch (error) {
@@ -871,7 +887,7 @@ app.get("/api/auth/me", protect, async (req, res) => {
   try {
     const clinic = await Clinic.findById(
       req.clinicId
-    ).select("clinicName adminName email location");
+    ).select("clinicName adminName email location businessHours");
 
     if (!clinic) {
       return res.status(404).json({
@@ -928,6 +944,33 @@ app.patch("/api/clinic/location", protect, async (req, res) => {
   }
 });
 
+
+app.patch("/api/clinic/profile", protect, async (req, res) => {
+  try {
+    const clinicName = String(req.body?.clinicName || "").trim();
+    const adminName = String(req.body?.adminName || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const businessHours = req.body?.businessHours;
+    if (!clinicName || !adminName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Enter a clinic name, admin name and valid email address." });
+    }
+    if (clinicName.length > 120 || adminName.length > 100) return res.status(400).json({ message: "Clinic or admin name is too long." });
+    if (!Array.isArray(businessHours) || businessHours.length !== 7) return res.status(400).json({ message: "Provide opening hours for all seven days." });
+    const normalizedHours = businessHours.map((item, index) => {
+      const dayOfWeek = Number(item.dayOfWeek);
+      const openTime = String(item.openTime || "09:00");
+      const closeTime = String(item.closeTime || "17:00");
+      if (dayOfWeek !== index || !/^\d{2}:\d{2}$/.test(openTime) || !/^\d{2}:\d{2}$/.test(closeTime) || (item.isOpen && openTime >= closeTime)) throw new Error("Check the opening and closing times for each working day.");
+      return { dayOfWeek, isOpen: Boolean(item.isOpen), openTime, closeTime };
+    });
+    const clinic = await Clinic.findByIdAndUpdate(req.clinicId, { $set: { clinicName, adminName, email, businessHours: normalizedHours } }, { new: true, runValidators: true }).select("clinicName adminName email location businessHours");
+    return res.json({ message: "Clinic profile and opening hours updated.", clinic });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: "That email address is already registered." });
+    return res.status(400).json({ message: error.message || "Could not update clinic profile." });
+  }
+});
+
 // ==================== PATIENT AUTHENTICATION ====================
 app.post("/api/patient-auth/register", async (req, res) => {
   try {
@@ -971,11 +1014,28 @@ app.get("/api/patient-auth/me", protectPatient, async (req, res) => {
   }
 });
 
+
+app.patch("/api/patient-auth/profile", protectPatient, async (req, res) => {
+  try {
+    const fullName = String(req.body?.fullName || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const phone = String(req.body?.phone || "").trim();
+    if (!fullName || !phone || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: "Enter your name, valid email and phone number." });
+    if (fullName.length > 100 || phone.length > 20) return res.status(400).json({ message: "Name or phone number is too long." });
+    const patient = await Patient.findByIdAndUpdate(req.patientId, { $set: { fullName, email, phone } }, { new: true, runValidators: true });
+    if (!patient) return res.status(404).json({ message: "Patient account not found." });
+    return res.json({ message: "Your profile was updated.", patient: { id: patient._id, fullName: patient.fullName, email: patient.email, phone: patient.phone } });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: "That email address is already in use." });
+    return res.status(400).json({ message: "Could not update your profile." });
+  }
+});
+
 // ==================== PUBLIC CLINIC INFO ====================
 
 async function publicClinicsHandler(req, res) {
   try {
-    const clinics = await Clinic.find({}).sort({ clinicName: 1 }).select("clinicName");
+    const clinics = await Clinic.find({}).sort({ clinicName: 1 }).select("clinicName location businessHours");
     if (!clinics.length) return res.status(404).json({ message: "No clinic registered yet." });
     const requestedId = req.query.clinicId;
     const selectedClinic = requestedId
@@ -985,7 +1045,7 @@ async function publicClinicsHandler(req, res) {
     const doctors = await Doctor.find({ clinicId: selectedClinic._id, isActive: true }).sort({ name: 1 });
     return res.json({
       clinics,
-      clinic: { id: selectedClinic._id, clinicName: selectedClinic.clinicName, location: selectedClinic.location || {} },
+      clinic: { id: selectedClinic._id, clinicName: selectedClinic.clinicName, location: selectedClinic.location || {}, businessHours: selectedClinic.businessHours || [] },
       doctors,
     });
   } catch (error) {
@@ -1069,13 +1129,18 @@ app.post("/api/public/appointments", async (req, res) => {
       });
     }
 
-    if (hour < 9 || hour >= 17) {
-      return res.status(400).json({
-        message: "Clinic hours are 09:00 to 17:00.",
-      });
-    }
-
     const clinic = await Clinic.findById(clinicId);
+    if (!clinic) return res.status(404).json({ message: "Clinic not found." });
+    const dayOfWeek = new Date(year, month - 1, day).getDay();
+    const hours = (clinic.businessHours || []).find((item) => item.dayOfWeek === dayOfWeek);
+    const opensAt = hours?.openTime || "09:00";
+    const closesAt = hours?.closeTime || "17:00";
+    if (!hours || hours.isOpen === false) {
+      return res.status(400).json({ message: "The clinic is closed on the selected day. Please choose one of its working days." });
+    }
+    if (time < opensAt || time >= closesAt) {
+      return res.status(400).json({ message: `The clinic is open from ${opensAt} to ${closesAt} on the selected day. Please choose a time within these hours.` });
+    }
 
     const doctor = await Doctor.findOne({
       _id: doctorId,
@@ -1083,7 +1148,7 @@ app.post("/api/public/appointments", async (req, res) => {
       isActive: true,
     });
 
-    if (!clinic || !doctor) {
+    if (!doctor) {
       return res.status(404).json({
         message: "Clinic or doctor not found.",
       });
