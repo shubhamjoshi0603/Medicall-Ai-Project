@@ -1264,7 +1264,7 @@ export default function App() {
       )}
 
       {page === "dashboard" && (
-        <main id="dashboard-top" className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:px-10">
+        <main id="dashboard-top" className="clinic-dashboard mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:pl-[260px] lg:pr-10">
           <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F5F7F9] via-white to-[#EAF2F6] p-5 shadow-sm sm:p-6">
             <img src={healthcareHero} alt="Healthcare team illustration" className="pointer-events-none absolute -right-8 -bottom-20 hidden h-64 w-80 object-contain opacity-80 lg:block" />
             <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1281,9 +1281,9 @@ export default function App() {
               </button>
             </div>
           </section>
-          <nav className="mb-7 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm" aria-label="Clinic dashboard sections">
+          <nav className="clinic-sidebar mb-7 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm" aria-label="Clinic dashboard sections">
             {[ ["Overview", "dashboard-top"], ["Appointments", "clinic-appointments"], ["AI analytics", "clinic-analytics"], ["Team", "clinic-team"], ["Location settings", "clinic-location"] ].map(([label, target]) => <a key={target} href={`#${target}`} className="rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700">{label}</a>)}
-            <span className="ml-auto hidden rounded-xl bg-emerald-50 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 sm:inline-flex">● Clinic workspace active</span>
+            <span className="clinic-sidebar-status ml-auto hidden rounded-xl bg-emerald-50 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 sm:inline-flex">● Clinic workspace active</span>
           </nav>
 
           <section id="clinic-analytics" className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -1295,7 +1295,7 @@ export default function App() {
               { label: "Cancelled", value: cancelledAppointmentsCount, note: "Closed bookings", icon: "close", tint: "bg-slate-100 text-slate-600", filter: "cancelled" },
               { label: "Doctors", value: stats.doctors || 0, note: "Clinic team", icon: "user", tint: "bg-slate-100 text-slate-700", filter: "team" },
             ].map((item) => (
-              <article key={item.label} onClick={() => item.filter === "team" ? document.getElementById("clinic-team")?.scrollIntoView({ behavior: "smooth" }) : setAppointmentFilter(item.filter)} className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+              <article key={item.label} onClick={() => item.filter === "team" ? document.getElementById("clinic-team")?.scrollIntoView({ behavior: "smooth" }) : setAppointmentFilter(item.filter)} className="clinic-stat-card cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-slate-500">{item.label}</p>
@@ -1308,12 +1308,12 @@ export default function App() {
             ))}
           </section>
 
-          <section className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 clinic-ai-metrics">
             {[{ label: "AI conversations", value: analytics?.totalConversations ?? 0 }, { label: "Booked from AI", value: analytics?.convertedConversations ?? 0 }, { label: "AI conversion", value: `${analytics?.conversionRate ?? 0}%` }, { label: "Chat / Voice", value: `${analytics?.chatConversations ?? 0} / ${analytics?.voiceConversations ?? 0}` }].map((item) => <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{item.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{item.value}</p></article>)}
             <p className="sm:col-span-2 xl:col-span-4 text-xs text-slate-500">Conversion = unique tracked AI conversations that created an appointment ÷ total unique AI conversations. Chat and voice are counted separately using the conversation channel sent by the website.</p>
           </section>
 
-          <section className="mb-7 grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+          <section className="mb-7 grid gap-4 lg:grid-cols-[1.15fr_.85fr] clinic-insights">
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-50 p-6 text-slate-900 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-slate-500">Clinic intelligence</p><h2 className="mt-2 text-xl font-black">Performance at a glance</h2><p className="mt-1 text-sm text-slate-600">Consultation fees recorded as received are added to your clinic revenue.</p></div><span className="rounded-xl border border-slate-200 bg-white p-3 text-slate-500"><Icon name="spark" size={22}/></span></div>
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1326,7 +1326,7 @@ export default function App() {
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-teal-700">AI conversion insight</p><h2 className="mt-2 text-xl font-black text-slate-950">Turn conversations into care</h2><p className="mt-2 text-sm leading-6 text-slate-500">{analytics?.totalConversations ? `${analytics.convertedConversations || 0} of ${analytics.totalConversations} tracked conversations led to an appointment (${analytics.conversionRate || 0}%).` : "Conversation metrics will appear after patients start using the AI chat or voice assistant."}</p><div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-indigo-500" style={{ width: `${Math.min(100, Math.max(0, Number(analytics?.conversionRate || 0)))}%` }}/></div><div className="mt-3 flex justify-between text-xs text-slate-500"><span>AI conversion</span><strong className="text-slate-800">{analytics?.conversionRate || 0}%</strong></div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Improvement tip: review unanswered questions and make sure doctor specializations, fees and availability are up to date.</p></article>
           </section>
 
-          <section id="clinic-appointments" className="mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
+          <section id="clinic-appointments" className="clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
             <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">Appointments</h2>
