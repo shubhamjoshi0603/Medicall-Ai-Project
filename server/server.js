@@ -668,6 +668,21 @@ const familyMemberSchema = new Schema({
   phone: { type: String, default: "", trim: true, maxlength: 20 },
 }, { timestamps: true });
 
+const clinicPatientUpdateSchema = new Schema({
+  clinicId: { type: Schema.Types.ObjectId, ref: "Clinic", required: true, index: true },
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", default: null },
+  patientEmail: { type: String, required: true, lowercase: true, trim: true, index: true },
+  title: { type: String, required: true, trim: true, maxlength: 120 },
+  category: { type: String, enum: ["Medical report", "Lab result", "Prescription", "Discharge summary", "Healthcare update", "General notice"], default: "Medical report" },
+  message: { type: String, default: "", maxlength: 2000 },
+  fileName: { type: String, default: "", maxlength: 180 },
+  mimeType: { type: String, default: "", enum: ["", "application/pdf", "image/jpeg", "image/png"] },
+  fileData: { type: Buffer, default: null, select: false },
+  fileSize: { type: Number, default: 0, max: 5 * 1024 * 1024 },
+}, { timestamps: true });
+clinicPatientUpdateSchema.index({ patientId: 1, createdAt: -1 });
+
 const medicalRecordSchema = new Schema({
   patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
   familyMemberId: { type: Schema.Types.ObjectId, ref: "FamilyMember", default: null },
@@ -684,6 +699,7 @@ const Clinic = mongoose.model("Clinic", clinicSchema);
 const Patient = mongoose.model("Patient", patientSchema);
 const FamilyMember = mongoose.model("FamilyMember", familyMemberSchema);
 const MedicalRecord = mongoose.model("MedicalRecord", medicalRecordSchema);
+const ClinicPatientUpdate = mongoose.model("ClinicPatientUpdate", clinicPatientUpdateSchema);
 const PatientReview = mongoose.model("PatientReview", reviewSchema);
 const Doctor = mongoose.model("Doctor", doctorSchema);
 const Appointment = mongoose.model("Appointment", appointmentSchema);
@@ -1071,6 +1087,117 @@ app.patch("/api/patient-auth/profile", protectPatient, async (req, res) => {
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ message: "That email address is already in use." });
     return res.status(400).json({ message: "Could not update your profile." });
+  }
+});
+
+// ==================== CLINIC REPORTS & PRIVATE PATIENT UPDATES ====================
+
+function validClinicUpdateFile(file) {
+  if (!file) return { valid: true, mimeType: "", fileName: "", fileSize: 0, fileData: null };
+  const bytes = file.buffer;
+  const isPdf = bytes.subarray(0, 5).toString() === "%PDF-";
+  const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isPng = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const valid = (file.mimetype === "application/pdf" && isPdf) || (file.mimetype === "image/jpeg" && isJpeg) || (file.mimetype === "image/png" && isPng);
+  return {
+    valid,
+    mimeType: file.mimetype,
+    fileName: String(file.originalname || "clinic-report").replace(/[\\/\\r\\n]/g, "_").slice(0, 180),
+    fileSize: file.size,
+    fileData: file.buffer,
+  };
+}
+
+app.get("/api/clinic/patient-updates", protect, async (req, res) => {
+  try {
+    const updates = await ClinicPatientUpdate.find({ clinicId: req.clinicId })
+      .select("-fileData")
+      .populate("patientId", "fullName email")
+      .populate("appointmentId", "bookingReference date time")
+      .sort({ createdAt: -1 })
+      .limit(200);
+    return res.json(updates);
+  } catch (error) {
+    console.error("Clinic patient updates load:", error);
+    return res.status(500).json({ message: "Could not load clinic reports and updates." });
+  }
+});
+
+app.post("/api/clinic/patient-updates", protect, uploadMedicalRecord.single("file"), async (req, res) => {
+  try {
+    const patientEmail = String(req.body?.patientEmail || "").trim().toLowerCase();
+    const title = String(req.body?.title || "").trim();
+    const category = String(req.body?.category || "Medical report").trim();
+    const message = String(req.body?.message || "").trim();
+    const appointmentId = String(req.body?.appointmentId || "").trim();
+    const allowedCategories = ["Medical report", "Lab result", "Prescription", "Discharge summary", "Healthcare update", "General notice"];
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(patientEmail) || !title || title.length > 120 || !allowedCategories.includes(category) || message.length > 2000) {
+      return res.status(400).json({ message: "Choose a valid patient and enter a title, category and message." });
+    }
+    const file = validClinicUpdateFile(req.file);
+    if (!file.valid) return res.status(400).json({ message: "The attachment must be a valid PDF, JPG or PNG file." });
+    if (!message && !req.file) return res.status(400).json({ message: "Add a message or attach a report before sharing." });
+
+    const patient = await Patient.findOne({ email: patientEmail }).select("_id fullName email");
+    if (!patient) return res.status(404).json({ message: "This patient has not created a MediCall patient account yet." });
+    const linkedAppointment = await Appointment.findOne({ clinicId: req.clinicId, patientEmail }).select("_id");
+    if (!linkedAppointment) return res.status(403).json({ message: "You can share updates only with patients linked to your clinic." });
+    let verifiedAppointmentId = null;
+    if (appointmentId) {
+      if (!mongoose.isValidObjectId(appointmentId)) return res.status(400).json({ message: "Invalid appointment reference." });
+      const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId, patientEmail }).select("_id");
+      if (!appointment) return res.status(403).json({ message: "The selected appointment does not belong to this patient and clinic." });
+      verifiedAppointmentId = appointment._id;
+    }
+    const update = await ClinicPatientUpdate.create({
+      clinicId: req.clinicId,
+      patientId: patient._id,
+      patientEmail,
+      appointmentId: verifiedAppointmentId,
+      title,
+      category,
+      message,
+      ...file,
+    });
+    const safeUpdate = await ClinicPatientUpdate.findById(update._id)
+      .select("-fileData")
+      .populate("patientId", "fullName email")
+      .populate("appointmentId", "bookingReference date time");
+    return res.status(201).json({ message: "Report or healthcare update shared securely with the patient.", update: safeUpdate });
+  } catch (error) {
+    console.error("Publish clinic patient update:", error);
+    return res.status(500).json({ message: "Could not share this report with the patient." });
+  }
+});
+
+app.get("/api/patient/clinic-updates", protectPatient, async (req, res) => {
+  try {
+    const updates = await ClinicPatientUpdate.find({ patientId: req.patientId })
+      .select("-fileData")
+      .populate("clinicId", "clinicName")
+      .populate("appointmentId", "bookingReference date time")
+      .sort({ createdAt: -1 })
+      .limit(200);
+    return res.json(updates);
+  } catch (error) {
+    console.error("Patient clinic updates load:", error);
+    return res.status(500).json({ message: "Could not load reports shared by your clinic." });
+  }
+});
+
+app.get("/api/patient/clinic-updates/:id/download", protectPatient, async (req, res) => {
+  try {
+    const update = await ClinicPatientUpdate.findOne({ _id: req.params.id, patientId: req.patientId }).select("+fileData");
+    if (!update || !update.fileData) return res.status(404).json({ message: "Report attachment not found." });
+    const safeName = update.fileName.replace(/["\\r\\n]/g, "_");
+    res.setHeader("Content-Type", update.mimeType);
+    res.setHeader("Content-Length", update.fileSize);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.send(update.fileData);
+  } catch (error) {
+    console.error("Patient clinic report download:", error);
+    return res.status(500).json({ message: "Could not download this clinic report." });
   }
 });
 
