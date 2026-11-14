@@ -75,45 +75,6 @@ async function sendAppointmentEmail({ to, patientName, clinicName, doctorName, d
   await mailTransporter.sendMail({ from, to, subject, html, text: `Dear ${patientName}, your appointment with ${doctorName} at ${clinicName} is ${status}. Date: ${date}; Time: ${time}; Booking ID: ${bookingId}.` });
   return true;
 }
-async function sendPatientSms({ to, patientName, doctorName, date, time, bookingReference }) {
-  const authKey = process.env.MSG91_AUTH_KEY;
-  const templateId = process.env.MSG91_TEMPLATE_ID;
-  if (!authKey || !templateId || !to) return false;
-
-  const digits = String(to).replace(/\D/g, "");
-  const mobile = digits.length === 10 ? `91${digits}` : digits.startsWith("91") ? digits : "";
-  if (!/^91[6-9]\d{9}$/.test(mobile)) return false;
-
-  const recipient = {
-    mobiles: mobile,
-    VAR1: String(patientName || "Patient").slice(0, 60),
-    VAR2: String(doctorName || "Doctor").slice(0, 60),
-    VAR3: String(date || "").slice(0, 20),
-    VAR4: String(time || "").slice(0, 20),
-    VAR5: String(bookingReference || "").slice(0, 40),
-  };
-  const payload = { template_id: templateId, recipients: [recipient] };
-  if (process.env.MSG91_SENDER_ID) payload.sender = process.env.MSG91_SENDER_ID;
-
-  try {
-    const response = await fetch("https://control.msg91.com/api/v5/flow", {
-      method: "POST",
-      headers: { accept: "application/json", authkey: authKey, "content-type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(12000),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || result?.type === "error" || result?.status === "error") {
-      console.error("MSG91 SMS request failed:", response.status, result?.message || result?.error || "Provider rejected request");
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error("MSG91 SMS request failed:", error.message || error);
-    return false;
-  }
-}
-
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char] || char));
 }
@@ -1508,7 +1469,6 @@ app.patch(
       await appointment.save();
 
       let emailSent = false;
-      let smsSent = false;
       if (statusChanged && appointment.patientEmail) {
         try {
           const clinic = await Clinic.findById(appointment.clinicId).select("clinicName");
@@ -1527,18 +1487,6 @@ app.patch(
           console.error("Appointment status email failed:", mailError.message);
         }
       }
-      // Send one SMS only when the appointment actually changes to Completed.
-      // MSG91 remains optional; missing credentials never block appointment updates.
-      if (statusChanged && status === "Completed") {
-        smsSent = await sendPatientSms({
-          to: appointment.phone,
-          patientName: appointment.patientName,
-          doctorName: appointment.doctorId?.name || "your doctor",
-          date: appointment.date,
-          time: appointment.time,
-          bookingReference: appointment.bookingReference || appointment._id,
-        });
-      }
 
       const message = status === "Completed"
         ? revenueAdded > 0
@@ -1550,7 +1498,7 @@ app.patch(
             : "Visit completed. No payment was recorded yet; you can record the offline payment later."
         : "Appointment cancelled.";
 
-      return res.json({ message, emailSent, smsSent, revenueAdded, appointment });
+      return res.json({ message, emailSent, revenueAdded, appointment });
     } catch (error) {
       console.error("Update appointment error:", error);
       return res.status(500).json({ message: "Could not update appointment." });
