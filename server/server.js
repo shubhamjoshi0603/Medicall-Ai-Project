@@ -1976,13 +1976,14 @@ app.patch("/api/doctors/:id/availability-status", protect, async (req, res) => {
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
   if (error instanceof multer.MulterError) {
+    const isMedicalUpload = error.field === "file";
     return res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
       message: error.code === "LIMIT_FILE_SIZE"
-        ? "Audio recording is too large. Please record a shorter message."
-        : "Could not process the audio upload.",
+        ? isMedicalUpload ? "Medical document exceeds the 5 MB limit." : "Audio recording is too large. Please record a shorter message."
+        : "Could not process the upload.",
     });
   }
-  if (error.message === "Please upload a supported audio recording.") {
+  if (error.message === "Please upload a supported audio recording." || error.message === "Upload a PDF, JPG or PNG medical document.") {
     return res.status(400).json({ message: error.message });
   }
   if (error.message === "Origin is not allowed by CORS") {
