@@ -1133,8 +1133,8 @@ export default function App() {
     "rounded-xl bg-teal-700 px-5 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <div data-theme={theme} className="app-shell min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800">
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/70 bg-white/90 px-4 py-3 shadow-[0_8px_30px_rgba(15,42,58,0.06)] backdrop-blur-2xl sm:px-6 lg:px-12">
+    <div data-theme={theme} className="app-shell min-h-screen overflow-x-clip bg-[#f8fafc] text-slate-800">
+      <header className="site-header sticky top-0 z-50 flex items-center justify-between border-b px-4 py-3 shadow-lg backdrop-blur-2xl sm:px-6 lg:px-12">
         <button
           onClick={() => setPage("home")}
           className="flex items-center text-lg font-extrabold tracking-tight sm:text-xl"
