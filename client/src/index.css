@@ -516,3 +516,117 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   color: #fff !important; background: #2563eb !important;
 }
 @media (max-width: 1023px) { .clinic-dashboard .clinic-sidebar { width: auto; } }
+
+
+/* Patient portal navigation and account polish */
+.patient-dashboard {
+  background: linear-gradient(145deg, #f3f7fc 0%, #edf4fb 48%, #f5f8fc 100%);
+  border: 1px solid rgba(211,224,239,.75);
+  box-shadow: 0 18px 50px rgba(31,61,94,.055);
+}
+.patient-dashboard > section {
+  border-radius: 26px;
+  box-shadow: 0 14px 36px rgba(30,55,85,.07);
+}
+.patient-dashboard .patient-hero {
+  position: relative;
+  background: linear-gradient(112deg, #102b49 0%, #14546d 52%, #078b8c 100%);
+}
+.patient-dashboard .patient-portal-nav {
+  position: sticky;
+  top: 84px;
+  z-index: 20;
+  border-color: #d8e4f1;
+}
+.patient-dashboard .patient-nav-link {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  padding: 8px 13px;
+  color: #52647b;
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+}
+.patient-dashboard .patient-nav-icon {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 9px;
+  background: #edf4fb;
+  color: #28618b;
+  font-size: 16px;
+}
+.patient-dashboard .patient-nav-link:hover {
+  transform: translateY(-1px);
+  border-color: #c9deef;
+  background: #eff7ff;
+  color: #155b85;
+}
+.patient-dashboard .patient-nav-home {
+  color: #fff;
+  background: linear-gradient(105deg,#176b91,#087f83);
+  box-shadow: 0 5px 14px rgba(8,127,131,.16);
+}
+.patient-dashboard .patient-nav-home .patient-nav-icon {
+  color: #fff;
+  background: rgba(255,255,255,.16);
+}
+.patient-dashboard .patient-profile-edit {
+  border: 1px solid #b8e4dc;
+}
+.patient-dashboard .patient-appointment-card {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.patient-dashboard .patient-appointment-card:hover {
+  transform: translateY(-2px);
+  border-color: #b8d4e8;
+  box-shadow: 0 12px 28px rgba(31,74,112,.09);
+}
+.app-shell[data-theme="dark"] .patient-dashboard {
+  background: linear-gradient(145deg,#0d1a2b 0%,#10243a 55%,#102d3b 100%) !important;
+  border-color: #29435f !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav {
+  background: rgba(17,34,54,.96) !important;
+  border-color: #314b67 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link { color: #dce9f8; }
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-icon {
+  color: #c8e6ff;
+  background: #203a56;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link:hover {
+  color: #fff;
+  background: #234363;
+  border-color: #3a6385;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-home {
+  color: #fff;
+  background: linear-gradient(105deg,#176b91,#087f83);
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-home .patient-nav-icon {
+  color: #fff;
+  background: rgba(255,255,255,.16);
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-appointment-card {
+  background: #172a43 !important;
+  border-color: #304862 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-appointment-card:hover {
+  border-color: #4b7192 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav .bg-emerald-50 {
+  color: #a7f3d0 !important;
+  background: #123b35 !important;
+}
+@media(max-width:640px) {
+  .patient-dashboard .patient-portal-nav { top: 72px; gap: 5px; }
+  .patient-dashboard .patient-nav-link { padding: 7px 9px; font-size: 12px; }
+  .patient-dashboard .patient-nav-icon { width: 24px; height: 24px; }
+}
