@@ -323,7 +323,7 @@ export default function App() {
   useEffect(() => {
     if (!patientToken) return;
     axios.get(`${API}/patient-auth/me`, { headers: { Authorization: `Bearer ${patientToken}` } })
-      .then(({ data }) => { setPatient(data.patient); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); loadPatientModules(); })
+      .then(({ data }) => { setPatient(data.patient); setPatientView("account"); setPatientProfileEditing(false); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); loadPatientModules(); })
       .catch(() => { localStorage.removeItem("medicall_patient_token"); setPatientToken(""); setPatient(null); });
   }, [patientToken]);
 
@@ -1120,6 +1120,8 @@ export default function App() {
     localStorage.removeItem("medicall_patient_token");
     setPatientToken("");
     setPatient(null);
+    setPatientView("account");
+    setPatientClinicUpdates([]);
     setPage("home");
     setNotice("Patient logged out successfully.");
   }
