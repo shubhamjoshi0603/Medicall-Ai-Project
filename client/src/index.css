@@ -644,3 +644,81 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   .patient-dashboard .patient-nav-link { padding: 7px 9px; font-size: 12px; }
   .patient-dashboard .patient-nav-icon { width: 24px; height: 24px; }
 }
+
+/* Patient portal workspace sidebar: aligned with the clinic dashboard layout. */
+.patient-dashboard { position:relative; }
+.patient-dashboard .patient-sidebar {
+  background:linear-gradient(165deg,#101e34 0%,#12344b 58%,#087f83 100%);
+  border-right:1px solid rgba(255,255,255,.13);
+  box-shadow:12px 0 34px rgba(12,28,52,.10);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item {
+  min-height:46px;
+  color:#d6e8f5;
+  border:1px solid transparent;
+  letter-spacing:.005em;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+  display:grid;
+  width:32px;height:32px;flex:0 0 32px;
+  place-items:center;
+  border-radius:10px;
+  color:#bce8ed;
+  background:rgba(255,255,255,.085);
+  font-size:17px;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item:hover {
+  color:#fff;
+  background:rgba(255,255,255,.11);
+  border-color:rgba(191,219,254,.18);
+  transform:translateX(2px);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item.is-active {
+  color:#fff;
+  background:linear-gradient(100deg,#087f83,#1676a2);
+  border-color:rgba(191,219,254,.4);
+  box-shadow:0 8px 20px rgba(8,127,131,.24);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item.is-active .patient-nav-icon {
+  color:#fff;background:rgba(255,255,255,.18);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item:focus-visible {
+  outline:3px solid #7dd3fc;outline-offset:2px;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar {
+  background:linear-gradient(165deg,#071426 0%,#102b43 58%,#075c64 100%) !important;
+  border-right-color:#345173 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item {
+  color:#e2edfc !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item:hover {
+  color:#fff !important;background:#29466e !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item.is-active {
+  color:#fff !important;background:linear-gradient(100deg,#087f83,#176da0) !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+  color:#d5f3f5;background:rgba(255,255,255,.10);
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav {
+  background:#142238 !important;border-color:#314b67 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link {
+  color:#e0ebfa;background:#1b2d47;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link.is-active {
+  color:#fff;background:#087f83;border-color:#3a8790;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link .patient-nav-icon {
+  color:#d5f3f5;background:#203a56;
+}
+@media(max-width:1023px) {
+  .patient-dashboard { max-width:100%; }
+  .patient-dashboard .patient-portal-nav { position:sticky;top:76px;z-index:25; }
+}
+@media(max-width:640px) {
+  .patient-dashboard .patient-portal-nav { top:72px;gap:5px; }
+  .patient-dashboard .patient-nav-link { padding:7px 9px;font-size:12px; }
+  .patient-dashboard .patient-nav-icon { width:24px;height:24px; }
+}
