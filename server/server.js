@@ -622,6 +622,7 @@ const appointmentSchema = new Schema(
       requestedAt: { type: Date, default: null },
     },
     doctorUnavailableNotice: { type: Boolean, default: false },
+    videoRoomId: { type: String, default: "" },
     alternativeDates: { type: [String], default: [] },
   },
   { timestamps: true }
@@ -683,6 +684,7 @@ const Clinic = mongoose.model("Clinic", clinicSchema);
 const Patient = mongoose.model("Patient", patientSchema);
 const FamilyMember = mongoose.model("FamilyMember", familyMemberSchema);
 const MedicalRecord = mongoose.model("MedicalRecord", medicalRecordSchema);
+const PatientReview = mongoose.model("PatientReview", reviewSchema);
 const Doctor = mongoose.model("Doctor", doctorSchema);
 const Appointment = mongoose.model("Appointment", appointmentSchema);
 const Availability = mongoose.model("Availability", availabilitySchema);
@@ -1199,6 +1201,84 @@ app.delete("/api/patient/records/:id", protectPatient, async (req, res) => {
     return res.json({ message: "Medical document deleted." });
   } catch (error) {
     return res.status(500).json({ message: "Could not delete medical document." });
+  }
+});
+
+// ==================== PATIENT REVIEWS, VIDEO VISITS & AI ASSISTANT ====================
+
+app.get("/api/patient/reviews", protectPatient, async (req, res) => {
+  try {
+    const reviews = await PatientReview.find({ patientId: req.patientId }).sort({ createdAt: -1 });
+    return res.json(reviews);
+  } catch (error) {
+    return res.status(500).json({ message: "Could not load your reviews." });
+  }
+});
+
+app.post("/api/patient/reviews", protectPatient, async (req, res) => {
+  try {
+    const appointmentId = req.body?.appointmentId;
+    const rating = Number(req.body?.rating);
+    const comment = String(req.body?.comment || "").trim();
+    if (!mongoose.isValidObjectId(appointmentId) || !Number.isInteger(rating) || rating < 1 || rating > 5 || comment.length > 1000) {
+      return res.status(400).json({ message: "Choose a rating from 1 to 5 and keep feedback under 1,000 characters." });
+    }
+    const patient = await Patient.findById(req.patientId).select("email");
+    const appointment = await Appointment.findOne({ _id: appointmentId, patientEmail: patient?.email, status: "Completed" });
+    if (!appointment) return res.status(403).json({ message: "Only patients with a completed appointment can review this visit." });
+    const review = await PatientReview.create({ patientId: req.patientId, appointmentId: appointment._id, clinicId: appointment.clinicId, doctorId: appointment.doctorId, rating, comment });
+    return res.status(201).json({ message: "Thank you. Your verified visit review has been saved.", review });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: "You have already reviewed this completed appointment." });
+    console.error("Patient review:", error);
+    return res.status(500).json({ message: "Could not save your review." });
+  }
+});
+
+app.post("/api/patient/appointments/:id/video-room", protectPatient, async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.patientId).select("email");
+    const appointment = await Appointment.findOne({ _id: req.params.id, patientEmail: patient?.email, status: "Confirmed" });
+    if (!appointment) return res.status(404).json({ message: "A video room is available only for your confirmed appointment." });
+    if (!appointment.videoRoomId) {
+      appointment.videoRoomId = "MediCallAI-" + require("crypto").randomBytes(20).toString("hex");
+      await appointment.save();
+    }
+    return res.json({ roomId: appointment.videoRoomId, roomUrl: "https://meet.jit.si/" + appointment.videoRoomId });
+  } catch (error) {
+    console.error("Video consultation room:", error);
+    return res.status(500).json({ message: "Could not prepare the video consultation room." });
+  }
+});
+
+app.post("/api/patient/assistant", protectPatient, async (req, res) => {
+  try {
+    const question = String(req.body?.message || "").trim();
+    if (!question || question.length > 2000) return res.status(400).json({ message: "Enter a question under 2,000 characters." });
+    if (!groq) return res.status(503).json({ message: "The AI assistant is not configured. Please contact the clinic." });
+    const patient = await Patient.findById(req.patientId).select("fullName email");
+    const [appointments, records] = await Promise.all([
+      Appointment.find({ patientEmail: patient.email }).sort({ date: -1 }).limit(8).populate("doctorId", "name specialization").populate("clinicId", "clinicName"),
+      MedicalRecord.find({ patientId: req.patientId }).select("title category createdAt").sort({ createdAt: -1 }).limit(12),
+    ]);
+    const context = {
+      appointments: appointments.map((item) => ({ date: item.date, time: item.time, status: item.status, doctor: item.doctorId?.name, specialty: item.doctorId?.specialization, clinic: item.clinicId?.clinicName })),
+      uploadedDocumentTitles: records.map((item) => ({ title: item.title, category: item.category, uploaded: item.createdAt })),
+    };
+    const completion = await groq.chat.completions.create({
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      temperature: 0.25,
+      max_tokens: 650,
+      messages: [
+        { role: "system", content: "You are MediCall AI, a patient-support assistant. You may explain general health information, help patients understand their appointment schedule and explain common medical terms. You are not a doctor: never diagnose, prescribe, change medication doses, or claim certainty. Do not infer test results from document titles. Encourage the patient to contact their clinician for personal medical decisions. For emergency symptoms such as chest pain, severe breathing difficulty, stroke signs, heavy bleeding or loss of consciousness, tell them to seek emergency services immediately. Use concise, calm language. The following patient context is private and may only be used to answer this patient's question: " + JSON.stringify(context) },
+        { role: "user", content: question },
+      ],
+    });
+    const answer = completion.choices?.[0]?.message?.content?.trim() || "I could not prepare an answer. Please try again.";
+    return res.json({ answer });
+  } catch (error) {
+    console.error("Patient AI assistant:", error.message || error);
+    return res.status(502).json({ message: "The AI assistant is temporarily unavailable." });
   }
 });
 
