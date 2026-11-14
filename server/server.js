@@ -570,6 +570,7 @@ const appointmentSchema = new Schema(
       sparse: true,
       default: generateBookingReference,
     },
+    patientRemovedAt: { type: Date, default: null },
     clinicId: {
       type: Schema.Types.ObjectId,
       ref: "Clinic",
@@ -1987,7 +1988,7 @@ app.post("/api/patient/appointments/:id/reschedule-request", protectPatient, asy
 app.get("/api/patient/appointments", protectPatient, async (req, res) => {
   try {
     const patient = await Patient.findById(req.patientId).select("email");
-    const items = await Appointment.find({ patientEmail: patient.email }).populate("doctorId", "name specialization fee").populate("clinicId", "clinicName location").sort({ createdAt: -1 });
+    const items = await Appointment.find({ patientEmail: patient.email, $or: [{ patientRemovedAt: null }, { patientRemovedAt: { $exists: false } }] }).populate("doctorId", "name specialization fee").populate("clinicId", "clinicName location").sort({ createdAt: -1 });
     // Older appointments created before booking references were introduced may not
     // have one. Assign and persist it once so refreshes never generate a new ID.
     for (const item of items) {
@@ -2013,6 +2014,23 @@ app.patch("/api/patient/appointments/:id/cancel", protectPatient, async (req, re
     let emailSent = false; try { emailSent = await emailAppointmentUpdate(appointment, "Appointment cancelled", "Your appointment has been cancelled", "Your appointment is now cancelled."); } catch (e) { console.error("Cancel email:", e.message); }
     return res.json({ message: "Appointment cancelled.", emailSent, appointment });
   } catch (e) { return res.status(500).json({ message: "Could not cancel appointment." }); }
+});
+
+app.patch("/api/patient/appointments/:id/remove", protectPatient, async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.patientId).select("email");
+    if (!patient?.email) return res.status(404).json({ message: "Patient account not found." });
+    const appointment = await Appointment.findOneAndUpdate(
+      { _id: req.params.id, patientEmail: patient.email, status: "Cancelled", $or: [{ patientRemovedAt: null }, { patientRemovedAt: { $exists: false } }] },
+      { $set: { patientRemovedAt: new Date() } },
+      { new: true }
+    );
+    if (!appointment) return res.status(404).json({ message: "Only cancelled appointments in your account can be removed." });
+    return res.json({ message: "Cancelled appointment removed from your account. The clinic record is unchanged." });
+  } catch (e) {
+    console.error("Remove patient appointment:", e);
+    return res.status(500).json({ message: "Could not remove this appointment." });
+  }
 });
 
 app.patch("/api/appointments/:id/reschedule-request", protect, async (req, res) => {
