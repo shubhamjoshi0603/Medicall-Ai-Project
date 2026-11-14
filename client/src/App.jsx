@@ -837,7 +837,7 @@ export default function App() {
   async function updateAppointment(id, status, extra = {}) {
     try {
       const { data } = await api.patch(`/appointments/${id}/status`, { status, ...extra });
-      setNotice(data.message || `Appointment marked ${status.toLowerCase()}.`);
+      setNotice((data.message || `Appointment marked ${status.toLowerCase()}.`) + (status === "Completed" ? (data.smsSent ? " Patient SMS sent via MSG91." : " SMS not sent; check MSG91 configuration and approved template.") : ""));
       await loadDashboard();
       return true;
     } catch (err) {
