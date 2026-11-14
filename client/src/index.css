@@ -562,6 +562,20 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   color: #28618b;
   font-size: 16px;
 }
+.patient-dashboard .patient-nav-link {
+  cursor: pointer;
+  background: transparent;
+}
+.patient-dashboard .patient-nav-link.is-active {
+  border-color: #c9deef;
+  background: linear-gradient(105deg,#eaf4fb,#e8f8f6);
+  color: #155b85;
+  box-shadow: 0 3px 10px rgba(8,82,110,.08);
+}
+.patient-dashboard .patient-nav-link.is-active .patient-nav-icon {
+  background: #d7eaf7;
+  color: #155b85;
+}
 .patient-dashboard .patient-nav-link:hover {
   transform: translateY(-1px);
   border-color: #c9deef;
