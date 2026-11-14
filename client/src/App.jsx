@@ -153,6 +153,11 @@ export default function App() {
   const [patientAppointments, setPatientAppointments] = useState([]);
   const [familyMembers, setFamilyMembers] = useState([]);
   const [medicalRecords, setMedicalRecords] = useState([]);
+  const [patientReviews, setPatientReviews] = useState([]);
+  const [reviewDrafts, setReviewDrafts] = useState({});
+  const [assistantMessages, setAssistantMessages] = useState([]);
+  const [assistantInput, setAssistantInput] = useState("");
+  const [assistantBusy, setAssistantBusy] = useState(false);
   const [familyDraft, setFamilyDraft] = useState({ fullName: "", relationship: "Child", dateOfBirth: "", phone: "" });
   const [recordDraft, setRecordDraft] = useState({ title: "", category: "Prescription", familyMemberId: "", appointmentId: "" });
   const [recordFile, setRecordFile] = useState(null);
@@ -913,12 +918,14 @@ export default function App() {
     if (!patientToken) return;
     const headers = { Authorization: "Bearer " + patientToken };
     try {
-      const [familyResult, recordsResult] = await Promise.all([
+      const [familyResult, recordsResult, reviewsResult] = await Promise.all([
         axios.get(API + "/patient/family", { headers }),
         axios.get(API + "/patient/records", { headers }),
+        axios.get(API + "/patient/reviews", { headers }),
       ]);
       setFamilyMembers(familyResult.data || []);
       setMedicalRecords(recordsResult.data || []);
+      setPatientReviews(reviewsResult.data || []);
     } catch (err) { setError(err.response?.data?.message || "Could not load your health records."); }
   }
 
@@ -975,6 +982,38 @@ export default function App() {
       document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) { setError(err.response?.data?.message || "Could not download medical document."); }
+  }
+
+  async function submitPatientReview(appointmentId) {
+    const draft = reviewDrafts[appointmentId] || { rating: 5, comment: "" };
+    try {
+      const response = await axios.post(API + "/patient/reviews", { appointmentId, rating: Number(draft.rating), comment: draft.comment }, { headers: { Authorization: "Bearer " + patientToken } });
+      setPatientReviews((items) => [response.data.review, ...items]);
+      setNotice(response.data.message || "Review saved.");
+    } catch (err) { setError(err.response?.data?.message || "Could not save review."); }
+  }
+
+  async function startVideoConsultation(appointment) {
+    try {
+      const response = await axios.post(API + "/patient/appointments/" + appointment._id + "/video-room", {}, { headers: { Authorization: "Bearer " + patientToken } });
+      await loadPatientAppointments();
+      window.open(response.data.roomUrl, "_blank", "noopener,noreferrer");
+    } catch (err) { setError(err.response?.data?.message || "Could not start video consultation."); }
+  }
+
+  async function askPatientAssistant(event) {
+    event.preventDefault();
+    const question = assistantInput.trim();
+    if (!question || assistantBusy) return;
+    setAssistantMessages((items) => [...items, { role: "user", text: question }]);
+    setAssistantInput("");
+    setAssistantBusy(true);
+    try {
+      const response = await axios.post(API + "/patient/assistant", { message: question }, { headers: { Authorization: "Bearer " + patientToken } });
+      setAssistantMessages((items) => [...items, { role: "assistant", text: response.data.answer }]);
+    } catch (err) {
+      setAssistantMessages((items) => [...items, { role: "assistant", text: err.response?.data?.message || "The assistant is temporarily unavailable." }]);
+    } finally { setAssistantBusy(false); }
   }
 
   async function deleteMedicalRecord(record) {
