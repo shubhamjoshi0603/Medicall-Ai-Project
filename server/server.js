@@ -1410,7 +1410,7 @@ app.post("/api/patient/assistant", protectPatient, async (req, res) => {
       uploadedDocumentTitles: records.map((item) => ({ title: item.title, category: item.category, uploaded: item.createdAt })),
     };
     const completion = await groq.chat.completions.create({
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      model: process.env.GROQ_CHAT_MODEL || "openai/gpt-oss-120b",
       temperature: 0.25,
       max_tokens: 650,
       messages: [
