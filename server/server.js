@@ -695,6 +695,15 @@ const medicalRecordSchema = new Schema({
   fileSize: { type: Number, required: true, max: 5 * 1024 * 1024 },
 }, { timestamps: true });
 
+const reviewSchema = new Schema({
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", required: true, unique: true },
+  clinicId: { type: Schema.Types.ObjectId, ref: "Clinic", required: true, index: true },
+  doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true, index: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String, default: "", trim: true, maxlength: 1000 },
+}, { timestamps: true });
+
 const Clinic = mongoose.model("Clinic", clinicSchema);
 const Patient = mongoose.model("Patient", patientSchema);
 const FamilyMember = mongoose.model("FamilyMember", familyMemberSchema);
