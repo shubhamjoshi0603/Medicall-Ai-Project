@@ -1102,7 +1102,7 @@ function validClinicUpdateFile(file) {
   return {
     valid,
     mimeType: file.mimetype,
-    fileName: String(file.originalname || "clinic-report").replace(/[\\/\\r\\n]/g, "_").slice(0, 180),
+    fileName: String(file.originalname || "clinic-report").replace(/[\/\r\n]/g, "_").slice(0, 180),
     fileSize: file.size,
     fileData: file.buffer,
   };
@@ -1131,7 +1131,7 @@ app.post("/api/clinic/patient-updates", protect, uploadMedicalRecord.single("fil
     const message = String(req.body?.message || "").trim();
     const appointmentId = String(req.body?.appointmentId || "").trim();
     const allowedCategories = ["Medical report", "Lab result", "Prescription", "Discharge summary", "Healthcare update", "General notice"];
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(patientEmail) || !title || title.length > 120 || !allowedCategories.includes(category) || message.length > 2000) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientEmail) || !title || title.length > 120 || !allowedCategories.includes(category) || message.length > 2000) {
       return res.status(400).json({ message: "Choose a valid patient and enter a title, category and message." });
     }
     const file = validClinicUpdateFile(req.file);
