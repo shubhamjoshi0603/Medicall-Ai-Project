@@ -963,7 +963,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
       return res.status(400).json({ message: "Enter a clinic name, admin name and valid email address." });
     }
     if (clinicName.length > 120 || adminName.length > 100) return res.status(400).json({ message: "Clinic or admin name is too long." });
-    if (phone && !/^\\+?[0-9\\s()-]{7,20}$/.test(phone)) return res.status(400).json({ message: "Enter a valid clinic phone number." });
+    if (phone && !/^\+?[0-9\s()-]{7,20}$/.test(phone)) return res.status(400).json({ message: "Enter a valid clinic phone number." });
     if (!Array.isArray(businessHours) || businessHours.length !== 7) return res.status(400).json({ message: "Provide opening hours for all seven days." });
     const normalizedHours = businessHours.map((item, index) => {
       const dayOfWeek = Number(item.dayOfWeek);
