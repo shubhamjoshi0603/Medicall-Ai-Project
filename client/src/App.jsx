@@ -151,6 +151,12 @@ export default function App() {
   const [stats, setStats] = useState({});
   const [appointments, setAppointments] = useState([]);
   const [patientAppointments, setPatientAppointments] = useState([]);
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [medicalRecords, setMedicalRecords] = useState([]);
+  const [familyDraft, setFamilyDraft] = useState({ fullName: "", relationship: "Child", dateOfBirth: "", phone: "" });
+  const [recordDraft, setRecordDraft] = useState({ title: "", category: "Prescription", familyMemberId: "", appointmentId: "" });
+  const [recordFile, setRecordFile] = useState(null);
+  const [patientModuleBusy, setPatientModuleBusy] = useState(false);
   const [showAllPatientAppointments, setShowAllPatientAppointments] = useState(false);
   const [clinicLocationDraft, setClinicLocationDraft] = useState({ address: "", latitude: "", longitude: "" });
   const [analytics, setAnalytics] = useState(null);
@@ -307,7 +313,7 @@ export default function App() {
   useEffect(() => {
     if (!patientToken) return;
     axios.get(`${API}/patient-auth/me`, { headers: { Authorization: `Bearer ${patientToken}` } })
-      .then(({ data }) => { setPatient(data.patient); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); })
+      .then(({ data }) => { setPatient(data.patient); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); loadPatientModules(); })
       .catch(() => { localStorage.removeItem("medicall_patient_token"); setPatientToken(""); setPatient(null); });
   }, [patientToken]);
 
@@ -901,6 +907,102 @@ export default function App() {
       const { data } = await axios.get(`${API}/patient/appointments`, { headers: { Authorization: `Bearer ${patientToken}` } });
       setPatientAppointments(data || []);
     } catch (err) { setError(err.response?.data?.message || "Could not load patient appointments."); }
+  }
+
+  async function loadPatientModules() {
+    if (!patientToken) return;
+    const headers = { Authorization: "Bearer " + patientToken };
+    try {
+      const [familyResult, recordsResult] = await Promise.all([
+        axios.get(API + "/patient/family", { headers }),
+        axios.get(API + "/patient/records", { headers }),
+      ]);
+      setFamilyMembers(familyResult.data || []);
+      setMedicalRecords(recordsResult.data || []);
+    } catch (err) { setError(err.response?.data?.message || "Could not load your health records."); }
+  }
+
+  async function saveFamilyMember(event) {
+    event.preventDefault();
+    if (!patientToken) return;
+    setPatientModuleBusy(true);
+    try {
+      const response = await axios.post(API + "/patient/family", familyDraft, { headers: { Authorization: "Bearer " + patientToken } });
+      setFamilyMembers((items) => [response.data.member, ...items]);
+      setFamilyDraft({ fullName: "", relationship: "Child", dateOfBirth: "", phone: "" });
+      setNotice(response.data.message || "Family member added.");
+    } catch (err) { setError(err.response?.data?.message || "Could not add family member."); }
+    finally { setPatientModuleBusy(false); }
+  }
+
+  async function removeFamilyMember(member) {
+    if (!window.confirm("Remove " + member.fullName + " and their linked medical records?")) return;
+    try {
+      const response = await axios.delete(API + "/patient/family/" + member._id, { headers: { Authorization: "Bearer " + patientToken } });
+      setFamilyMembers((items) => items.filter((item) => item._id !== member._id));
+      await loadPatientModules();
+      setNotice(response.data.message || "Family member removed.");
+    } catch (err) { setError(err.response?.data?.message || "Could not remove family member."); }
+  }
+
+  async function uploadMedicalRecord(event) {
+    event.preventDefault();
+    if (!recordFile || !recordDraft.title.trim()) { setError("Add a document title and choose a PDF, JPG or PNG file."); return; }
+    const formData = new FormData();
+    formData.append("file", recordFile);
+    formData.append("title", recordDraft.title);
+    formData.append("category", recordDraft.category);
+    if (recordDraft.familyMemberId) formData.append("familyMemberId", recordDraft.familyMemberId);
+    if (recordDraft.appointmentId) formData.append("appointmentId", recordDraft.appointmentId);
+    setPatientModuleBusy(true);
+    try {
+      const response = await axios.post(API + "/patient/records", formData, { headers: { Authorization: "Bearer " + patientToken, "Content-Type": "multipart/form-data" } });
+      setMedicalRecords((items) => [response.data.record, ...items]);
+      setRecordDraft({ title: "", category: "Prescription", familyMemberId: "", appointmentId: "" });
+      setRecordFile(null);
+      event.target.reset();
+      setNotice(response.data.message || "Medical document saved.");
+    } catch (err) { setError(err.response?.data?.message || "Could not upload medical document."); }
+    finally { setPatientModuleBusy(false); }
+  }
+
+  async function downloadMedicalRecord(record) {
+    try {
+      const response = await axios.get(API + "/patient/records/" + record._id + "/download", { headers: { Authorization: "Bearer " + patientToken }, responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url; link.download = record.fileName || "medical-record";
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) { setError(err.response?.data?.message || "Could not download medical document."); }
+  }
+
+  async function deleteMedicalRecord(record) {
+    if (!window.confirm("Delete " + record.title + "?")) return;
+    try {
+      const response = await axios.delete(API + "/patient/records/" + record._id, { headers: { Authorization: "Bearer " + patientToken } });
+      setMedicalRecords((items) => items.filter((item) => item._id !== record._id));
+      setNotice(response.data.message || "Medical document deleted.");
+    } catch (err) { setError(err.response?.data?.message || "Could not delete medical document."); }
+  }
+
+  function printPaymentInvoice(appointment) {
+    const popup = window.open("", "_blank", "width=760,height=850");
+    if (!popup) { setError("Allow pop-ups to print or save your invoice."); return; }
+    const bookingId = appointment.bookingReference || appointment._id;
+    const amount = Number(appointment.paymentAmount || appointment.doctorId?.fee || 0);
+    const rows = [
+      ["Receipt / Booking ID", bookingId],
+      ["Patient", patient?.fullName || appointment.patientName],
+      ["Clinic", appointment.clinicId?.clinicName || "MediCall clinic"],
+      ["Doctor", appointment.doctorId?.name || "Doctor"],
+      ["Appointment", appointment.date + " at " + appointment.time],
+      ["Payment method", appointment.paymentMethod || "Online"],
+      ["Payment status", appointment.paymentStatus],
+    ];
+    const rowHtml = rows.map((row) => "<tr><td>" + row[0] + "</td><td>" + String(row[1] || "").replace(/[&<>]/g, "") + "</td></tr>").join("");
+    popup.document.write("<!doctype html><html><head><title>MediCall receipt</title><style>body{font:15px Arial;color:#172033;padding:40px;max-width:720px;margin:auto}h1{color:#0f766e}table{width:100%;border-collapse:collapse;margin-top:28px}td{padding:13px;border-bottom:1px solid #ddd}.total{font-size:22px;font-weight:bold;text-align:right;margin-top:28px}</style></head><body><h1>MediCall AI</h1><p>Payment receipt</p><table>" + rowHtml + "</table><p class='total'>Total paid: ₹" + amount.toLocaleString("en-IN") + "</p><script>window.onload=function(){window.print()}<\/script></body></html>");
+    popup.document.close();
   }
 
   async function cancelPatientAppointment(id) {
