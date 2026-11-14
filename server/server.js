@@ -1599,8 +1599,24 @@ app.post("/api/patient/appointments/:id/reschedule-request", protectPatient, asy
 });
 
 app.get("/api/patient/appointments", protectPatient, async (req, res) => {
-  try { const patient = await Patient.findById(req.patientId).select("email"); const items = await Appointment.find({ patientEmail: patient.email }).populate("doctorId", "name specialization fee").populate("clinicId", "clinicName location").sort({ createdAt: -1 }); return res.json(items); }
-  catch (e) { return res.status(500).json({ message: "Could not load your appointments." }); }
+  try {
+    const patient = await Patient.findById(req.patientId).select("email");
+    const items = await Appointment.find({ patientEmail: patient.email }).populate("doctorId", "name specialization fee").populate("clinicId", "clinicName location").sort({ createdAt: -1 });
+    // Older appointments created before booking references were introduced may not
+    // have one. Assign and persist it once so refreshes never generate a new ID.
+    for (const item of items) {
+      if (!item.bookingReference) {
+        item.bookingReference = generateBookingReference();
+        try { await item.save(); }
+        catch (saveError) {
+          if (saveError.code !== 11000) throw saveError;
+          item.bookingReference = generateBookingReference();
+          await item.save();
+        }
+      }
+    }
+    return res.json(items);
+  } catch (e) { console.error("Load patient appointments:", e); return res.status(500).json({ message: "Could not load your appointments." }); }
 });
 
 app.patch("/api/patient/appointments/:id/cancel", protectPatient, async (req, res) => {
