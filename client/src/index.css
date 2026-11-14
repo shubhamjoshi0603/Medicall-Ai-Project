@@ -722,3 +722,133 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   .patient-dashboard .patient-nav-link { padding:7px 9px;font-size:12px; }
   .patient-dashboard .patient-nav-icon { width:24px;height:24px; }
 }
+
+/* Responsive patient workspace + unified light palette across the application. */
+.app-shell[data-theme="light"] {
+  background:#f3f7fb !important;
+  color:#243447;
+}
+.app-shell[data-theme="light"] .bg-white { background-color:#ffffff !important; }
+.app-shell[data-theme="light"] .bg-slate-50,
+.app-shell[data-theme="light"] .bg-slate-50\/70 { background-color:#f7f9fc !important; }
+.app-shell[data-theme="light"] .bg-slate-100 { background-color:#edf2f7 !important; }
+.app-shell[data-theme="light"] .bg-teal-50 { background-color:#eaf7f5 !important; }
+.app-shell[data-theme="light"] .bg-teal-100 { background-color:#d7efeb !important; }
+.app-shell[data-theme="light"] .bg-cyan-50 { background-color:#edf8fc !important; }
+.app-shell[data-theme="light"] .bg-cyan-100 { background-color:#dff1f8 !important; }
+.app-shell[data-theme="light"] .bg-indigo-50 { background-color:#f0f2ff !important; }
+.app-shell[data-theme="light"] .bg-indigo-100 { background-color:#e2e7ff !important; }
+.app-shell[data-theme="light"] .bg-blue-50 { background-color:#edf5ff !important; }
+.app-shell[data-theme="light"] .bg-emerald-50 { background-color:#eaf7f0 !important; }
+.app-shell[data-theme="light"] .bg-amber-50 { background-color:#fff7e8 !important; }
+.app-shell[data-theme="light"] .bg-rose-50 { background-color:#fff0f2 !important; }
+.app-shell[data-theme="light"] .border-slate-100 { border-color:#e8eef4 !important; }
+.app-shell[data-theme="light"] .border-slate-200,
+.app-shell[data-theme="light"] .border-slate-200\/80 { border-color:#dce5ee !important; }
+.app-shell[data-theme="light"] .border-slate-300 { border-color:#cbd7e3 !important; }
+.app-shell[data-theme="light"] .text-slate-950,
+.app-shell[data-theme="light"] .text-slate-900 { color:#172b42 !important; }
+.app-shell[data-theme="light"] .text-slate-800 { color:#263c53 !important; }
+.app-shell[data-theme="light"] .text-slate-700 { color:#3c5268 !important; }
+.app-shell[data-theme="light"] .text-slate-600 { color:#536a80 !important; }
+.app-shell[data-theme="light"] .text-slate-500 { color:#6c8094 !important; }
+.app-shell[data-theme="light"] .text-slate-400 { color:#8294a6 !important; }
+.app-shell[data-theme="light"] input,
+.app-shell[data-theme="light"] select,
+.app-shell[data-theme="light"] textarea {
+  color:#24384d;
+  background-color:#fff;
+  border-color:#d5e0ea;
+}
+.app-shell[data-theme="light"] input:focus,
+.app-shell[data-theme="light"] select:focus,
+.app-shell[data-theme="light"] textarea:focus {
+  border-color:#15958e;
+  box-shadow:0 0 0 3px rgba(21,149,142,.12);
+}
+.app-shell[data-theme="light"] .patient-dashboard {
+  background:linear-gradient(145deg,#f4f8fc 0%,#eef5f9 100%) !important;
+  border-color:#dce7ef !important;
+}
+
+/* The earlier legacy patient-dashboard padding used !important and overrode
+   Tailwind's desktop left offset, causing the sidebar to cover the content. */
+@media (min-width:1024px) {
+  .app-shell .patient-dashboard {
+    padding-left:268px !important;
+    padding-right:24px !important;
+  }
+  .app-shell .patient-dashboard .patient-sidebar {
+    display:flex !important;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .app-shell .patient-dashboard .patient-portal-nav { display:none !important; }
+}
+@media (max-width:1023px) {
+  .app-shell .patient-dashboard {
+    padding-left:12px !important;
+    padding-right:12px !important;
+  }
+  .app-shell .patient-dashboard .patient-sidebar { display:none !important; }
+  .app-shell .patient-dashboard .patient-portal-nav {
+    display:grid !important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:7px;
+    position:relative;
+    top:auto;
+    overflow:visible;
+    padding:9px;
+    background:#fff;
+    border:1px solid #dce5ee;
+    border-radius:18px;
+  }
+  .app-shell .patient-dashboard .patient-nav-link {
+    display:flex;
+    min-width:0;
+    min-height:58px;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    white-space:normal;
+    border:1px solid #e5edf3;
+    border-radius:12px;
+    padding:7px 4px;
+    color:#40566c;
+    background:#f8fafc;
+    font-size:11px;
+    line-height:1.2;
+    text-align:center;
+  }
+  .app-shell .patient-dashboard .patient-nav-link .patient-nav-icon {
+    display:grid;
+    width:25px;height:25px;
+    place-items:center;
+    border-radius:8px;
+    color:#087f83;
+    background:#e5f4f2;
+    font-size:15px;
+  }
+  .app-shell .patient-dashboard .patient-nav-link.is-active {
+    color:#075e63;
+    border-color:#9bd5d0;
+    background:#e7f6f4;
+    box-shadow:0 3px 10px rgba(8,127,131,.08);
+  }
+  .app-shell .patient-dashboard .patient-nav-link.is-active .patient-nav-icon {
+    color:#fff;background:#087f83;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav {
+    background:#142238 !important;border-color:#314b67 !important;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link {
+    color:#dce9f8;background:#1b2d47;border-color:#314b67;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link .patient-nav-icon {
+    color:#d5f3f5;background:#203a56;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link.is-active {
+    color:#fff;background:#087f83;border-color:#3a8790;
+  }
+}
