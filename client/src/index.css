@@ -459,3 +459,60 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
 .app-shell[data-theme="dark"] .clinic-dashboard textarea,
 .app-shell[data-theme="dark"] .clinic-dashboard select { background:#1b2d47 !important; border-color:#354d6d !important; color:#f1f6ff !important; }
 .app-shell[data-theme="dark"] .clinic-dashboard label { color:#c7d5e8; }
+
+
+/* Refined clinic dashboard navigation: clearer hierarchy and high contrast. */
+.clinic-dashboard .clinic-sidebar {
+  width: 248px;
+  padding: 20px 14px;
+  background: linear-gradient(165deg, #101e34 0%, #142b4b 58%, #173b70 100%);
+  border-right: 1px solid rgba(255,255,255,.12);
+  box-shadow: 12px 0 34px rgba(12,28,52,.10);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item {
+  min-height: 48px;
+  color: #d6e4f7;
+  border: 1px solid transparent;
+  letter-spacing: .005em;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon {
+  display: grid; width: 32px; height: 32px; flex: 0 0 32px;
+  place-items: center; border-radius: 10px; color: #b8d5fa;
+  background: rgba(255,255,255,.075);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item:hover {
+  color: #fff; background: rgba(255,255,255,.11);
+  border-color: rgba(191,219,254,.18); transform: translateX(2px);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item.is-active {
+  color: #fff; background: linear-gradient(100deg, #2563eb, #087fbb);
+  border-color: rgba(191,219,254,.42); box-shadow: 0 8px 20px rgba(14,116,190,.25);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item.is-active .clinic-nav-icon {
+  color: #fff; background: rgba(255,255,255,.18);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item:focus-visible {
+  outline: 3px solid #93c5fd; outline-offset: 2px;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item + .clinic-nav-item { margin-top: 3px; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar {
+  background: linear-gradient(165deg, #071426 0%, #102644 58%, #123a68 100%) !important;
+  border-right-color: #345173 !important;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item { color: #e2edfc !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item:hover {
+  color: #fff !important; background: #29466e !important;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item.is-active {
+  color: #fff !important; background: linear-gradient(100deg, #2563eb, #087fbb) !important;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon {
+  color: #d5e8ff; background: rgba(255,255,255,.10);
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-mobile-nav button:not(.bg-blue-700) {
+  color: #e0ebfa !important; background: #1b2d47;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-mobile-nav button.bg-blue-700 {
+  color: #fff !important; background: #2563eb !important;
+}
+@media (max-width: 1023px) { .clinic-dashboard .clinic-sidebar { width: auto; } }
