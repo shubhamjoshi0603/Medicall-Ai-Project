@@ -459,3 +459,606 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
 .app-shell[data-theme="dark"] .clinic-dashboard textarea,
 .app-shell[data-theme="dark"] .clinic-dashboard select { background:#1b2d47 !important; border-color:#354d6d !important; color:#f1f6ff !important; }
 .app-shell[data-theme="dark"] .clinic-dashboard label { color:#c7d5e8; }
+
+
+/* Refined clinic dashboard navigation: clearer hierarchy and high contrast. */
+.clinic-dashboard .clinic-sidebar {
+  width: 248px;
+  padding: 20px 14px;
+  background: linear-gradient(165deg, #101e34 0%, #142b4b 58%, #173b70 100%);
+  border-right: 1px solid rgba(255,255,255,.12);
+  box-shadow: 12px 0 34px rgba(12,28,52,.10);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item {
+  min-height: 48px;
+  color: #d6e4f7;
+  border: 1px solid transparent;
+  letter-spacing: .005em;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon {
+  display: grid; width: 32px; height: 32px; flex: 0 0 32px;
+  place-items: center; border-radius: 10px; color: #b8d5fa;
+  background: rgba(255,255,255,.075);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item:hover {
+  color: #fff; background: rgba(255,255,255,.11);
+  border-color: rgba(191,219,254,.18); transform: translateX(2px);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item.is-active {
+  color: #fff; background: linear-gradient(100deg, #2563eb, #087fbb);
+  border-color: rgba(191,219,254,.42); box-shadow: 0 8px 20px rgba(14,116,190,.25);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item.is-active .clinic-nav-icon {
+  color: #fff; background: rgba(255,255,255,.18);
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item:focus-visible {
+  outline: 3px solid #93c5fd; outline-offset: 2px;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item + .clinic-nav-item { margin-top: 3px; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar {
+  background: linear-gradient(165deg, #071426 0%, #102644 58%, #123a68 100%) !important;
+  border-right-color: #345173 !important;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item { color: #e2edfc !important; }
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item:hover {
+  color: #fff !important; background: #29466e !important;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item.is-active {
+  color: #fff !important; background: linear-gradient(100deg, #2563eb, #087fbb) !important;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon {
+  color: #d5e8ff; background: rgba(255,255,255,.10);
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-mobile-nav button:not(.bg-blue-700) {
+  color: #e0ebfa !important; background: #1b2d47;
+}
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-mobile-nav button.bg-blue-700 {
+  color: #fff !important; background: #2563eb !important;
+}
+@media (max-width: 1023px) { .clinic-dashboard .clinic-sidebar { width: auto; } }
+
+
+/* Patient portal navigation and account polish */
+.patient-dashboard {
+  background: linear-gradient(145deg, #f3f7fc 0%, #edf4fb 48%, #f5f8fc 100%);
+  border: 1px solid rgba(211,224,239,.75);
+  box-shadow: 0 18px 50px rgba(31,61,94,.055);
+}
+.patient-dashboard > section {
+  border-radius: 26px;
+  box-shadow: 0 14px 36px rgba(30,55,85,.07);
+}
+.patient-dashboard .patient-hero {
+  position: relative;
+  background: linear-gradient(112deg, #102b49 0%, #14546d 52%, #078b8c 100%);
+}
+.patient-dashboard .patient-portal-nav {
+  position: sticky;
+  top: 84px;
+  z-index: 20;
+  border-color: #d8e4f1;
+}
+.patient-dashboard .patient-nav-link {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  padding: 8px 13px;
+  color: #52647b;
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+}
+.patient-dashboard .patient-nav-icon {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 9px;
+  background: #edf4fb;
+  color: #28618b;
+  font-size: 16px;
+}
+.patient-dashboard .patient-nav-link {
+  cursor: pointer;
+  background: transparent;
+}
+.patient-dashboard .patient-nav-link.is-active {
+  border-color: #c9deef;
+  background: linear-gradient(105deg,#eaf4fb,#e8f8f6);
+  color: #155b85;
+  box-shadow: 0 3px 10px rgba(8,82,110,.08);
+}
+.patient-dashboard .patient-nav-link.is-active .patient-nav-icon {
+  background: #d7eaf7;
+  color: #155b85;
+}
+.patient-dashboard .patient-nav-link:hover {
+  transform: translateY(-1px);
+  border-color: #c9deef;
+  background: #eff7ff;
+  color: #155b85;
+}
+.patient-dashboard .patient-nav-home {
+  color: #fff;
+  background: linear-gradient(105deg,#176b91,#087f83);
+  box-shadow: 0 5px 14px rgba(8,127,131,.16);
+}
+.patient-dashboard .patient-nav-home .patient-nav-icon {
+  color: #fff;
+  background: rgba(255,255,255,.16);
+}
+.patient-dashboard .patient-profile-edit {
+  border: 1px solid #b8e4dc;
+}
+.patient-dashboard .patient-appointment-card {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.patient-dashboard .patient-appointment-card:hover {
+  transform: translateY(-2px);
+  border-color: #b8d4e8;
+  box-shadow: 0 12px 28px rgba(31,74,112,.09);
+}
+.app-shell[data-theme="dark"] .patient-dashboard {
+  background: linear-gradient(145deg,#0d1a2b 0%,#10243a 55%,#102d3b 100%) !important;
+  border-color: #29435f !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav {
+  background: rgba(17,34,54,.96) !important;
+  border-color: #314b67 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link { color: #dce9f8; }
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-icon {
+  color: #c8e6ff;
+  background: #203a56;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link:hover {
+  color: #fff;
+  background: #234363;
+  border-color: #3a6385;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-home {
+  color: #fff;
+  background: linear-gradient(105deg,#176b91,#087f83);
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-home .patient-nav-icon {
+  color: #fff;
+  background: rgba(255,255,255,.16);
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-appointment-card {
+  background: #172a43 !important;
+  border-color: #304862 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-appointment-card:hover {
+  border-color: #4b7192 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav .bg-emerald-50 {
+  color: #a7f3d0 !important;
+  background: #123b35 !important;
+}
+@media(max-width:640px) {
+  .patient-dashboard .patient-portal-nav { top: 72px; gap: 5px; }
+  .patient-dashboard .patient-nav-link { padding: 7px 9px; font-size: 12px; }
+  .patient-dashboard .patient-nav-icon { width: 24px; height: 24px; }
+}
+
+/* Patient portal workspace sidebar: aligned with the clinic dashboard layout. */
+.patient-dashboard { position:relative; }
+.patient-dashboard .patient-sidebar {
+  background:linear-gradient(165deg,#101e34 0%,#12344b 58%,#087f83 100%);
+  border-right:1px solid rgba(255,255,255,.13);
+  box-shadow:12px 0 34px rgba(12,28,52,.10);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item {
+  min-height:46px;
+  color:#d6e8f5;
+  border:1px solid transparent;
+  letter-spacing:.005em;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+  display:grid;
+  width:32px;height:32px;flex:0 0 32px;
+  place-items:center;
+  border-radius:10px;
+  color:#bce8ed;
+  background:rgba(255,255,255,.085);
+  font-size:17px;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item:hover {
+  color:#fff;
+  background:rgba(255,255,255,.11);
+  border-color:rgba(191,219,254,.18);
+  transform:translateX(2px);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item.is-active {
+  color:#fff;
+  background:linear-gradient(100deg,#087f83,#1676a2);
+  border-color:rgba(191,219,254,.4);
+  box-shadow:0 8px 20px rgba(8,127,131,.24);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item.is-active .patient-nav-icon {
+  color:#fff;background:rgba(255,255,255,.18);
+}
+.patient-dashboard .patient-sidebar .patient-nav-item:focus-visible {
+  outline:3px solid #7dd3fc;outline-offset:2px;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar {
+  background:linear-gradient(165deg,#071426 0%,#102b43 58%,#075c64 100%) !important;
+  border-right-color:#345173 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item {
+  color:#e2edfc !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item:hover {
+  color:#fff !important;background:#29466e !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item.is-active {
+  color:#fff !important;background:linear-gradient(100deg,#087f83,#176da0) !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+  color:#d5f3f5;background:rgba(255,255,255,.10);
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav {
+  background:#142238 !important;border-color:#314b67 !important;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link {
+  color:#e0ebfa;background:#1b2d47;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link.is-active {
+  color:#fff;background:#087f83;border-color:#3a8790;
+}
+.app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link .patient-nav-icon {
+  color:#d5f3f5;background:#203a56;
+}
+@media(max-width:1023px) {
+  .patient-dashboard { max-width:100%; }
+  .patient-dashboard .patient-portal-nav { position:sticky;top:76px;z-index:25; }
+}
+@media(max-width:640px) {
+  .patient-dashboard .patient-portal-nav { top:72px;gap:5px; }
+  .patient-dashboard .patient-nav-link { padding:7px 9px;font-size:12px; }
+  .patient-dashboard .patient-nav-icon { width:24px;height:24px; }
+}
+
+/* Responsive patient workspace + unified light palette across the application. */
+.app-shell[data-theme="light"] {
+  background:#f3f7fb !important;
+  color:#243447;
+}
+.app-shell[data-theme="light"] .bg-white { background-color:#ffffff !important; }
+.app-shell[data-theme="light"] .bg-slate-50,
+.app-shell[data-theme="light"] .bg-slate-50\/70 { background-color:#f7f9fc !important; }
+.app-shell[data-theme="light"] .bg-slate-100 { background-color:#edf2f7 !important; }
+.app-shell[data-theme="light"] .bg-teal-50 { background-color:#eaf7f5 !important; }
+.app-shell[data-theme="light"] .bg-teal-100 { background-color:#d7efeb !important; }
+.app-shell[data-theme="light"] .bg-cyan-50 { background-color:#edf8fc !important; }
+.app-shell[data-theme="light"] .bg-cyan-100 { background-color:#dff1f8 !important; }
+.app-shell[data-theme="light"] .bg-indigo-50 { background-color:#f0f2ff !important; }
+.app-shell[data-theme="light"] .bg-indigo-100 { background-color:#e2e7ff !important; }
+.app-shell[data-theme="light"] .bg-blue-50 { background-color:#edf5ff !important; }
+.app-shell[data-theme="light"] .bg-emerald-50 { background-color:#eaf7f0 !important; }
+.app-shell[data-theme="light"] .bg-amber-50 { background-color:#fff7e8 !important; }
+.app-shell[data-theme="light"] .bg-rose-50 { background-color:#fff0f2 !important; }
+.app-shell[data-theme="light"] .border-slate-100 { border-color:#e8eef4 !important; }
+.app-shell[data-theme="light"] .border-slate-200,
+.app-shell[data-theme="light"] .border-slate-200\/80 { border-color:#dce5ee !important; }
+.app-shell[data-theme="light"] .border-slate-300 { border-color:#cbd7e3 !important; }
+.app-shell[data-theme="light"] .text-slate-950,
+.app-shell[data-theme="light"] .text-slate-900 { color:#172b42 !important; }
+.app-shell[data-theme="light"] .text-slate-800 { color:#263c53 !important; }
+.app-shell[data-theme="light"] .text-slate-700 { color:#3c5268 !important; }
+.app-shell[data-theme="light"] .text-slate-600 { color:#536a80 !important; }
+.app-shell[data-theme="light"] .text-slate-500 { color:#6c8094 !important; }
+.app-shell[data-theme="light"] .text-slate-400 { color:#8294a6 !important; }
+.app-shell[data-theme="light"] input,
+.app-shell[data-theme="light"] select,
+.app-shell[data-theme="light"] textarea {
+  color:#24384d;
+  background-color:#fff;
+  border-color:#d5e0ea;
+}
+.app-shell[data-theme="light"] input:focus,
+.app-shell[data-theme="light"] select:focus,
+.app-shell[data-theme="light"] textarea:focus {
+  border-color:#15958e;
+  box-shadow:0 0 0 3px rgba(21,149,142,.12);
+}
+.app-shell[data-theme="light"] .patient-dashboard {
+  background:linear-gradient(145deg,#f4f8fc 0%,#eef5f9 100%) !important;
+  border-color:#dce7ef !important;
+}
+
+/* The earlier legacy patient-dashboard padding used !important and overrode
+   Tailwind's desktop left offset, causing the sidebar to cover the content. */
+@media (min-width:1024px) {
+  .app-shell .patient-dashboard {
+    padding-left:268px !important;
+    padding-right:24px !important;
+  }
+  .app-shell .patient-dashboard .patient-sidebar {
+    display:flex !important;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .app-shell .patient-dashboard .patient-portal-nav { display:none !important; }
+}
+@media (max-width:1023px) {
+  .app-shell .patient-dashboard {
+    padding-left:12px !important;
+    padding-right:12px !important;
+  }
+  .app-shell .patient-dashboard .patient-sidebar { display:none !important; }
+  .app-shell .patient-dashboard .patient-portal-nav {
+    display:grid !important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:7px;
+    position:relative;
+    top:auto;
+    overflow:visible;
+    padding:9px;
+    background:#fff;
+    border:1px solid #dce5ee;
+    border-radius:18px;
+  }
+  .app-shell .patient-dashboard .patient-nav-link {
+    display:flex;
+    min-width:0;
+    min-height:58px;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    white-space:normal;
+    border:1px solid #e5edf3;
+    border-radius:12px;
+    padding:7px 4px;
+    color:#40566c;
+    background:#f8fafc;
+    font-size:11px;
+    line-height:1.2;
+    text-align:center;
+  }
+  .app-shell .patient-dashboard .patient-nav-link .patient-nav-icon {
+    display:grid;
+    width:25px;height:25px;
+    place-items:center;
+    border-radius:8px;
+    color:#087f83;
+    background:#e5f4f2;
+    font-size:15px;
+  }
+  .app-shell .patient-dashboard .patient-nav-link.is-active {
+    color:#075e63;
+    border-color:#9bd5d0;
+    background:#e7f6f4;
+    box-shadow:0 3px 10px rgba(8,127,131,.08);
+  }
+  .app-shell .patient-dashboard .patient-nav-link.is-active .patient-nav-icon {
+    color:#fff;background:#087f83;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-portal-nav {
+    background:#142238 !important;border-color:#314b67 !important;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link {
+    color:#dce9f8;background:#1b2d47;border-color:#314b67;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link .patient-nav-icon {
+    color:#d5f3f5;background:#203a56;
+  }
+  .app-shell[data-theme="dark"] .patient-dashboard .patient-nav-link.is-active {
+    color:#fff;background:#087f83;border-color:#3a8790;
+  }
+}
+
+
+/* Fixed brand navigation: intentionally identical in light and dark themes.
+   overflow-x: clip on the app shell keeps the document as the sticky scroll
+   container, so the top bar remains visible while the page scrolls. */
+.app-shell { overflow-x: clip !important; }
+.app-shell > .site-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  min-height: 68px;
+  color: #edf5ff !important;
+  background: #10243a !important;
+  border-color: #29415c !important;
+  box-shadow: 0 8px 24px rgba(5, 18, 34, .18) !important;
+}
+.app-shell > .site-header nav button:not(.bg-gradient-to-r):not(.bg-teal-700) {
+  color: #e2edf9 !important;
+  border-color: rgba(196, 216, 239, .22) !important;
+  background-color: transparent !important;
+}
+.app-shell > .site-header nav button:not(.bg-gradient-to-r):not(.bg-teal-700):hover {
+  color: #fff !important;
+  background: #203b59 !important;
+  border-color: #52718f !important;
+}
+.app-shell > .site-header nav button.bg-teal-700,
+.app-shell > .site-header nav button.bg-gradient-to-r {
+  color: #fff !important;
+}
+.app-shell > .site-header nav button[aria-label^="Switch to"] {
+  color: #f4f8ff !important;
+  background: #203b59 !important;
+  border-color: #52718f !important;
+}
+.app-shell > .site-header nav button[aria-label^="Switch to"]:hover {
+  background: #2a4b6c !important;
+}
+
+/* Keep sidebar content scrollable for short screens, but remove the distracting
+   scrollbar track and tighten vertical rhythm so more links fit at once. */
+.clinic-dashboard .clinic-sidebar,
+.patient-dashboard .patient-sidebar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overscroll-behavior-y: contain;
+}
+.clinic-dashboard .clinic-sidebar::-webkit-scrollbar,
+.patient-dashboard .patient-sidebar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.clinic-dashboard .clinic-sidebar {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+.clinic-dashboard .clinic-sidebar > div:first-child {
+  margin-bottom: 16px !important;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item {
+  min-height: 41px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon {
+  width: 28px !important;
+  height: 28px !important;
+  flex-basis: 28px !important;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item + .clinic-nav-item {
+  margin-top: 1px !important;
+}
+.patient-dashboard .patient-sidebar {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item {
+  min-height: 40px !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+  width: 28px !important;
+  height: 28px !important;
+  flex-basis: 28px !important;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item + .patient-nav-item {
+  margin-top: 1px !important;
+}
+@media (max-height: 760px) and (min-width: 1024px) {
+  .clinic-dashboard .clinic-sidebar,
+  .patient-dashboard .patient-sidebar {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+  .clinic-dashboard .clinic-sidebar .clinic-nav-item,
+  .patient-dashboard .patient-sidebar .patient-nav-item {
+    min-height: 36px !important;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+  .clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon,
+  .patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+    width: 25px !important;
+    height: 25px !important;
+    flex-basis: 25px !important;
+  }
+}
+
+
+/* Header visibility correction: match the patient/clinic sidebar navy-to-teal
+   palette in both themes, and prevent the logo from collapsing on narrow screens. */
+.app-shell .site-header {
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:12px !important;
+  width:100% !important;
+  min-width:0 !important;
+  padding-left:clamp(10px,2.5vw,32px) !important;
+  padding-right:clamp(10px,2.5vw,32px) !important;
+  color:#f1f7ff !important;
+  background:linear-gradient(105deg,#071426 0%,#102b43 58%,#075c64 100%) !important;
+  border-bottom:1px solid #345173 !important;
+  isolation:isolate;
+}
+.app-shell .site-header > button:first-child {
+  display:flex !important;
+  flex:0 1 190px !important;
+  min-width:104px !important;
+  max-width:190px !important;
+  width:auto !important;
+  overflow:visible !important;
+  color:#fff !important;
+}
+.app-shell .site-header > button:first-child img {
+  display:block !important;
+  width:auto !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  height:44px !important;
+  object-fit:contain !important;
+  object-position:left center !important;
+}
+.app-shell .site-header > nav {
+  display:flex !important;
+  flex:0 1 auto !important;
+  flex-wrap:nowrap !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  min-width:0 !important;
+  gap:clamp(4px,1vw,10px) !important;
+  overflow:visible !important;
+}
+.app-shell .site-header > nav > button {
+  flex:0 0 auto !important;
+  white-space:nowrap !important;
+  color:#f1f7ff !important;
+  border:1px solid rgba(219,237,255,.28) !important;
+  background:rgba(255,255,255,.075) !important;
+  box-shadow:none !important;
+}
+.app-shell .site-header > nav > button:hover {
+  color:#fff !important;
+  background:rgba(255,255,255,.16) !important;
+  border-color:rgba(219,237,255,.55) !important;
+}
+.app-shell .site-header > nav > button.bg-teal-700,
+.app-shell .site-header > nav > button.bg-gradient-to-r,
+.app-shell .site-header > nav > .relative > button {
+  color:#fff !important;
+  background:linear-gradient(100deg,#087f83,#1676a2) !important;
+  border:1px solid rgba(220,250,255,.35) !important;
+}
+.app-shell .site-header > nav > button[aria-label^="Switch to"] {
+  width:40px !important;
+  min-width:40px !important;
+  height:40px !important;
+  padding:0 !important;
+  color:#fff !important;
+  background:rgba(255,255,255,.12) !important;
+  border:1px solid rgba(219,237,255,.38) !important;
+}
+.app-shell .site-header > nav > button[aria-label^="Switch to"] svg {
+  color:#fff !important;
+  stroke:#fff !important;
+}
+.app-shell .site-header > nav > .relative { flex:0 0 auto !important; }
+@media(max-width:640px) {
+  .app-shell .site-header { gap:6px !important; min-height:62px !important; }
+  .app-shell .site-header > button:first-child { flex-basis:104px !important; min-width:88px !important; max-width:118px !important; }
+  .app-shell .site-header > button:first-child img { height:36px !important; }
+  .app-shell .site-header > nav { gap:4px !important; }
+  .app-shell .site-header > nav > button,
+  .app-shell .site-header > nav > .relative > button {
+    padding:8px 9px !important;
+    font-size:12px !important;
+    border-radius:10px !important;
+  }
+  .app-shell .site-header > nav > button[aria-label^="Switch to"] {
+    width:34px !important; min-width:34px !important; height:34px !important;
+    padding:0 !important;
+  }
+}
+@media(max-width:420px) {
+  .app-shell .site-header > button:first-child { flex-basis:76px !important; min-width:68px !important; max-width:82px !important; }
+  .app-shell .site-header > nav > button { padding-left:6px !important; padding-right:6px !important; font-size:11px !important; }
+}

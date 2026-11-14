@@ -125,6 +125,16 @@ function matchDoctor(text, doctors) {
   return doctors.find(d => lower.includes(String(d.name || '').toLowerCase())) || null;
 }
 
+const uploadMedicalRecord = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    const allowed = ["application/pdf", "image/jpeg", "image/png"];
+    if (allowed.includes(file.mimetype)) return callback(null, true);
+    return callback(new Error("Upload a PDF, JPG or PNG medical document."));
+  },
+});
+
 const uploadAudio = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -487,6 +497,7 @@ const clinicSchema = new Schema(
       trim: true,
     },
     aiAgentName: { type: String, default: "MediCall AI", trim: true, maxlength: 50 },
+    phone: { type: String, default: "", trim: true, maxlength: 20 },
     email: {
       type: String,
       required: true,
@@ -559,6 +570,7 @@ const appointmentSchema = new Schema(
       sparse: true,
       default: generateBookingReference,
     },
+    patientRemovedAt: { type: Date, default: null },
     clinicId: {
       type: Schema.Types.ObjectId,
       ref: "Clinic",
@@ -611,6 +623,7 @@ const appointmentSchema = new Schema(
       requestedAt: { type: Date, default: null },
     },
     doctorUnavailableNotice: { type: Boolean, default: false },
+    videoRoomId: { type: String, default: "" },
     alternativeDates: { type: [String], default: [] },
   },
   { timestamps: true }
@@ -648,8 +661,56 @@ const patientSchema = new Schema({
   password: { type: String, required: true },
 }, { timestamps: true });
 
+const familyMemberSchema = new Schema({
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  fullName: { type: String, required: true, trim: true, maxlength: 100 },
+  relationship: { type: String, required: true, trim: true, maxlength: 40 },
+  dateOfBirth: { type: String, default: "" },
+  phone: { type: String, default: "", trim: true, maxlength: 20 },
+}, { timestamps: true });
+
+const clinicPatientUpdateSchema = new Schema({
+  clinicId: { type: Schema.Types.ObjectId, ref: "Clinic", required: true, index: true },
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", default: null },
+  patientEmail: { type: String, required: true, lowercase: true, trim: true, index: true },
+  title: { type: String, required: true, trim: true, maxlength: 120 },
+  category: { type: String, enum: ["Medical report", "Lab result", "Prescription", "Discharge summary", "Healthcare update", "General notice"], default: "Medical report" },
+  message: { type: String, default: "", maxlength: 2000 },
+  fileName: { type: String, default: "", maxlength: 180 },
+  mimeType: { type: String, default: "", enum: ["", "application/pdf", "image/jpeg", "image/png"] },
+  fileData: { type: Buffer, default: null, select: false },
+  fileSize: { type: Number, default: 0, max: 5 * 1024 * 1024 },
+}, { timestamps: true });
+clinicPatientUpdateSchema.index({ patientId: 1, createdAt: -1 });
+
+const medicalRecordSchema = new Schema({
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  familyMemberId: { type: Schema.Types.ObjectId, ref: "FamilyMember", default: null },
+  appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", default: null },
+  title: { type: String, required: true, trim: true, maxlength: 120 },
+  category: { type: String, enum: ["Prescription", "Lab report", "Scan / imaging", "Discharge summary", "Other"], default: "Other" },
+  fileName: { type: String, required: true, maxlength: 180 },
+  mimeType: { type: String, required: true, enum: ["application/pdf", "image/jpeg", "image/png"] },
+  fileData: { type: Buffer, required: true, select: false },
+  fileSize: { type: Number, required: true, max: 5 * 1024 * 1024 },
+}, { timestamps: true });
+
+const reviewSchema = new Schema({
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", required: true, unique: true },
+  clinicId: { type: Schema.Types.ObjectId, ref: "Clinic", required: true, index: true },
+  doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true, index: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String, default: "", trim: true, maxlength: 1000 },
+}, { timestamps: true });
+
 const Clinic = mongoose.model("Clinic", clinicSchema);
 const Patient = mongoose.model("Patient", patientSchema);
+const FamilyMember = mongoose.model("FamilyMember", familyMemberSchema);
+const MedicalRecord = mongoose.model("MedicalRecord", medicalRecordSchema);
+const ClinicPatientUpdate = mongoose.model("ClinicPatientUpdate", clinicPatientUpdateSchema);
+const PatientReview = mongoose.model("PatientReview", reviewSchema);
 const Doctor = mongoose.model("Doctor", doctorSchema);
 const Appointment = mongoose.model("Appointment", appointmentSchema);
 const Availability = mongoose.model("Availability", availabilitySchema);
@@ -888,7 +949,7 @@ app.get("/api/auth/me", protect, async (req, res) => {
   try {
     const clinic = await Clinic.findById(
       req.clinicId
-    ).select("clinicName adminName email aiAgentName location businessHours");
+    ).select("clinicName adminName email phone aiAgentName location businessHours");
 
     if (!clinic) {
       return res.status(404).json({
@@ -902,6 +963,10 @@ app.get("/api/auth/me", protect, async (req, res) => {
         clinicName: clinic.clinicName,
         adminName: clinic.adminName,
         email: clinic.email,
+        phone: clinic.phone || "",
+        aiAgentName: clinic.aiAgentName || "MediCall AI",
+        businessHours: clinic.businessHours || [],
+        location: clinic.location || {},
       },
     });
   } catch (error) {
@@ -951,12 +1016,14 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
     const clinicName = String(req.body?.clinicName || "").trim();
     const adminName = String(req.body?.adminName || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
+    const phone = String(req.body?.phone || "").trim();
    const businessHours = req.body?.businessHours;
    const aiAgentName = String(req.body?.aiAgentName || "MediCall AI").trim().slice(0, 50) || "MediCall AI";
     if (!clinicName || !adminName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ message: "Enter a clinic name, admin name and valid email address." });
     }
     if (clinicName.length > 120 || adminName.length > 100) return res.status(400).json({ message: "Clinic or admin name is too long." });
+    if (phone && !/^\+?[0-9\s()-]{7,20}$/.test(phone)) return res.status(400).json({ message: "Enter a valid clinic phone number." });
     if (!Array.isArray(businessHours) || businessHours.length !== 7) return res.status(400).json({ message: "Provide opening hours for all seven days." });
     const normalizedHours = businessHours.map((item, index) => {
       const dayOfWeek = Number(item.dayOfWeek);
@@ -965,7 +1032,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
       if (dayOfWeek !== index || !/^\d{2}:\d{2}$/.test(openTime) || !/^\d{2}:\d{2}$/.test(closeTime) || (item.isOpen && openTime >= closeTime)) throw new Error("Check the opening and closing times for each working day.");
       return { dayOfWeek, isOpen: Boolean(item.isOpen), openTime, closeTime };
     });
-    const clinic = await Clinic.findByIdAndUpdate(req.clinicId, { $set: { clinicName, adminName, email, aiAgentName, businessHours: normalizedHours } }, { new: true, runValidators: true }).select("clinicName adminName email location businessHours");
+    const clinic = await Clinic.findByIdAndUpdate(req.clinicId, { $set: { clinicName, adminName, email, phone, aiAgentName, businessHours: normalizedHours } }, { new: true, runValidators: true }).select("clinicName adminName email phone aiAgentName location businessHours");
     return res.json({ message: "Clinic profile and opening hours updated.", clinic });
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ message: "That email address is already registered." });
@@ -1030,6 +1097,333 @@ app.patch("/api/patient-auth/profile", protectPatient, async (req, res) => {
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ message: "That email address is already in use." });
     return res.status(400).json({ message: "Could not update your profile." });
+  }
+});
+
+// ==================== CLINIC REPORTS & PRIVATE PATIENT UPDATES ====================
+
+function validClinicUpdateFile(file) {
+  if (!file) return { valid: true, mimeType: "", fileName: "", fileSize: 0, fileData: null };
+  const bytes = file.buffer;
+  const isPdf = bytes.subarray(0, 5).toString() === "%PDF-";
+  const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isPng = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const valid = (file.mimetype === "application/pdf" && isPdf) || (file.mimetype === "image/jpeg" && isJpeg) || (file.mimetype === "image/png" && isPng);
+  return {
+    valid,
+    mimeType: file.mimetype,
+    fileName: String(file.originalname || "clinic-report").replace(/[\/\r\n]/g, "_").slice(0, 180),
+    fileSize: file.size,
+    fileData: file.buffer,
+  };
+}
+
+app.get("/api/clinic/patient-updates", protect, async (req, res) => {
+  try {
+    const updates = await ClinicPatientUpdate.find({ clinicId: req.clinicId })
+      .select("-fileData")
+      .populate("patientId", "fullName email")
+      .populate("appointmentId", "bookingReference date time")
+      .sort({ createdAt: -1 })
+      .limit(200);
+    return res.json(updates);
+  } catch (error) {
+    console.error("Clinic patient updates load:", error);
+    return res.status(500).json({ message: "Could not load clinic reports and updates." });
+  }
+});
+
+app.post("/api/clinic/patient-updates", protect, uploadMedicalRecord.single("file"), async (req, res) => {
+  try {
+    const patientEmail = String(req.body?.patientEmail || "").trim().toLowerCase();
+    const title = String(req.body?.title || "").trim();
+    const category = String(req.body?.category || "Medical report").trim();
+    const message = String(req.body?.message || "").trim();
+    const appointmentId = String(req.body?.appointmentId || "").trim();
+    const allowedCategories = ["Medical report", "Lab result", "Prescription", "Discharge summary", "Healthcare update", "General notice"];
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientEmail) || !title || title.length > 120 || !allowedCategories.includes(category) || message.length > 2000) {
+      return res.status(400).json({ message: "Choose a valid patient and enter a title, category and message." });
+    }
+    const file = validClinicUpdateFile(req.file);
+    if (!file.valid) return res.status(400).json({ message: "The attachment must be a valid PDF, JPG or PNG file." });
+    if (!message && !req.file) return res.status(400).json({ message: "Add a message or attach a report before sharing." });
+
+    const patient = await Patient.findOne({ email: patientEmail }).select("_id fullName email");
+    if (!patient) return res.status(404).json({ message: "This patient has not created a MediCall patient account yet." });
+    const linkedAppointment = await Appointment.findOne({ clinicId: req.clinicId, patientEmail }).select("_id");
+    if (!linkedAppointment) return res.status(403).json({ message: "You can share updates only with patients linked to your clinic." });
+    let verifiedAppointmentId = null;
+    if (appointmentId) {
+      if (!mongoose.isValidObjectId(appointmentId)) return res.status(400).json({ message: "Invalid appointment reference." });
+      const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId, patientEmail }).select("_id");
+      if (!appointment) return res.status(403).json({ message: "The selected appointment does not belong to this patient and clinic." });
+      verifiedAppointmentId = appointment._id;
+    }
+    const update = await ClinicPatientUpdate.create({
+      clinicId: req.clinicId,
+      patientId: patient._id,
+      patientEmail,
+      appointmentId: verifiedAppointmentId,
+      title,
+      category,
+      message,
+      ...file,
+    });
+    const safeUpdate = await ClinicPatientUpdate.findById(update._id)
+      .select("-fileData")
+      .populate("patientId", "fullName email")
+      .populate("appointmentId", "bookingReference date time");
+    return res.status(201).json({ message: "Report or healthcare update shared securely with the patient.", update: safeUpdate });
+  } catch (error) {
+    console.error("Publish clinic patient update:", error);
+    return res.status(500).json({ message: "Could not share this report with the patient." });
+  }
+});
+
+app.get("/api/patient/clinic-updates", protectPatient, async (req, res) => {
+  try {
+    const updates = await ClinicPatientUpdate.find({ patientId: req.patientId })
+      .select("-fileData")
+      .populate("clinicId", "clinicName")
+      .populate("appointmentId", "bookingReference date time")
+      .sort({ createdAt: -1 })
+      .limit(200);
+    return res.json(updates);
+  } catch (error) {
+    console.error("Patient clinic updates load:", error);
+    return res.status(500).json({ message: "Could not load reports shared by your clinic." });
+  }
+});
+
+app.get("/api/patient/clinic-updates/:id/download", protectPatient, async (req, res) => {
+  try {
+    const update = await ClinicPatientUpdate.findOne({ _id: req.params.id, patientId: req.patientId }).select("+fileData");
+    if (!update || !update.fileData) return res.status(404).json({ message: "Report attachment not found." });
+    const safeName = update.fileName.replace(/["\\r\\n]/g, "_");
+    res.setHeader("Content-Type", update.mimeType);
+    res.setHeader("Content-Length", update.fileSize);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.send(update.fileData);
+  } catch (error) {
+    console.error("Patient clinic report download:", error);
+    return res.status(500).json({ message: "Could not download this clinic report." });
+  }
+});
+
+// ==================== PATIENT FAMILY & PRIVATE MEDICAL RECORDS ====================
+
+app.get("/api/patient/family", protectPatient, async (req, res) => {
+  try {
+    const members = await FamilyMember.find({ patientId: req.patientId }).sort({ createdAt: -1 });
+    return res.json(members);
+  } catch (error) {
+    console.error("Family members load:", error);
+    return res.status(500).json({ message: "Could not load family members." });
+  }
+});
+
+app.post("/api/patient/family", protectPatient, async (req, res) => {
+  try {
+    const fullName = String(req.body?.fullName || "").trim();
+    const relationship = String(req.body?.relationship || "").trim();
+    const dateOfBirth = String(req.body?.dateOfBirth || "").trim();
+    const phone = String(req.body?.phone || "").trim();
+    if (!fullName || !relationship) return res.status(400).json({ message: "Name and relationship are required." });
+    if (fullName.length > 100 || relationship.length > 40 || phone.length > 20 || (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))) {
+      return res.status(400).json({ message: "Please check the family member details." });
+    }
+    const member = await FamilyMember.create({ patientId: req.patientId, fullName, relationship, dateOfBirth, phone });
+    return res.status(201).json({ message: "Family member added.", member });
+  } catch (error) {
+    console.error("Family member create:", error);
+    return res.status(500).json({ message: "Could not add family member." });
+  }
+});
+
+app.patch("/api/patient/family/:id", protectPatient, async (req, res) => {
+  try {
+    const updates = {};
+    for (const key of ["fullName", "relationship", "dateOfBirth", "phone"]) {
+      if (req.body?.[key] !== undefined) updates[key] = String(req.body[key] || "").trim();
+    }
+    if (updates.fullName !== undefined && (!updates.fullName || updates.fullName.length > 100)) return res.status(400).json({ message: "Enter a valid name." });
+    if (updates.relationship !== undefined && (!updates.relationship || updates.relationship.length > 40)) return res.status(400).json({ message: "Enter a valid relationship." });
+    if (updates.phone !== undefined && updates.phone.length > 20) return res.status(400).json({ message: "Phone number is too long." });
+    if (updates.dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(updates.dateOfBirth)) return res.status(400).json({ message: "Enter a valid date of birth." });
+    const member = await FamilyMember.findOneAndUpdate({ _id: req.params.id, patientId: req.patientId }, { $set: updates }, { new: true, runValidators: true });
+    if (!member) return res.status(404).json({ message: "Family member not found." });
+    return res.json({ message: "Family member updated.", member });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not update family member." });
+  }
+});
+
+app.delete("/api/patient/family/:id", protectPatient, async (req, res) => {
+  try {
+    const member = await FamilyMember.findOneAndDelete({ _id: req.params.id, patientId: req.patientId });
+    if (!member) return res.status(404).json({ message: "Family member not found." });
+    await MedicalRecord.deleteMany({ patientId: req.patientId, familyMemberId: member._id });
+    return res.json({ message: "Family member and their linked records were removed." });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not remove family member." });
+  }
+});
+
+app.get("/api/patient/records", protectPatient, async (req, res) => {
+  try {
+    const records = await MedicalRecord.find({ patientId: req.patientId })
+      .select("-fileData")
+      .populate("familyMemberId", "fullName relationship")
+      .sort({ createdAt: -1 });
+    return res.json(records);
+  } catch (error) {
+    console.error("Medical records load:", error);
+    return res.status(500).json({ message: "Could not load medical records." });
+  }
+});
+
+app.post("/api/patient/records", protectPatient, uploadMedicalRecord.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Choose a PDF, JPG or PNG file." });
+    const bytes = req.file.buffer;
+    const isPdf = bytes.subarray(0, 5).toString() === "%PDF-";
+    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const isPng = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    if (!(isPdf || isJpeg || isPng)) return res.status(400).json({ message: "The uploaded file does not match a supported PDF, JPG or PNG format." });
+    if ((req.file.mimetype === "application/pdf" && !isPdf) || (req.file.mimetype === "image/jpeg" && !isJpeg) || (req.file.mimetype === "image/png" && !isPng)) {
+      return res.status(400).json({ message: "The uploaded file type does not match its contents." });
+    }
+    const title = String(req.body?.title || "").trim();
+    const category = String(req.body?.category || "Other").trim();
+    const allowedCategories = ["Prescription", "Lab report", "Scan / imaging", "Discharge summary", "Other"];
+    if (!title || title.length > 120 || !allowedCategories.includes(category)) return res.status(400).json({ message: "Enter a title and valid document category." });
+    let familyMemberId = null;
+    if (req.body?.familyMemberId) {
+      const member = await FamilyMember.findOne({ _id: req.body.familyMemberId, patientId: req.patientId }).select("_id");
+      if (!member) return res.status(404).json({ message: "Selected family member not found." });
+      familyMemberId = member._id;
+    }
+    let appointmentId = null;
+    if (req.body?.appointmentId) {
+      const patient = await Patient.findById(req.patientId).select("email");
+      const appointment = await Appointment.findOne({ _id: req.body.appointmentId, patientEmail: patient?.email }).select("_id");
+      if (!appointment) return res.status(404).json({ message: "Linked appointment not found." });
+      appointmentId = appointment._id;
+    }
+    const record = await MedicalRecord.create({
+      patientId: req.patientId, familyMemberId, appointmentId, title, category,
+      fileName: String(req.file.originalname || "medical-record").replace(/[\/\r\n]/g, "_").slice(0, 180),
+      mimeType: req.file.mimetype, fileData: req.file.buffer, fileSize: req.file.size,
+    });
+    const safeRecord = record.toObject(); delete safeRecord.fileData;
+    return res.status(201).json({ message: "Medical document saved securely.", record: safeRecord });
+  } catch (error) {
+    console.error("Medical record upload:", error);
+    return res.status(500).json({ message: "Could not save medical document." });
+  }
+});
+
+app.get("/api/patient/records/:id/download", protectPatient, async (req, res) => {
+  try {
+    const record = await MedicalRecord.findOne({ _id: req.params.id, patientId: req.patientId }).select("+fileData");
+    if (!record) return res.status(404).json({ message: "Medical document not found." });
+    const safeName = record.fileName.replace(/["\\r\\n]/g, "_");
+    res.setHeader("Content-Type", record.mimeType);
+    res.setHeader("Content-Length", record.fileSize);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.send(record.fileData);
+  } catch (error) {
+    return res.status(500).json({ message: "Could not download medical document." });
+  }
+});
+
+app.delete("/api/patient/records/:id", protectPatient, async (req, res) => {
+  try {
+    const record = await MedicalRecord.findOneAndDelete({ _id: req.params.id, patientId: req.patientId });
+    if (!record) return res.status(404).json({ message: "Medical document not found." });
+    return res.json({ message: "Medical document deleted." });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not delete medical document." });
+  }
+});
+
+// ==================== PATIENT REVIEWS, VIDEO VISITS & AI ASSISTANT ====================
+
+app.get("/api/patient/reviews", protectPatient, async (req, res) => {
+  try {
+    const reviews = await PatientReview.find({ patientId: req.patientId }).sort({ createdAt: -1 });
+    return res.json(reviews);
+  } catch (error) {
+    return res.status(500).json({ message: "Could not load your reviews." });
+  }
+});
+
+app.post("/api/patient/reviews", protectPatient, async (req, res) => {
+  try {
+    const appointmentId = req.body?.appointmentId;
+    const rating = Number(req.body?.rating);
+    const comment = String(req.body?.comment || "").trim();
+    if (!mongoose.isValidObjectId(appointmentId) || !Number.isInteger(rating) || rating < 1 || rating > 5 || comment.length > 1000) {
+      return res.status(400).json({ message: "Choose a rating from 1 to 5 and keep feedback under 1,000 characters." });
+    }
+    const patient = await Patient.findById(req.patientId).select("email");
+    const appointment = await Appointment.findOne({ _id: appointmentId, patientEmail: patient?.email, status: "Completed" });
+    if (!appointment) return res.status(403).json({ message: "Only patients with a completed appointment can review this visit." });
+    const review = await PatientReview.create({ patientId: req.patientId, appointmentId: appointment._id, clinicId: appointment.clinicId, doctorId: appointment.doctorId, rating, comment });
+    return res.status(201).json({ message: "Thank you. Your verified visit review has been saved.", review });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: "You have already reviewed this completed appointment." });
+    console.error("Patient review:", error);
+    return res.status(500).json({ message: "Could not save your review." });
+  }
+});
+
+app.post("/api/patient/appointments/:id/video-room", protectPatient, async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.patientId).select("email");
+    const appointment = await Appointment.findOne({ _id: req.params.id, patientEmail: patient?.email, status: "Confirmed" });
+    if (!appointment) return res.status(404).json({ message: "A video room is available only for your confirmed appointment." });
+    if (!appointment.videoRoomId) {
+      appointment.videoRoomId = "MediCallAI-" + require("crypto").randomBytes(20).toString("hex");
+      await appointment.save();
+    }
+    return res.json({ roomId: appointment.videoRoomId, roomUrl: "https://meet.jit.si/" + appointment.videoRoomId });
+  } catch (error) {
+    console.error("Video consultation room:", error);
+    return res.status(500).json({ message: "Could not prepare the video consultation room." });
+  }
+});
+
+app.post("/api/patient/assistant", protectPatient, async (req, res) => {
+  try {
+    const question = String(req.body?.message || "").trim();
+    if (!question || question.length > 2000) return res.status(400).json({ message: "Enter a question under 2,000 characters." });
+    if (!groq) return res.status(503).json({ message: "The AI assistant is not configured. Please contact the clinic." });
+    const patient = await Patient.findById(req.patientId).select("fullName email");
+    const [appointments, records] = await Promise.all([
+      Appointment.find({ patientEmail: patient.email }).sort({ date: -1 }).limit(8).populate("doctorId", "name specialization").populate("clinicId", "clinicName"),
+      MedicalRecord.find({ patientId: req.patientId }).select("title category createdAt").sort({ createdAt: -1 }).limit(12),
+    ]);
+    const context = {
+      appointments: appointments.map((item) => ({ date: item.date, time: item.time, status: item.status, doctor: item.doctorId?.name, specialty: item.doctorId?.specialization, clinic: item.clinicId?.clinicName })),
+      uploadedDocumentTitles: records.map((item) => ({ title: item.title, category: item.category, uploaded: item.createdAt })),
+    };
+    const completion = await groq.chat.completions.create({
+      model: process.env.GROQ_CHAT_MODEL || "openai/gpt-oss-120b",
+      temperature: 0.25,
+      max_tokens: 650,
+      messages: [
+        { role: "system", content: "You are MediCall AI, a patient-support assistant. You may explain general health information, help patients understand their appointment schedule and explain common medical terms. You are not a doctor: never diagnose, prescribe, change medication doses, or claim certainty. Do not infer test results from document titles. Encourage the patient to contact their clinician for personal medical decisions. For emergency symptoms such as chest pain, severe breathing difficulty, stroke signs, heavy bleeding or loss of consciousness, tell them to seek emergency services immediately. Use concise, calm language. The following patient context is private and may only be used to answer this patient's question: " + JSON.stringify(context) },
+        { role: "user", content: question },
+      ],
+    });
+    const answer = completion.choices?.[0]?.message?.content?.trim() || "I could not prepare an answer. Please try again.";
+    return res.json({ answer });
+  } catch (error) {
+    console.error("Patient AI assistant:", error.message || error);
+    return res.status(502).json({ message: "The AI assistant is temporarily unavailable." });
   }
 });
 
@@ -1592,8 +1986,24 @@ app.post("/api/patient/appointments/:id/reschedule-request", protectPatient, asy
 });
 
 app.get("/api/patient/appointments", protectPatient, async (req, res) => {
-  try { const patient = await Patient.findById(req.patientId).select("email"); const items = await Appointment.find({ patientEmail: patient.email }).populate("doctorId", "name specialization fee").populate("clinicId", "clinicName location").sort({ createdAt: -1 }); return res.json(items); }
-  catch (e) { return res.status(500).json({ message: "Could not load your appointments." }); }
+  try {
+    const patient = await Patient.findById(req.patientId).select("email");
+    const items = await Appointment.find({ patientEmail: patient.email, $or: [{ patientRemovedAt: null }, { patientRemovedAt: { $exists: false } }] }).populate("doctorId", "name specialization fee").populate("clinicId", "clinicName location").sort({ createdAt: -1 });
+    // Older appointments created before booking references were introduced may not
+    // have one. Assign and persist it once so refreshes never generate a new ID.
+    for (const item of items) {
+      if (!item.bookingReference) {
+        item.bookingReference = generateBookingReference();
+        try { await item.save(); }
+        catch (saveError) {
+          if (saveError.code !== 11000) throw saveError;
+          item.bookingReference = generateBookingReference();
+          await item.save();
+        }
+      }
+    }
+    return res.json(items);
+  } catch (e) { console.error("Load patient appointments:", e); return res.status(500).json({ message: "Could not load your appointments." }); }
 });
 
 app.patch("/api/patient/appointments/:id/cancel", protectPatient, async (req, res) => {
@@ -1604,6 +2014,23 @@ app.patch("/api/patient/appointments/:id/cancel", protectPatient, async (req, re
     let emailSent = false; try { emailSent = await emailAppointmentUpdate(appointment, "Appointment cancelled", "Your appointment has been cancelled", "Your appointment is now cancelled."); } catch (e) { console.error("Cancel email:", e.message); }
     return res.json({ message: "Appointment cancelled.", emailSent, appointment });
   } catch (e) { return res.status(500).json({ message: "Could not cancel appointment." }); }
+});
+
+app.patch("/api/patient/appointments/:id/remove", protectPatient, async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.patientId).select("email");
+    if (!patient?.email) return res.status(404).json({ message: "Patient account not found." });
+    const appointment = await Appointment.findOneAndUpdate(
+      { _id: req.params.id, patientEmail: patient.email, status: "Cancelled", $or: [{ patientRemovedAt: null }, { patientRemovedAt: { $exists: false } }] },
+      { $set: { patientRemovedAt: new Date() } },
+      { new: true }
+    );
+    if (!appointment) return res.status(404).json({ message: "Only cancelled appointments in your account can be removed." });
+    return res.json({ message: "Cancelled appointment removed from your account. The clinic record is unchanged." });
+  } catch (e) {
+    console.error("Remove patient appointment:", e);
+    return res.status(500).json({ message: "Could not remove this appointment." });
+  }
 });
 
 app.patch("/api/appointments/:id/reschedule-request", protect, async (req, res) => {
@@ -1711,13 +2138,14 @@ app.patch("/api/doctors/:id/availability-status", protect, async (req, res) => {
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
   if (error instanceof multer.MulterError) {
+    const isMedicalUpload = error.field === "file";
     return res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
       message: error.code === "LIMIT_FILE_SIZE"
-        ? "Audio recording is too large. Please record a shorter message."
-        : "Could not process the audio upload.",
+        ? isMedicalUpload ? "Medical document exceeds the 5 MB limit." : "Audio recording is too large. Please record a shorter message."
+        : "Could not process the upload.",
     });
   }
-  if (error.message === "Please upload a supported audio recording.") {
+  if (error.message === "Please upload a supported audio recording." || error.message === "Upload a PDF, JPG or PNG medical document.") {
     return res.status(400).json({ message: error.message });
   }
   if (error.message === "Origin is not allowed by CORS") {
