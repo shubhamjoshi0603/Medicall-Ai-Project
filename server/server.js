@@ -125,6 +125,16 @@ function matchDoctor(text, doctors) {
   return doctors.find(d => lower.includes(String(d.name || '').toLowerCase())) || null;
 }
 
+const uploadMedicalRecord = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    const allowed = ["application/pdf", "image/jpeg", "image/png"];
+    if (allowed.includes(file.mimetype)) return callback(null, true);
+    return callback(new Error("Upload a PDF, JPG or PNG medical document."));
+  },
+});
+
 const uploadAudio = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -649,8 +659,30 @@ const patientSchema = new Schema({
   password: { type: String, required: true },
 }, { timestamps: true });
 
+const familyMemberSchema = new Schema({
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  fullName: { type: String, required: true, trim: true, maxlength: 100 },
+  relationship: { type: String, required: true, trim: true, maxlength: 40 },
+  dateOfBirth: { type: String, default: "" },
+  phone: { type: String, default: "", trim: true, maxlength: 20 },
+}, { timestamps: true });
+
+const medicalRecordSchema = new Schema({
+  patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
+  familyMemberId: { type: Schema.Types.ObjectId, ref: "FamilyMember", default: null },
+  appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", default: null },
+  title: { type: String, required: true, trim: true, maxlength: 120 },
+  category: { type: String, enum: ["Prescription", "Lab report", "Scan / imaging", "Discharge summary", "Other"], default: "Other" },
+  fileName: { type: String, required: true, maxlength: 180 },
+  mimeType: { type: String, required: true, enum: ["application/pdf", "image/jpeg", "image/png"] },
+  fileData: { type: Buffer, required: true, select: false },
+  fileSize: { type: Number, required: true, max: 5 * 1024 * 1024 },
+}, { timestamps: true });
+
 const Clinic = mongoose.model("Clinic", clinicSchema);
 const Patient = mongoose.model("Patient", patientSchema);
+const FamilyMember = mongoose.model("FamilyMember", familyMemberSchema);
+const MedicalRecord = mongoose.model("MedicalRecord", medicalRecordSchema);
 const Doctor = mongoose.model("Doctor", doctorSchema);
 const Appointment = mongoose.model("Appointment", appointmentSchema);
 const Availability = mongoose.model("Availability", availabilitySchema);
@@ -1037,6 +1069,136 @@ app.patch("/api/patient-auth/profile", protectPatient, async (req, res) => {
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ message: "That email address is already in use." });
     return res.status(400).json({ message: "Could not update your profile." });
+  }
+});
+
+// ==================== PATIENT FAMILY & PRIVATE MEDICAL RECORDS ====================
+
+app.get("/api/patient/family", protectPatient, async (req, res) => {
+  try {
+    const members = await FamilyMember.find({ patientId: req.patientId }).sort({ createdAt: -1 });
+    return res.json(members);
+  } catch (error) {
+    console.error("Family members load:", error);
+    return res.status(500).json({ message: "Could not load family members." });
+  }
+});
+
+app.post("/api/patient/family", protectPatient, async (req, res) => {
+  try {
+    const fullName = String(req.body?.fullName || "").trim();
+    const relationship = String(req.body?.relationship || "").trim();
+    const dateOfBirth = String(req.body?.dateOfBirth || "").trim();
+    const phone = String(req.body?.phone || "").trim();
+    if (!fullName || !relationship) return res.status(400).json({ message: "Name and relationship are required." });
+    if (fullName.length > 100 || relationship.length > 40 || phone.length > 20 || (dateOfBirth && !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth))) {
+      return res.status(400).json({ message: "Please check the family member details." });
+    }
+    const member = await FamilyMember.create({ patientId: req.patientId, fullName, relationship, dateOfBirth, phone });
+    return res.status(201).json({ message: "Family member added.", member });
+  } catch (error) {
+    console.error("Family member create:", error);
+    return res.status(500).json({ message: "Could not add family member." });
+  }
+});
+
+app.patch("/api/patient/family/:id", protectPatient, async (req, res) => {
+  try {
+    const updates = {};
+    for (const key of ["fullName", "relationship", "dateOfBirth", "phone"]) {
+      if (req.body?.[key] !== undefined) updates[key] = String(req.body[key] || "").trim();
+    }
+    if (updates.fullName !== undefined && (!updates.fullName || updates.fullName.length > 100)) return res.status(400).json({ message: "Enter a valid name." });
+    if (updates.relationship !== undefined && (!updates.relationship || updates.relationship.length > 40)) return res.status(400).json({ message: "Enter a valid relationship." });
+    if (updates.phone !== undefined && updates.phone.length > 20) return res.status(400).json({ message: "Phone number is too long." });
+    if (updates.dateOfBirth && !/^\\d{4}-\\d{2}-\\d{2}$/.test(updates.dateOfBirth)) return res.status(400).json({ message: "Enter a valid date of birth." });
+    const member = await FamilyMember.findOneAndUpdate({ _id: req.params.id, patientId: req.patientId }, { $set: updates }, { new: true, runValidators: true });
+    if (!member) return res.status(404).json({ message: "Family member not found." });
+    return res.json({ message: "Family member updated.", member });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not update family member." });
+  }
+});
+
+app.delete("/api/patient/family/:id", protectPatient, async (req, res) => {
+  try {
+    const member = await FamilyMember.findOneAndDelete({ _id: req.params.id, patientId: req.patientId });
+    if (!member) return res.status(404).json({ message: "Family member not found." });
+    await MedicalRecord.deleteMany({ patientId: req.patientId, familyMemberId: member._id });
+    return res.json({ message: "Family member and their linked records were removed." });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not remove family member." });
+  }
+});
+
+app.get("/api/patient/records", protectPatient, async (req, res) => {
+  try {
+    const records = await MedicalRecord.find({ patientId: req.patientId })
+      .select("-fileData")
+      .populate("familyMemberId", "fullName relationship")
+      .sort({ createdAt: -1 });
+    return res.json(records);
+  } catch (error) {
+    console.error("Medical records load:", error);
+    return res.status(500).json({ message: "Could not load medical records." });
+  }
+});
+
+app.post("/api/patient/records", protectPatient, uploadMedicalRecord.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Choose a PDF, JPG or PNG file." });
+    const title = String(req.body?.title || "").trim();
+    const category = String(req.body?.category || "Other").trim();
+    const allowedCategories = ["Prescription", "Lab report", "Scan / imaging", "Discharge summary", "Other"];
+    if (!title || title.length > 120 || !allowedCategories.includes(category)) return res.status(400).json({ message: "Enter a title and valid document category." });
+    let familyMemberId = null;
+    if (req.body?.familyMemberId) {
+      const member = await FamilyMember.findOne({ _id: req.body.familyMemberId, patientId: req.patientId }).select("_id");
+      if (!member) return res.status(404).json({ message: "Selected family member not found." });
+      familyMemberId = member._id;
+    }
+    let appointmentId = null;
+    if (req.body?.appointmentId) {
+      const patient = await Patient.findById(req.patientId).select("email");
+      const appointment = await Appointment.findOne({ _id: req.body.appointmentId, patientEmail: patient?.email }).select("_id");
+      if (!appointment) return res.status(404).json({ message: "Linked appointment not found." });
+      appointmentId = appointment._id;
+    }
+    const record = await MedicalRecord.create({
+      patientId: req.patientId, familyMemberId, appointmentId, title, category,
+      fileName: String(req.file.originalname || "medical-record").replace(/[\\/\\r\\n]/g, "_").slice(0, 180),
+      mimeType: req.file.mimetype, fileData: req.file.buffer, fileSize: req.file.size,
+    });
+    const safeRecord = record.toObject(); delete safeRecord.fileData;
+    return res.status(201).json({ message: "Medical document saved securely.", record: safeRecord });
+  } catch (error) {
+    console.error("Medical record upload:", error);
+    return res.status(500).json({ message: "Could not save medical document." });
+  }
+});
+
+app.get("/api/patient/records/:id/download", protectPatient, async (req, res) => {
+  try {
+    const record = await MedicalRecord.findOne({ _id: req.params.id, patientId: req.patientId }).select("+fileData");
+    if (!record) return res.status(404).json({ message: "Medical document not found." });
+    const safeName = record.fileName.replace(/["\\r\\n]/g, "_");
+    res.setHeader("Content-Type", record.mimeType);
+    res.setHeader("Content-Length", record.fileSize);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.send(record.fileData);
+  } catch (error) {
+    return res.status(500).json({ message: "Could not download medical document." });
+  }
+});
+
+app.delete("/api/patient/records/:id", protectPatient, async (req, res) => {
+  try {
+    const record = await MedicalRecord.findOneAndDelete({ _id: req.params.id, patientId: req.patientId });
+    if (!record) return res.status(404).json({ message: "Medical document not found." });
+    return res.json({ message: "Medical document deleted." });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not delete medical document." });
   }
 });
 
