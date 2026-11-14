@@ -961,3 +961,104 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
     flex-basis: 25px !important;
   }
 }
+
+
+/* Header visibility correction: match the patient/clinic sidebar navy-to-teal
+   palette in both themes, and prevent the logo from collapsing on narrow screens. */
+.app-shell .site-header {
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:12px !important;
+  width:100% !important;
+  min-width:0 !important;
+  padding-left:clamp(10px,2.5vw,32px) !important;
+  padding-right:clamp(10px,2.5vw,32px) !important;
+  color:#f1f7ff !important;
+  background:linear-gradient(105deg,#071426 0%,#102b43 58%,#075c64 100%) !important;
+  border-bottom:1px solid #345173 !important;
+  isolation:isolate;
+}
+.app-shell .site-header > button:first-child {
+  display:flex !important;
+  flex:0 1 190px !important;
+  min-width:104px !important;
+  max-width:190px !important;
+  width:auto !important;
+  overflow:visible !important;
+  color:#fff !important;
+}
+.app-shell .site-header > button:first-child img {
+  display:block !important;
+  width:auto !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  height:44px !important;
+  object-fit:contain !important;
+  object-position:left center !important;
+}
+.app-shell .site-header > nav {
+  display:flex !important;
+  flex:0 1 auto !important;
+  flex-wrap:nowrap !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  min-width:0 !important;
+  gap:clamp(4px,1vw,10px) !important;
+  overflow:visible !important;
+}
+.app-shell .site-header > nav > button {
+  flex:0 0 auto !important;
+  white-space:nowrap !important;
+  color:#f1f7ff !important;
+  border:1px solid rgba(219,237,255,.28) !important;
+  background:rgba(255,255,255,.075) !important;
+  box-shadow:none !important;
+}
+.app-shell .site-header > nav > button:hover {
+  color:#fff !important;
+  background:rgba(255,255,255,.16) !important;
+  border-color:rgba(219,237,255,.55) !important;
+}
+.app-shell .site-header > nav > button.bg-teal-700,
+.app-shell .site-header > nav > button.bg-gradient-to-r,
+.app-shell .site-header > nav > .relative > button {
+  color:#fff !important;
+  background:linear-gradient(100deg,#087f83,#1676a2) !important;
+  border:1px solid rgba(220,250,255,.35) !important;
+}
+.app-shell .site-header > nav > button[aria-label^="Switch to"] {
+  width:40px !important;
+  min-width:40px !important;
+  height:40px !important;
+  padding:0 !important;
+  color:#fff !important;
+  background:rgba(255,255,255,.12) !important;
+  border:1px solid rgba(219,237,255,.38) !important;
+}
+.app-shell .site-header > nav > button[aria-label^="Switch to"] svg {
+  color:#fff !important;
+  stroke:#fff !important;
+}
+.app-shell .site-header > nav > .relative { flex:0 0 auto !important; }
+@media(max-width:640px) {
+  .app-shell .site-header { gap:6px !important; min-height:62px !important; }
+  .app-shell .site-header > button:first-child { flex-basis:104px !important; min-width:88px !important; max-width:118px !important; }
+  .app-shell .site-header > button:first-child img { height:36px !important; }
+  .app-shell .site-header > nav { gap:4px !important; }
+  .app-shell .site-header > nav > button,
+  .app-shell .site-header > nav > .relative > button {
+    padding:8px 9px !important;
+    font-size:12px !important;
+    border-radius:10px !important;
+  }
+  .app-shell .site-header > nav > button[aria-label^="Switch to"] {
+    width:34px !important; min-width:34px !important; height:34px !important;
+    padding:0 !important;
+  }
+}
+@media(max-width:420px) {
+  .app-shell .site-header > button:first-child { flex-basis:76px !important; min-width:68px !important; max-width:82px !important; }
+  .app-shell .site-header > nav > button { padding-left:6px !important; padding-right:6px !important; font-size:11px !important; }
+}
