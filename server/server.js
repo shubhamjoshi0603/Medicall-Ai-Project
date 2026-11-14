@@ -80,9 +80,9 @@ async function sendPatientSms({ to, patientName, doctorName, date, time, booking
   const templateId = process.env.MSG91_TEMPLATE_ID;
   if (!authKey || !templateId || !to) return false;
 
-  const digits = String(to).replace(/\\D/g, "");
+  const digits = String(to).replace(/\D/g, "");
   const mobile = digits.length === 10 ? `91${digits}` : digits.startsWith("91") ? digits : "";
-  if (!/^91[6-9]\\d{9}$/.test(mobile)) return false;
+  if (!/^91[6-9]\d{9}$/.test(mobile)) return false;
 
   const recipient = {
     mobiles: mobile,
