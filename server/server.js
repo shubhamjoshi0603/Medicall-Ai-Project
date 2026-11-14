@@ -1091,7 +1091,7 @@ app.post("/api/patient/family", protectPatient, async (req, res) => {
     const dateOfBirth = String(req.body?.dateOfBirth || "").trim();
     const phone = String(req.body?.phone || "").trim();
     if (!fullName || !relationship) return res.status(400).json({ message: "Name and relationship are required." });
-    if (fullName.length > 100 || relationship.length > 40 || phone.length > 20 || (dateOfBirth && !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth))) {
+    if (fullName.length > 100 || relationship.length > 40 || phone.length > 20 || (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))) {
       return res.status(400).json({ message: "Please check the family member details." });
     }
     const member = await FamilyMember.create({ patientId: req.patientId, fullName, relationship, dateOfBirth, phone });
@@ -1111,7 +1111,7 @@ app.patch("/api/patient/family/:id", protectPatient, async (req, res) => {
     if (updates.fullName !== undefined && (!updates.fullName || updates.fullName.length > 100)) return res.status(400).json({ message: "Enter a valid name." });
     if (updates.relationship !== undefined && (!updates.relationship || updates.relationship.length > 40)) return res.status(400).json({ message: "Enter a valid relationship." });
     if (updates.phone !== undefined && updates.phone.length > 20) return res.status(400).json({ message: "Phone number is too long." });
-    if (updates.dateOfBirth && !/^\\d{4}-\\d{2}-\\d{2}$/.test(updates.dateOfBirth)) return res.status(400).json({ message: "Enter a valid date of birth." });
+    if (updates.dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(updates.dateOfBirth)) return res.status(400).json({ message: "Enter a valid date of birth." });
     const member = await FamilyMember.findOneAndUpdate({ _id: req.params.id, patientId: req.patientId }, { $set: updates }, { new: true, runValidators: true });
     if (!member) return res.status(404).json({ message: "Family member not found." });
     return res.json({ message: "Family member updated.", member });
@@ -1166,7 +1166,7 @@ app.post("/api/patient/records", protectPatient, uploadMedicalRecord.single("fil
     }
     const record = await MedicalRecord.create({
       patientId: req.patientId, familyMemberId, appointmentId, title, category,
-      fileName: String(req.file.originalname || "medical-record").replace(/[\\/\\r\\n]/g, "_").slice(0, 180),
+      fileName: String(req.file.originalname || "medical-record").replace(/[\/\r\n]/g, "_").slice(0, 180),
       mimeType: req.file.mimetype, fileData: req.file.buffer, fileSize: req.file.size,
     });
     const safeRecord = record.toObject(); delete safeRecord.fileData;
