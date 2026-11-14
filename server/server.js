@@ -1149,6 +1149,14 @@ app.get("/api/patient/records", protectPatient, async (req, res) => {
 app.post("/api/patient/records", protectPatient, uploadMedicalRecord.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "Choose a PDF, JPG or PNG file." });
+    const bytes = req.file.buffer;
+    const isPdf = bytes.subarray(0, 5).toString() === "%PDF-";
+    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const isPng = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    if (!(isPdf || isJpeg || isPng)) return res.status(400).json({ message: "The uploaded file does not match a supported PDF, JPG or PNG format." });
+    if ((req.file.mimetype === "application/pdf" && !isPdf) || (req.file.mimetype === "image/jpeg" && !isJpeg) || (req.file.mimetype === "image/png" && !isPng)) {
+      return res.status(400).json({ message: "The uploaded file type does not match its contents." });
+    }
     const title = String(req.body?.title || "").trim();
     const category = String(req.body?.category || "Other").trim();
     const allowedCategories = ["Prescription", "Lab report", "Scan / imaging", "Discharge summary", "Other"];
