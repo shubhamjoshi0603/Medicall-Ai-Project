@@ -852,3 +852,112 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
     color:#fff;background:#087f83;border-color:#3a8790;
   }
 }
+
+
+/* Fixed brand navigation: intentionally identical in light and dark themes.
+   overflow-x: clip on the app shell keeps the document as the sticky scroll
+   container, so the top bar remains visible while the page scrolls. */
+.app-shell { overflow-x: clip !important; }
+.app-shell > .site-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  min-height: 68px;
+  color: #edf5ff !important;
+  background: #10243a !important;
+  border-color: #29415c !important;
+  box-shadow: 0 8px 24px rgba(5, 18, 34, .18) !important;
+}
+.app-shell > .site-header nav button:not(.bg-gradient-to-r):not(.bg-teal-700) {
+  color: #e2edf9 !important;
+  border-color: rgba(196, 216, 239, .22) !important;
+  background-color: transparent !important;
+}
+.app-shell > .site-header nav button:not(.bg-gradient-to-r):not(.bg-teal-700):hover {
+  color: #fff !important;
+  background: #203b59 !important;
+  border-color: #52718f !important;
+}
+.app-shell > .site-header nav button.bg-teal-700,
+.app-shell > .site-header nav button.bg-gradient-to-r {
+  color: #fff !important;
+}
+.app-shell > .site-header nav button[aria-label^="Switch to"] {
+  color: #f4f8ff !important;
+  background: #203b59 !important;
+  border-color: #52718f !important;
+}
+.app-shell > .site-header nav button[aria-label^="Switch to"]:hover {
+  background: #2a4b6c !important;
+}
+
+/* Keep sidebar content scrollable for short screens, but remove the distracting
+   scrollbar track and tighten vertical rhythm so more links fit at once. */
+.clinic-dashboard .clinic-sidebar,
+.patient-dashboard .patient-sidebar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overscroll-behavior-y: contain;
+}
+.clinic-dashboard .clinic-sidebar::-webkit-scrollbar,
+.patient-dashboard .patient-sidebar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.clinic-dashboard .clinic-sidebar {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+.clinic-dashboard .clinic-sidebar > div:first-child {
+  margin-bottom: 16px !important;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item {
+  min-height: 41px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon {
+  width: 28px !important;
+  height: 28px !important;
+  flex-basis: 28px !important;
+}
+.clinic-dashboard .clinic-sidebar .clinic-nav-item + .clinic-nav-item {
+  margin-top: 1px !important;
+}
+.patient-dashboard .patient-sidebar {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item {
+  min-height: 40px !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+  width: 28px !important;
+  height: 28px !important;
+  flex-basis: 28px !important;
+}
+.patient-dashboard .patient-sidebar .patient-nav-item + .patient-nav-item {
+  margin-top: 1px !important;
+}
+@media (max-height: 760px) and (min-width: 1024px) {
+  .clinic-dashboard .clinic-sidebar,
+  .patient-dashboard .patient-sidebar {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+  .clinic-dashboard .clinic-sidebar .clinic-nav-item,
+  .patient-dashboard .patient-sidebar .patient-nav-item {
+    min-height: 36px !important;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+  .clinic-dashboard .clinic-sidebar .clinic-nav-item .clinic-nav-icon,
+  .patient-dashboard .patient-sidebar .patient-nav-item .patient-nav-icon {
+    width: 25px !important;
+    height: 25px !important;
+    flex-basis: 25px !important;
+  }
+}
