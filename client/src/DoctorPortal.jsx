@@ -20,6 +20,11 @@ export default function DoctorPortal({ onExit }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [calendarMode, setCalendarMode] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [clinicalNote, setClinicalNote] = useState({ symptoms: "", diagnosis: "", treatmentPlan: "", doctorNotes: "", followUpDate: "", medicinesText: "" });
+  const [noteBusy, setNoteBusy] = useState(false);
 
   const doctorApi = axios.create({ baseURL: API, headers: { Authorization: `Bearer ${token}` } });
 
@@ -64,6 +69,39 @@ export default function DoctorPortal({ onExit }) {
   async function removeAvailability(id) {
     try { await doctorApi.delete(`/doctor/availability/${id}`); await loadPortal(); setMessage("Pending availability removed."); }
     catch (err) { setError(err.response?.data?.message || "Could not remove availability."); }
+  }
+
+
+  async function openPatientFile(appointment) {
+    setSelectedAppointment(appointment); setNoteBusy(true); setError(""); setMessage("");
+    setClinicalNote({ symptoms: "", diagnosis: "", treatmentPlan: "", doctorNotes: "", followUpDate: "", medicinesText: "" });
+    try {
+      const response = await doctorApi.get("/doctor/appointments/" + appointment._id + "/clinical-note");
+      const note = response.data.note || {};
+      setClinicalNote({
+        symptoms: note.symptoms || "", diagnosis: note.diagnosis || "", treatmentPlan: note.treatmentPlan || "",
+        doctorNotes: note.doctorNotes || "", followUpDate: note.followUpDate || "",
+        medicinesText: (note.medicines || []).map((m) => [m.name, m.dosage, m.duration, m.instructions].join(" | ")).join("\n"),
+      });
+    } catch (err) { setError(err.response?.data?.message || "Could not load this patient file."); }
+    finally { setNoteBusy(false); }
+  }
+
+  async function saveClinicalNote(e) {
+    e.preventDefault(); if (!selectedAppointment) return;
+    setNoteBusy(true); setError(""); setMessage("");
+    const medicines = clinicalNote.medicinesText.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
+      const parts = line.split("|").map((part) => part.trim());
+      return { name: parts[0] || "", dosage: parts[1] || "", duration: parts[2] || "", instructions: parts[3] || "" };
+    });
+    try {
+      const response = await doctorApi.put("/doctor/appointments/" + selectedAppointment._id + "/clinical-note", {
+        symptoms: clinicalNote.symptoms, diagnosis: clinicalNote.diagnosis, treatmentPlan: clinicalNote.treatmentPlan,
+        doctorNotes: clinicalNote.doctorNotes, followUpDate: clinicalNote.followUpDate, medicines,
+      });
+      setMessage(response.data.message || "Consultation notes saved securely.");
+    } catch (err) { setError(err.response?.data?.message || "Could not save the patient file."); }
+    finally { setNoteBusy(false); }
   }
 
   function logout() {
@@ -137,14 +175,41 @@ export default function DoctorPortal({ onExit }) {
           {label:"Completed",value:completedAppointments.length,view:"completed"},
           {label:"Cancelled",value:cancelledAppointments.length,view:"cancelled"},
           {label:"Availability requests",value:availability.length,view:"availability"},
+          {label:"Unique patients",value:new Set(appointments.map((a) => (a.patientEmail || a.patientName || "").toLowerCase()).filter(Boolean)).size,view:"all"},
+          {label:"Collected fees",value:"₹" + appointments.filter((a) => a.paymentStatus === "Paid").reduce((sum,a) => sum + Number(a.paymentAmount || 0),0).toLocaleString("en-IN"),view:"all"},
         ].map((x) => <button type="button" key={x.label} onClick={()=>x.view==="availability"?document.getElementById("doctor-availability")?.scrollIntoView({behavior:"smooth"}):setAppointmentView(x.view)} className={`doctor-summary-card rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-blue-300 ${appointmentView===x.view?"border-blue-400 ring-2 ring-blue-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
       </section>
       <section className="mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">My patient appointments</h2><p className="mt-1 text-sm text-slate-500">Choose a schedule or visit status to focus on the right patients.</p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{filteredAppointments.length} shown · {appointments.length} total</span></div>
           <div className="mt-4 flex flex-wrap gap-2">{[["upcoming","Upcoming"],["today","Today"],["tomorrow","Tomorrow"],["later","Later"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]].map(([value,label])=><button key={value} onClick={()=>setAppointmentView(value)} className={`rounded-full border px-3 py-2 text-xs font-bold ${appointmentView===value?"border-slate-700 bg-slate-800 text-white":"border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}>{label}</button>)}</div>
         </div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Patient</th><th className="p-4">Phone</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Status</th><th className="p-4">Consultation</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredAppointments.map(a => <tr key={a._id}><td className="p-4 font-semibold">{a.patientName}</td><td className="p-4">{a.phone}</td><td className="p-4">{a.date}</td><td className="p-4">{a.time}</td><td className="p-4">{a.status}</td><td className="p-4">{a.videoRoomId ? <a href={"https://meet.jit.si/" + a.videoRoomId} target="_blank" rel="noreferrer" className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Join video visit ↗</a> : <span className="text-xs text-slate-400">Not started by patient</span>}</td></tr>)}{!filteredAppointments.length && <tr><td colSpan="6" className="p-10 text-center text-slate-500">No appointments in this view. Try another schedule filter.</td></tr>}</tbody></table></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
+          <div className="flex gap-2"><button type="button" onClick={() => setCalendarMode(false)} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">List view</button><button type="button" onClick={() => setCalendarMode(true)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white">Calendar view</button></div>
+          {calendarMode && <div className="flex items-center gap-2"><button type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))} className="rounded-lg border px-3 py-2">‹</button><strong>{calendarMonth.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong><button type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))} className="rounded-lg border px-3 py-2">›</button></div>}
+        </div>
+        {calendarMode && <div className="grid grid-cols-7 gap-1 p-3 sm:gap-2 sm:p-5">
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day) => <div key={day} className="py-2 text-center text-xs font-bold text-slate-500">{day}</div>)}
+          {Array.from({length:42},(_,index)=>{const firstDay=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),1).getDay();const date=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),index-firstDay+1);const key=dateKey(date);const dayItems=appointments.filter((a)=>a.date===key);const inMonth=date.getMonth()===calendarMonth.getMonth();return <div key={key} className={"min-h-[82px] rounded-xl border p-1.5 sm:min-h-[100px] "+(inMonth?"border-slate-200 bg-white":"border-transparent bg-slate-50")}><p className="text-xs font-bold text-slate-700">{date.getDate()}</p><div className="mt-1 space-y-1">{dayItems.slice(0,2).map((a)=><button type="button" key={a._id} onClick={()=>openPatientFile(a)} className={"block w-full truncate rounded px-1 py-1 text-left text-[9px] font-bold "+(a.status==="Completed"?"bg-emerald-100 text-emerald-800":a.status==="Cancelled"?"bg-rose-100 text-rose-700":"bg-blue-100 text-blue-800")}>{a.time} {a.patientName}</button>)}{dayItems.length>2&&<p className="text-[9px] text-slate-500">+{dayItems.length-2} more</p>}</div></div>})}
+        </div>}
+        {!calendarMode && <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Patient</th><th className="p-4">Phone</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Status</th><th className="p-4">Consultation</th><th className="p-4">Patient file</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredAppointments.map(a => <tr key={a._id}><td className="p-4 font-semibold">{a.patientName}</td><td className="p-4">{a.phone}</td><td className="p-4">{a.date}</td><td className="p-4">{a.time}</td><td className="p-4">{a.status}</td><td className="p-4">{a.videoRoomId ? <a href={"https://meet.jit.si/" + a.videoRoomId} target="_blank" rel="noreferrer" className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Join video visit ↗</a> : <span className="text-xs text-slate-400">Not started by patient</span>}</td><td className="p-4"><button type="button" onClick={() => openPatientFile(a)} className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">Open file</button></td></tr>)}{!filteredAppointments.length && <tr><td colSpan="7" className="p-10 text-center text-slate-500">No appointments in this view. Try another schedule filter.</td></tr>}</tbody></table></div>}
       </section>
+      {selectedAppointment && <section className="mb-7 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-teal-50 p-5">
+          <div><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Patient file · {selectedAppointment.date} at {selectedAppointment.time}</p><h2 className="mt-1 text-xl font-extrabold text-slate-900">{selectedAppointment.patientName}</h2><p className="mt-1 text-sm text-slate-600">{selectedAppointment.patientEmail || "Email not provided"} · {selectedAppointment.phone}</p></div>
+          <button type="button" onClick={() => setSelectedAppointment(null)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600">Close</button>
+        </div>
+        <div className="grid gap-5 p-5 lg:grid-cols-[.8fr_1.2fr]">
+          <div><h3 className="font-bold text-slate-900">Previous appointments in this doctor workspace</h3><p className="mt-1 text-xs text-slate-500">Only appointments visible to this doctor are shown.</p><div className="mt-3 space-y-2">{appointments.filter((a)=>a.patientEmail && a.patientEmail.toLowerCase()===String(selectedAppointment.patientEmail||"").toLowerCase() && a._id!==selectedAppointment._id).sort((a,b)=>b.date.localeCompare(a.date)).map((a)=><div key={a._id} className="rounded-xl border border-slate-100 p-3"><p className="text-sm font-semibold text-slate-800">{a.date} · {a.time}</p><p className="mt-1 text-xs text-slate-500">{a.reason || "No visit reason recorded"} · {a.status}</p></div>)}{!appointments.some((a)=>a.patientEmail && a.patientEmail.toLowerCase()===String(selectedAppointment.patientEmail||"").toLowerCase() && a._id!==selectedAppointment._id)&&<p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No previous appointments found in this doctor workspace.</p>}</div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">This is appointment history only; it is not a verified medical history or allergy record.</p></div>
+          <form onSubmit={saveClinicalNote} className="space-y-3">
+            <div><h3 className="font-bold text-slate-900">Consultation notes & prescription</h3><p className="mt-1 text-xs text-slate-500">Enter the clinical assessment and treatment prescribed by you.</p></div>
+            {[[ "symptoms","Symptoms / patient concerns","Describe reported symptoms." ],[ "diagnosis","Clinical assessment / diagnosis","Doctor-entered assessment." ],[ "treatmentPlan","Treatment plan","Advice, tests or treatment plan." ],[ "doctorNotes","Doctor notes","Additional clinical workflow notes." ]].map(([key,label,placeholder])=><label key={key} className="block text-xs font-bold text-slate-600">{label}<textarea className={input+" mt-1 min-h-20"} value={clinicalNote[key]} onChange={(e)=>setClinicalNote({...clinicalNote,[key]:e.target.value})} placeholder={placeholder}/></label>)}
+            <label className="block text-xs font-bold text-slate-600">Prescription medicines (one per line: Medicine | Dosage | Duration | Instructions)<textarea className={input+" mt-1 min-h-24"} value={clinicalNote.medicinesText} onChange={(e)=>setClinicalNote({...clinicalNote,medicinesText:e.target.value})} placeholder="Medicine name | 1 tablet | 5 days | After food"/></label>
+            <label className="block text-xs font-bold text-slate-600">Follow-up date<input type="date" className={input+" mt-1"} value={clinicalNote.followUpDate} onChange={(e)=>setClinicalNote({...clinicalNote,followUpDate:e.target.value})}/></label>
+            <button disabled={noteBusy} className={btn}>{noteBusy?"Saving…":"Save consultation & prescription"}</button>
+            <p className="text-[11px] text-slate-400">Saved to this doctor's secure workspace. Verify clinical details before saving.</p>
+          </form>
+        </div>
+      </section>}
       <section id="doctor-availability" className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
         <form onSubmit={submitAvailability} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div><h2 className="text-lg font-bold">Submit availability</h2><p className="mt-1 text-sm text-slate-500">Your clinic admin must approve a schedule before it is used for patient bookings.</p></div>
