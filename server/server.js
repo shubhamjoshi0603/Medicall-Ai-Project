@@ -644,6 +644,25 @@ appointmentSchema.index(
   }
 );
 
+const doctorClinicalNoteSchema = new Schema({
+  clinicId: { type: Schema.Types.ObjectId, ref: "Clinic", required: true, index: true },
+  doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true, index: true },
+  appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", required: true, index: true },
+  patientEmail: { type: String, required: true, lowercase: true, trim: true },
+  symptoms: { type: String, default: "", maxlength: 3000 },
+  diagnosis: { type: String, default: "", maxlength: 2000 },
+  treatmentPlan: { type: String, default: "", maxlength: 4000 },
+  followUpDate: { type: String, default: "", match: /^$|^\\d{4}-\\d{2}-\\d{2}$/ },
+  doctorNotes: { type: String, default: "", maxlength: 4000 },
+  medicines: [{
+    name: { type: String, required: true, trim: true, maxlength: 120 },
+    dosage: { type: String, default: "", trim: true, maxlength: 100 },
+    duration: { type: String, default: "", trim: true, maxlength: 100 },
+    instructions: { type: String, default: "", trim: true, maxlength: 300 },
+  }],
+}, { timestamps: true });
+doctorClinicalNoteSchema.index({ doctorId: 1, appointmentId: 1 }, { unique: true });
+
 const availabilitySchema = new Schema({
   clinicId: { type: Schema.Types.ObjectId, ref: "Clinic", required: true, index: true },
   doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true, index: true },
@@ -714,6 +733,7 @@ const PatientReview = mongoose.model("PatientReview", reviewSchema);
 const Doctor = mongoose.model("Doctor", doctorSchema);
 const Appointment = mongoose.model("Appointment", appointmentSchema);
 const Availability = mongoose.model("Availability", availabilitySchema);
+const DoctorClinicalNote = mongoose.model("DoctorClinicalNote", doctorClinicalNoteSchema);
 
 // One document per AI conversation. A conversion is recorded only when the
 // conversation actually creates an appointment, not merely when booking is discussed.
@@ -1626,6 +1646,53 @@ app.get("/api/doctor/appointments", protectDoctor, async (req, res) => {
     const appointments = await Appointment.find({ clinicId: req.clinicId, doctorId: req.doctorId }).sort({ date: 1, time: 1 });
     return res.json(appointments);
   } catch (error) { console.error("Doctor appointments error:", error); return res.status(500).json({ message: "Could not load appointments." }); }
+});
+
+app.get("/api/doctor/appointments/:id/clinical-note", protectDoctor, async (req, res) => {
+  try {
+    const appointment = await Appointment.findOne({ _id: req.params.id, clinicId: req.clinicId, doctorId: req.doctorId }).select("_id patientEmail");
+    if (!appointment) return res.status(404).json({ message: "Appointment not found in your doctor workspace." });
+    const note = await DoctorClinicalNote.findOne({ clinicId: req.clinicId, doctorId: req.doctorId, appointmentId: appointment._id });
+    return res.json({ note });
+  } catch (error) {
+    console.error("Doctor clinical note load:", error);
+    return res.status(500).json({ message: "Could not load consultation notes." });
+  }
+});
+
+app.put("/api/doctor/appointments/:id/clinical-note", protectDoctor, async (req, res) => {
+  try {
+    const appointment = await Appointment.findOne({ _id: req.params.id, clinicId: req.clinicId, doctorId: req.doctorId }).select("_id patientEmail");
+    if (!appointment) return res.status(404).json({ message: "Appointment not found in your doctor workspace." });
+    const body = req.body || {};
+    const symptoms = String(body.symptoms || "").trim();
+    const diagnosis = String(body.diagnosis || "").trim();
+    const treatmentPlan = String(body.treatmentPlan || "").trim();
+    const doctorNotes = String(body.doctorNotes || "").trim();
+    const followUpDate = String(body.followUpDate || "").trim();
+    const medicines = Array.isArray(body.medicines) ? body.medicines.slice(0, 20).map((item) => ({
+      name: String(item?.name || "").trim(),
+      dosage: String(item?.dosage || "").trim(),
+      duration: String(item?.duration || "").trim(),
+      instructions: String(item?.instructions || "").trim(),
+    })) : [];
+    if (symptoms.length > 3000 || diagnosis.length > 2000 || treatmentPlan.length > 4000 || doctorNotes.length > 4000) {
+      return res.status(400).json({ message: "One or more consultation fields exceed the allowed length." });
+    }
+    if (followUpDate && !/^\\d{4}-\\d{2}-\\d{2}$/.test(followUpDate)) return res.status(400).json({ message: "Enter a valid follow-up date." });
+    if (medicines.some((item) => !item.name || item.name.length > 120 || item.dosage.length > 100 || item.duration.length > 100 || item.instructions.length > 300)) {
+      return res.status(400).json({ message: "Check medicine names and prescription field lengths." });
+    }
+    const note = await DoctorClinicalNote.findOneAndUpdate(
+      { clinicId: req.clinicId, doctorId: req.doctorId, appointmentId: appointment._id },
+      { $set: { clinicId: req.clinicId, doctorId: req.doctorId, appointmentId: appointment._id, patientEmail: appointment.patientEmail || "", symptoms, diagnosis, treatmentPlan, doctorNotes, followUpDate, medicines } },
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    );
+    return res.json({ message: "Consultation notes and prescription saved securely.", note });
+  } catch (error) {
+    console.error("Doctor clinical note save:", error);
+    return res.status(500).json({ message: "Could not save consultation notes." });
+  }
 });
 
 app.get("/api/doctor/availability", protectDoctor, async (req, res) => {
