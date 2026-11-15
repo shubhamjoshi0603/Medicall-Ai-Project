@@ -79,7 +79,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem("medicall_theme", theme);
-    } catch {}
+    } catch { /* Ignore non-critical storage and cleanup failures. */ }
     document.documentElement.style.colorScheme = theme;
     document.documentElement.dataset.theme = theme;
     document.body.dataset.theme = theme;
@@ -110,7 +110,7 @@ export default function App() {
     },
   ]);
 
-  const [listening, setListening] = useState(false);
+  const [, setListening] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const voiceModeRef = useRef(false);
   const processingVoiceRef = useRef(false);
@@ -307,7 +307,7 @@ export default function App() {
         if (mediaRecorderRef.current?.state === "recording") {
           mediaRecorderRef.current.stop();
         }
-      } catch {}
+      } catch { /* Ignore non-critical storage and cleanup failures. */ }
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current);
       audioContextRef.current?.close?.();
@@ -367,7 +367,7 @@ export default function App() {
       }));
     } catch (err) {
       if (clinicId) {
-        try { localStorage.removeItem("medicall_selected_clinic"); } catch {}
+        try { localStorage.removeItem("medicall_selected_clinic"); } catch { /* Ignore non-critical storage and cleanup failures. */ }
         setSelectedClinicId("");
         setClinic(null);
         setDoctors([]);
@@ -386,7 +386,7 @@ export default function App() {
     try {
       if (clinicId) localStorage.setItem("medicall_selected_clinic", clinicId);
       else localStorage.removeItem("medicall_selected_clinic");
-    } catch {}
+    } catch { /* Ignore non-critical storage and cleanup failures. */ }
     setBooking((previous) => ({ ...previous, doctorId: "" }));
     await loadClinic(clinicId);
   }
@@ -588,14 +588,6 @@ export default function App() {
     await sendMessage(chatInput, false);
   }
 
-  function stopRecording() {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state === "recording") {
-      recorder.stop();
-      setNotice("I heard you. Preparing a reply…");
-    }
-  }
-
   function stopVoiceConversation() {
     voiceModeRef.current = false;
     setVoiceMode(false);
@@ -695,7 +687,7 @@ export default function App() {
         silenceIntervalRef.current = null;
         stream.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
-        try { await audioContextRef.current?.close?.(); } catch {}
+        try { await audioContextRef.current?.close?.(); } catch { /* Ignore non-critical storage and cleanup failures. */ }
         audioContextRef.current = null;
         setListening(false);
 
