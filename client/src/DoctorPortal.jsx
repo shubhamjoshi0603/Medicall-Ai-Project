@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import doctorWorkspaceArt from "./assets/doctor-workspace.svg";
 
@@ -28,7 +28,7 @@ export default function DoctorPortal({ onExit }) {
 
   const doctorApi = axios.create({ baseURL: API, headers: { Authorization: `Bearer ${token}` } });
 
-  async function loadPortal(authToken = token) {
+  const loadPortal = useCallback(async (authToken = token) => {
     const headers = { Authorization: `Bearer ${authToken}` };
     const [me, appts, slots] = await Promise.all([
       axios.get(`${API}/doctor/me`, { headers }),
@@ -38,15 +38,18 @@ export default function DoctorPortal({ onExit }) {
     setDoctor(me.data.doctor);
     setAppointments(appts.data);
     setAvailability(slots.data);
-  }
+  }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    loadPortal().catch((err) => {
+    if (!token) return undefined;
+    let active = true;
+    Promise.resolve().then(() => loadPortal(token)).catch((err) => {
+      if (!active) return;
       localStorage.removeItem("medicall_doctor_token"); setToken("");
       setError(err.response?.data?.message || "Doctor session expired. Please sign in again.");
     });
-  }, [token]);
+    return () => { active = false; };
+  }, [token, loadPortal]);
 
   async function login(e) {
     e.preventDefault(); setBusy(true); setError("");
