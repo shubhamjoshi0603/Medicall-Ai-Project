@@ -1153,20 +1153,21 @@ export default function App() {
         </button>
 
         <nav className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
-          <button onClick={() => { setPage("home"); setLoginMenuOpen(false); }} style={{ color: "#f1f7ff", background: "rgba(255,255,255,.075)", border: "1px solid rgba(219,237,255,.28)" }} className="rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-teal-50 hover:text-teal-800">Home</button>
+          <button data-header-action="solid" onClick={() => { setPage("home"); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold transition">Home</button>
           {token ? <>
             <button className="rounded-xl bg-gradient-to-r from-teal-700 to-cyan-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-teal-700/20 transition hover:-translate-y-0.5 hover:shadow-xl" onClick={() => { setPage("dashboard"); setLoginMenuOpen(false); }}>Clinic dashboard</button>
-            <button onClick={() => { logout(); setLoginMenuOpen(false); }} style={{ color: "#f1f7ff", background: "rgba(255,255,255,.075)", border: "1px solid rgba(219,237,255,.28)" }} className="rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
+            <button data-header-action="solid" onClick={() => { logout(); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold">Log out</button>
           </> : patientToken ? <>
             <button className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800" onClick={() => { setPage("patient-dashboard"); setLoginMenuOpen(false); }}>My account</button>
-            <button onClick={() => { patientLogout(); setLoginMenuOpen(false); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
+            <button data-header-action="solid" onClick={() => { patientLogout(); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold">Log out</button>
           </> : null}
           <button
             type="button"
             onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
             aria-label={theme === "light" ? "Switch to dark theme" : "Switch to warm light theme"}
             title={theme === "light" ? "Switch to dark theme" : "Switch to warm light theme"}
-            style={{ color: "#ffffff", background: "rgba(255,255,255,.12)", border: "1px solid rgba(219,237,255,.38)" }} className="grid h-10 w-10 place-items-center rounded-xl shadow-sm transition focus:outline-none focus:ring-4 focus:ring-teal-100"
+            data-header-action="theme"
+            className="grid h-10 w-10 place-items-center rounded-xl shadow-sm transition focus:outline-none focus:ring-4 focus:ring-teal-100"
           >
             {theme === "light" ? (
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
