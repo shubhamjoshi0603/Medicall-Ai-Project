@@ -1353,11 +1353,11 @@ body { background:#eaf0f5; color:#263849; }
 .app-shell[data-theme="light"] .doctor-dashboard .doctor-summary-card {
   background:linear-gradient(145deg,#fbfdfe 0%,#f0f6f8 100%) !important;
 }
-.app-shell[data-theme="light"] .doctor-dashboard .doctor-login-card {
+.app-shell[data-theme="light"] .doctor-login-card {
   background:linear-gradient(145deg,#f9fcfd 0%,#edf4f6 100%) !important;
   border-color:#d1e0e7 !important;
 }
-.app-shell[data-theme="light"] .doctor-dashboard .doctor-prescription-print {
+.app-shell[data-theme="light"] .doctor-prescription-print {
   background:#fff !important;
   color:#111827 !important;
 }
