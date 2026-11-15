@@ -1136,3 +1136,55 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   .app-shell .doctor-dashboard .doctor-workspace-copy h1 { font-size:21px; }
   .app-shell .doctor-dashboard .doctor-logout-button { right:12px; top:12px; padding:8px 10px; font-size:12px; }
 }
+
+
+/* Doctor portal visual refinement: clear hierarchy, polished patient workspace and calendar. */
+.app-shell .doctor-dashboard { max-width: 1240px; }
+.app-shell .doctor-dashboard .doctor-summary-card {
+  min-height: 104px;
+  border-color:#d9e4ef;
+  background:linear-gradient(145deg,#fff 0%,#f7fbff 100%);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.app-shell .doctor-dashboard .doctor-summary-card:hover {
+  transform:translateY(-2px);
+  border-color:#7da8d8;
+  box-shadow:0 12px 24px rgba(29,78,137,.10);
+}
+.app-shell .doctor-dashboard table tbody tr:hover { background:#f5f9ff; }
+.app-shell .doctor-dashboard #doctor-availability > form,
+.app-shell .doctor-dashboard #doctor-availability > div {
+  border-color:#d9e4ef;
+  box-shadow:0 8px 24px rgba(31,65,110,.06);
+}
+.app-shell .doctor-dashboard .doctor-primary-button {
+  background:linear-gradient(105deg,#1769aa 0%,#087f83 100%);
+  box-shadow:0 6px 14px rgba(8,100,140,.16);
+}
+.app-shell .doctor-dashboard .doctor-primary-button:hover { background:linear-gradient(105deg,#155a91 0%,#076d72 100%); }
+.app-shell .doctor-dashboard .doctor-workspace-hero { box-shadow:0 12px 30px rgba(24,61,93,.08); }
+.app-shell .doctor-dashboard input:focus,
+.app-shell .doctor-dashboard select:focus,
+.app-shell .doctor-dashboard textarea:focus {
+  outline:none;
+  border-color:#2586b8 !important;
+  box-shadow:0 0 0 3px rgba(37,134,184,.14);
+}
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-summary-card {
+  background:linear-gradient(145deg,#172b45 0%,#14243a 100%) !important;
+  border-color:#354e6d !important;
+}
+.app-shell[data-theme="dark"] .doctor-dashboard table tbody tr:hover { background:#1d3552 !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard #doctor-availability > form,
+.app-shell[data-theme="dark"] .doctor-dashboard #doctor-availability > div {
+  background:#14243a !important;
+  border-color:#354e6d !important;
+}
+.app-shell[data-theme="dark"] .doctor-dashboard .bg-blue-50 { background:#1b3659 !important; color:#b8d6ff !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .bg-emerald-50 { background:#123b35 !important; color:#9debd0 !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .bg-amber-50 { background:#45351d !important; color:#ffe1a8 !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .bg-rose-50 { background:#482633 !important; color:#ffc1ce !important; }
+@media(max-width:639px) {
+  .app-shell .doctor-dashboard .doctor-summary-card { min-height:88px; padding:12px; }
+  .app-shell .doctor-dashboard table { font-size:12px; }
+}
