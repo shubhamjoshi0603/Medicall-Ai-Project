@@ -132,7 +132,7 @@ export default function DoctorPortal({ onExit }) {
   });
 
   if (!token || !doctor) return (
-    <main className="mx-auto grid min-h-[75vh] max-w-5xl items-center px-4 py-10 md:grid-cols-2 md:gap-10">
+    <main className="doctor-login-layout mx-auto grid min-h-[75vh] max-w-5xl items-center px-4 py-10 md:grid-cols-2 md:gap-10">
       <section className="relative hidden min-h-[460px] overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#10283B] via-[#174A64] to-[#087E83] p-8 text-white shadow-xl md:block lg:p-10">
         <img src={doctorWorkspaceArt} alt="Doctor workspace illustration" className="pointer-events-none absolute bottom-0 right-0 z-0 h-[42%] w-[54%] max-w-[290px] object-contain object-right-bottom opacity-95" />
         <div className="relative z-10 max-w-[92%] pb-36">
@@ -142,7 +142,7 @@ export default function DoctorPortal({ onExit }) {
         </div>
         <div className="absolute bottom-6 left-8 z-10 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm lg:left-10"><span className="h-2 w-2 rounded-full bg-emerald-300"/> Connected care workspace</div>
       </section>
-      <form onSubmit={login} className="mx-auto w-full max-w-md space-y-5 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-xl">
+      <form onSubmit={login} className="doctor-login-card mx-auto w-full max-w-md space-y-5 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-xl">
         <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-700">Doctor access</p><h2 className="mt-2 text-3xl font-black text-slate-950">Doctor login</h2><p className="mt-2 text-sm text-slate-500">Use the email and temporary password provided by your clinic admin.</p></div>
         {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         <label className="block text-sm font-semibold">Email address<input className={`${input} mt-2`} type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="doctor@clinic.com" /></label>
@@ -205,7 +205,17 @@ export default function DoctorPortal({ onExit }) {
             {[[ "symptoms","Symptoms / patient concerns","Describe reported symptoms." ],[ "diagnosis","Clinical assessment / diagnosis","Doctor-entered assessment." ],[ "treatmentPlan","Treatment plan","Advice, tests or treatment plan." ],[ "doctorNotes","Doctor notes","Additional clinical workflow notes." ]].map(([key,label,placeholder])=><label key={key} className="block text-xs font-bold text-slate-600">{label}<textarea className={input+" mt-1 min-h-20"} value={clinicalNote[key]} onChange={(e)=>setClinicalNote({...clinicalNote,[key]:e.target.value})} placeholder={placeholder}/></label>)}
             <label className="block text-xs font-bold text-slate-600">Prescription medicines (one per line: Medicine | Dosage | Duration | Instructions)<textarea className={input+" mt-1 min-h-24"} value={clinicalNote.medicinesText} onChange={(e)=>setClinicalNote({...clinicalNote,medicinesText:e.target.value})} placeholder="Medicine name | 1 tablet | 5 days | After food"/></label>
             <label className="block text-xs font-bold text-slate-600">Follow-up date<input type="date" className={input+" mt-1"} value={clinicalNote.followUpDate} onChange={(e)=>setClinicalNote({...clinicalNote,followUpDate:e.target.value})}/></label>
-            <button disabled={noteBusy} className={btn}>{noteBusy?"Saving…":"Save consultation & prescription"}</button>
+            <div className="flex flex-wrap gap-2"><button disabled={noteBusy} className={btn}>{noteBusy?"Saving…":"Save consultation & prescription"}</button><button type="button" onClick={() => window.print()} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">Print / Save PDF</button></div>
+            <div className="doctor-prescription-print">
+              <h1>MediCall AI · Prescription</h1>
+              <p>Patient: {selectedAppointment.patientName}</p><p>Appointment: {selectedAppointment.date} · {selectedAppointment.time}</p>
+              <p>Doctor: {doctor.name} · {doctor.specialization}</p>
+              <hr/><h2>Clinical assessment</h2><p>{clinicalNote.diagnosis || "—"}</p>
+              <h2>Treatment plan</h2><p>{clinicalNote.treatmentPlan || "—"}</p>
+              <h2>Medicines</h2><pre>{clinicalNote.medicinesText || "No medicines entered"}</pre>
+              <p>Follow-up: {clinicalNote.followUpDate || "As advised"}</p>
+              <p className="print-disclaimer">This document is prepared from the information entered by the treating doctor. Verify details and sign before issuing to the patient.</p>
+            </div>
             <p className="text-[11px] text-slate-400">Saved to this doctor's secure workspace. Verify clinical details before saving.</p>
           </form>
         </div>
