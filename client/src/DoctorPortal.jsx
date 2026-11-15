@@ -117,12 +117,15 @@ export default function DoctorPortal({ onExit }) {
 
   return (
     <main className="doctor-dashboard mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <section className="relative mb-6 overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-r from-[#F3F5F7] via-white to-[#EAF2F4] p-5 shadow-sm sm:p-6">
-        <img src={doctorWorkspaceArt} alt="Doctor and clinical workspace" className="pointer-events-none absolute -bottom-10 right-4 hidden h-48 w-64 object-contain opacity-90 sm:block"/>
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div className="max-w-xl"><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-slate-500">Doctor workspace</p><h1 className="mt-1 text-2xl font-extrabold text-slate-900">Welcome, {doctor.name}</h1><p className="mt-1 text-sm text-slate-600">{doctor.specialization} · {doctor.email}</p><p className="mt-1 text-xs text-slate-500">Your assigned schedule and weekly availability, in one place.</p></div>
-          <button onClick={logout} className="relative z-10 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Log out</button>
+      <section className="doctor-workspace-hero relative mb-6 flex min-h-[184px] items-center overflow-hidden rounded-[26px] border p-5 shadow-sm sm:p-6 lg:px-8">
+        <div className="doctor-workspace-copy relative z-10 w-full max-w-[calc(100%-330px)] pr-4">
+          <p className="text-[10px] font-extrabold uppercase tracking-[.18em]">Doctor workspace</p>
+          <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">Welcome, {doctor.name}</h1>
+          <p className="mt-2 text-sm">{doctor.specialization} · {doctor.email}</p>
+          <p className="mt-1 text-xs">Your assigned schedule and weekly availability, in one place.</p>
         </div>
+        <img src={doctorWorkspaceArt} alt="Doctor and clinical workspace" className="doctor-workspace-art pointer-events-none absolute bottom-0 right-[92px] hidden h-[154px] w-[250px] object-contain object-bottom sm:block"/>
+        <button onClick={logout} className="doctor-logout-button absolute right-5 top-5 z-20 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-sm">Log out</button>
       </section>
       {message && <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
       {error && <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
