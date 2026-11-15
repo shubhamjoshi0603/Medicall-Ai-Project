@@ -772,7 +772,7 @@ export default function App() {
 
   async function speak(text, waitForEnd = false, languageCodeOverride = "") {
     try {
-      const englishOnly = /^[\x00-\x7F]*$/.test(text) && /\b(the|and|your|please|how|what|would|appointment|doctor|hello|thank)\b/i.test(text);
+      const englishOnly = Array.from(String(text || "")).every((character) => character.codePointAt(0) <= 127) && /\b(the|and|your|please|how|what|would|appointment|doctor|hello|thank)\b/i.test(text);
       const { data } = await axios.post(`${API}/tts`, {
         text: String(text || "").slice(0, 2500),
         languageCode: languageCodeOverride || (englishOnly ? "en-IN" : "hi-IN"),
@@ -1065,7 +1065,7 @@ export default function App() {
       ["Payment status", appointment.paymentStatus],
     ];
     const rowHtml = rows.map((row) => "<tr><td>" + row[0] + "</td><td>" + String(row[1] || "").replace(/[&<>]/g, "") + "</td></tr>").join("");
-    popup.document.write("<!doctype html><html><head><title>MediCall receipt</title><style>body{font:15px Arial;color:#172033;padding:40px;max-width:720px;margin:auto}h1{color:#0f766e}table{width:100%;border-collapse:collapse;margin-top:28px}td{padding:13px;border-bottom:1px solid #ddd}.total{font-size:22px;font-weight:bold;text-align:right;margin-top:28px}</style></head><body><h1>MediCall AI</h1><p>Payment receipt</p><table>" + rowHtml + "</table><p class='total'>Total paid: ₹" + amount.toLocaleString("en-IN") + "</p><script>window.onload=function(){window.print()}<\/script></body></html>");
+    popup.document.write("<!doctype html><html><head><title>MediCall receipt</title><style>body{font:15px Arial;color:#172033;padding:40px;max-width:720px;margin:auto}h1{color:#0f766e}table{width:100%;border-collapse:collapse;margin-top:28px}td{padding:13px;border-bottom:1px solid #ddd}.total{font-size:22px;font-weight:bold;text-align:right;margin-top:28px}</style></head><body><h1>MediCall AI</h1><p>Payment receipt</p><table>" + rowHtml + "</table><p class='total'>Total paid: ₹" + amount.toLocaleString("en-IN") + "</p><script>window.onload=function(){window.print()}</script></body></html>");
     popup.document.close();
   }
 
