@@ -1222,3 +1222,153 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   .doctor-prescription-print hr { margin:18px 0; border:0; border-top:1px solid #cbd5e1; }
   .doctor-prescription-print .print-disclaimer { margin-top:30px; font-size:11px; color:#475569 !important; }
 }
+
+
+/* MediCall AI · unified soft blue-grey + teal light theme.
+   Tinted surfaces replace the stark white canvas while keeping strong text contrast. */
+:root {
+  background:#eaf0f5;
+  color:#263849;
+}
+body { background:#eaf0f5; color:#263849; }
+.app-shell[data-theme="light"] {
+  --color-white:#f8fafc;
+  --color-slate-50:#f1f5f8;
+  --color-slate-100:#e8eef3;
+  --color-slate-200:#d8e2e9;
+  --color-slate-300:#c3d0da;
+  --color-slate-400:#8295a4;
+  --color-slate-500:#667b8b;
+  --color-slate-600:#506577;
+  --color-slate-700:#3c5365;
+  --color-slate-800:#2b4051;
+  --color-slate-900:#1c3041;
+  --color-slate-950:#122536;
+  background:linear-gradient(145deg,#eaf0f5 0%,#edf3f6 48%,#e7f0f1 100%) !important;
+  color:#263b4c !important;
+}
+.app-shell[data-theme="light"] main { color:#263b4c; }
+.app-shell[data-theme="light"] .bg-white {
+  background-color:#f8fafc !important;
+}
+.app-shell[data-theme="light"] .bg-white\/80 {
+  background-color:rgba(248,250,252,.88) !important;
+}
+.app-shell[data-theme="light"] .bg-slate-50 {
+  background-color:#eff4f7 !important;
+}
+.app-shell[data-theme="light"] .bg-slate-100 {
+  background-color:#e5edf2 !important;
+}
+.app-shell[data-theme="light"] .bg-slate-200 {
+  background-color:#d7e2e9 !important;
+}
+.app-shell[data-theme="light"] .border-slate-100,
+.app-shell[data-theme="light"] .border-slate-200,
+.app-shell[data-theme="light"] .border-slate-300 {
+  border-color:#d5e0e8 !important;
+}
+.app-shell[data-theme="light"] .shadow-sm {
+  box-shadow:0 5px 18px rgba(36,64,86,.055) !important;
+}
+.app-shell[data-theme="light"] article,
+.app-shell[data-theme="light"] .rounded-2xl.border.bg-white,
+.app-shell[data-theme="light"] .rounded-xl.border.bg-white {
+  background:linear-gradient(145deg,#fbfdfe 0%,#f4f8fa 100%) !important;
+  border-color:#d7e2e9 !important;
+}
+.app-shell[data-theme="light"] input,
+.app-shell[data-theme="light"] select,
+.app-shell[data-theme="light"] textarea {
+  color:#263b4c !important;
+  background-color:#f8fbfd;
+  border-color:#cbd9e2 !important;
+}
+.app-shell[data-theme="light"] input::placeholder,
+.app-shell[data-theme="light"] textarea::placeholder { color:#8498a7 !important; }
+.app-shell[data-theme="light"] input:focus,
+.app-shell[data-theme="light"] select:focus,
+.app-shell[data-theme="light"] textarea:focus {
+  border-color:#16858a !important;
+  box-shadow:0 0 0 3px rgba(22,133,138,.13) !important;
+}
+.app-shell[data-theme="light"] header.site-header {
+  background:linear-gradient(105deg,#10243a 0%,#173d55 58%,#087b7c 100%) !important;
+  color:#eef7fb !important;
+}
+.app-shell[data-theme="light"] .patient-dashboard {
+  background:linear-gradient(145deg,#e8f0f5 0%,#eaf2f5 58%,#e2efef 100%) !important;
+  color:#263b4c !important;
+}
+.app-shell[data-theme="light"] .patient-dashboard .patient-sidebar {
+  background:linear-gradient(165deg,#10243a 0%,#173d55 58%,#087b7c 100%) !important;
+}
+.app-shell[data-theme="light"] .clinic-dashboard {
+  background:linear-gradient(145deg,#e9f0f6 0%,#edf3f7 55%,#e5eff0 100%) !important;
+  color:#263b4c !important;
+}
+.app-shell[data-theme="light"] .clinic-dashboard > section:first-child {
+  border-color:#d4e1e9 !important;
+  background:linear-gradient(115deg,#f7fafc 0%,#edf4f8 58%,#e4f0f0 100%) !important;
+}
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-sidebar {
+  background:linear-gradient(180deg,#10243a 0%,#173d55 72%,#087b7c 100%) !important;
+}
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-sidebar a { color:#d5e5ef !important; }
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-sidebar a:hover,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-sidebar a:focus-visible {
+  background:rgba(255,255,255,.13) !important;
+  color:#fff !important;
+}
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-stat-card,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-ai-metrics article,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-insights article,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-monthly-insights article,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-appointments {
+  background:linear-gradient(145deg,#fbfdfe 0%,#f2f7fa 100%) !important;
+  border-color:#d5e1e9 !important;
+  box-shadow:0 6px 20px rgba(34,66,91,.055) !important;
+}
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-appointments thead,
+.app-shell[data-theme="light"] .doctor-dashboard thead {
+  background:#e8f0f5 !important;
+}
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-appointments tbody tr:hover,
+.app-shell[data-theme="light"] .doctor-dashboard table tbody tr:hover {
+  background:#eaf3f5 !important;
+}
+.app-shell[data-theme="light"] .doctor-dashboard {
+  background:linear-gradient(145deg,#e8f0f5 0%,#edf3f6 55%,#e4eeee 100%) !important;
+  color:#263b4c !important;
+}
+.app-shell[data-theme="light"] .doctor-dashboard .doctor-workspace-hero {
+  border-color:#cbdde6 !important;
+  background:linear-gradient(115deg,#f7fafc 0%,#eaf2f6 60%,#dcefee 100%) !important;
+  color:#263b4c !important;
+}
+.app-shell[data-theme="light"] .doctor-dashboard .doctor-summary-card,
+.app-shell[data-theme="light"] .doctor-dashboard > section:not(.doctor-workspace-hero) {
+  border-color:#d5e1e9 !important;
+}
+.app-shell[data-theme="light"] .doctor-dashboard .doctor-summary-card {
+  background:linear-gradient(145deg,#fbfdfe 0%,#f0f6f8 100%) !important;
+}
+.app-shell[data-theme="light"] .doctor-dashboard .doctor-login-card {
+  background:linear-gradient(145deg,#f9fcfd 0%,#edf4f6 100%) !important;
+  border-color:#d1e0e7 !important;
+}
+.app-shell[data-theme="light"] .doctor-dashboard .doctor-prescription-print {
+  background:#fff !important;
+  color:#111827 !important;
+}
+.app-shell[data-theme="light"] .text-slate-950,
+.app-shell[data-theme="light"] .text-slate-900 { color:#1c3041 !important; }
+.app-shell[data-theme="light"] .text-slate-800 { color:#2b4051 !important; }
+.app-shell[data-theme="light"] .text-slate-700 { color:#3c5365 !important; }
+.app-shell[data-theme="light"] .text-slate-600 { color:#506577 !important; }
+.app-shell[data-theme="light"] .text-slate-500 { color:#667b8b !important; }
+@media(max-width:640px) {
+  .app-shell[data-theme="light"] .patient-dashboard,
+  .app-shell[data-theme="light"] .clinic-dashboard,
+  .app-shell[data-theme="light"] .doctor-dashboard { background:#eaf1f5 !important; }
+}
