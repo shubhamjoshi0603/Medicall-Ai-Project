@@ -652,7 +652,7 @@ const doctorClinicalNoteSchema = new Schema({
   symptoms: { type: String, default: "", maxlength: 3000 },
   diagnosis: { type: String, default: "", maxlength: 2000 },
   treatmentPlan: { type: String, default: "", maxlength: 4000 },
-  followUpDate: { type: String, default: "", match: /^$|^\\d{4}-\\d{2}-\\d{2}$/ },
+  followUpDate: { type: String, default: "", match: /^$|^\d{4}-\d{2}-\d{2}$/ },
   doctorNotes: { type: String, default: "", maxlength: 4000 },
   medicines: [{
     name: { type: String, required: true, trim: true, maxlength: 120 },
@@ -1679,7 +1679,7 @@ app.put("/api/doctor/appointments/:id/clinical-note", protectDoctor, async (req,
     if (symptoms.length > 3000 || diagnosis.length > 2000 || treatmentPlan.length > 4000 || doctorNotes.length > 4000) {
       return res.status(400).json({ message: "One or more consultation fields exceed the allowed length." });
     }
-    if (followUpDate && !/^\\d{4}-\\d{2}-\\d{2}$/.test(followUpDate)) return res.status(400).json({ message: "Enter a valid follow-up date." });
+    if (followUpDate && !/^\d{4}-\d{2}-\d{2}$/.test(followUpDate)) return res.status(400).json({ message: "Enter a valid follow-up date." });
     if (medicines.some((item) => !item.name || item.name.length > 120 || item.dosage.length > 100 || item.duration.length > 100 || item.instructions.length > 300)) {
       return res.status(400).json({ message: "Check medicine names and prescription field lengths." });
     }
