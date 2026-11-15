@@ -94,15 +94,15 @@ export default function DoctorPortal({ onExit }) {
   });
 
   if (!token || !doctor) return (
-    <main className="mx-auto grid min-h-[75vh] max-w-5xl items-center px-4 py-12 md:grid-cols-2 md:gap-10">
-      <section className="relative hidden overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#10283B] via-[#174A64] to-[#087E83] p-10 text-white shadow-xl md:block">
-        <img src={doctorWorkspaceArt} alt="Doctor workspace illustration" className="absolute -bottom-5 -right-5 h-64 w-72 object-contain opacity-95" />
-        <div className="relative z-10 max-w-sm">
+    <main className="mx-auto grid min-h-[75vh] max-w-5xl items-center px-4 py-10 md:grid-cols-2 md:gap-10">
+      <section className="relative hidden min-h-[460px] overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#10283B] via-[#174A64] to-[#087E83] p-8 text-white shadow-xl md:block lg:p-10">
+        <img src={doctorWorkspaceArt} alt="Doctor workspace illustration" className="pointer-events-none absolute bottom-0 right-0 z-0 h-[42%] w-[54%] max-w-[290px] object-contain object-right-bottom opacity-95" />
+        <div className="relative z-10 max-w-[92%] pb-36">
           <p className="text-xs font-bold uppercase tracking-[.25em] text-teal-200">MEDICALL AI · DOCTOR PORTAL</p>
-          <h1 className="mt-5 text-4xl font-black">Your clinic. Your schedule. Your patients.</h1>
-          <p className="mt-4 leading-7 text-teal-50/90">Sign in to view your assigned appointments and share weekly availability with your clinic.</p>
-          <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white"><span className="h-2 w-2 rounded-full bg-emerald-300"/> Connected care workspace</div>
+          <h1 className="mt-5 max-w-[22rem] text-4xl font-black leading-[1.12]">Your clinic. Your schedule. Your patients.</h1>
+          <p className="mt-4 max-w-[22rem] leading-7 text-teal-50/90">Sign in to view your assigned appointments and share weekly availability with your clinic.</p>
         </div>
+        <div className="absolute bottom-6 left-8 z-10 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm lg:left-10"><span className="h-2 w-2 rounded-full bg-emerald-300"/> Connected care workspace</div>
       </section>
       <form onSubmit={login} className="mx-auto w-full max-w-md space-y-5 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-xl">
         <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-700">Doctor access</p><h2 className="mt-2 text-3xl font-black text-slate-950">Doctor login</h2><p className="mt-2 text-sm text-slate-500">Use the email and temporary password provided by your clinic admin.</p></div>
