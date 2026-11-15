@@ -1081,3 +1081,58 @@ body[data-theme="dark"] { background: #081322 !important; color: #e1eaf5; }
   color: #ffffff !important;
   stroke: #ffffff !important;
 }
+
+
+/* Doctor dashboard hero: reserve separate zones for copy, illustration and logout. */
+.app-shell .doctor-dashboard .doctor-workspace-hero {
+  min-height:184px; border-color:#cbd9e7 !important;
+  background:linear-gradient(112deg,#fff 0%,#f4f8fc 62%,#e8f3f4 100%) !important;
+  color:#172b42 !important;
+}
+.app-shell .doctor-dashboard .doctor-workspace-copy { max-width:calc(100% - 350px); }
+.app-shell .doctor-dashboard .doctor-workspace-copy > p:first-child { color:#087f83 !important; }
+.app-shell .doctor-dashboard .doctor-workspace-copy h1 { color:#172b42 !important; line-height:1.2; }
+.app-shell .doctor-dashboard .doctor-workspace-copy p:not(:first-child) { color:#52677e !important; }
+.app-shell .doctor-dashboard .doctor-workspace-art { right:112px !important; width:238px !important; height:148px !important; object-fit:contain !important; object-position:center bottom !important; }
+.app-shell .doctor-dashboard .doctor-logout-button { color:#fff !important; background:linear-gradient(105deg,#087f83,#176da0) !important; border-color:#087f83 !important; }
+.app-shell .doctor-dashboard .doctor-logout-button:hover { background:linear-gradient(105deg,#076d72,#145b87) !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard { background:#0b1424 !important; color:#e8effb !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-workspace-hero {
+  background:linear-gradient(112deg,#14243b 0%,#172d49 62%,#123b48 100%) !important;
+  border-color:#36516f !important; box-shadow:0 10px 28px rgba(0,0,0,.22) !important;
+}
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-workspace-copy > p:first-child { color:#67e8df !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-workspace-copy h1 { color:#f5f8ff !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-workspace-copy p:not(:first-child) { color:#c4d3e6 !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-summary-card,
+.app-shell[data-theme="dark"] .doctor-dashboard > section:not(.doctor-workspace-hero) { background:#14243a !important; border-color:#304966 !important; color:#e8effb !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-summary-card p:first-child { color:#b7c8dd !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-summary-card p:last-child { color:#f4f7ff !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard h2,
+.app-shell[data-theme="dark"] .doctor-dashboard h3,
+.app-shell[data-theme="dark"] .doctor-dashboard strong { color:#f1f6ff !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .text-slate-900,
+.app-shell[data-theme="dark"] .doctor-dashboard .text-slate-800 { color:#edf4ff !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .text-slate-700,
+.app-shell[data-theme="dark"] .doctor-dashboard .text-slate-600,
+.app-shell[data-theme="dark"] .doctor-dashboard .text-slate-500,
+.app-shell[data-theme="dark"] .doctor-dashboard .text-slate-400 { color:#b8c8dc !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .bg-white { background:#192d47 !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .bg-slate-50,
+.app-shell[data-theme="dark"] .doctor-dashboard .bg-slate-100 { background:#1b304b !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .border-slate-100,
+.app-shell[data-theme="dark"] .doctor-dashboard .border-slate-200,
+.app-shell[data-theme="dark"] .doctor-dashboard .border-slate-300 { border-color:#354e6d !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard table thead { background:#1b304b !important; color:#d4e1f1 !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard table tbody tr { border-color:#304966 !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard input,
+.app-shell[data-theme="dark"] .doctor-dashboard select,
+.app-shell[data-theme="dark"] .doctor-dashboard textarea { color:#f1f6ff !important; background:#1b304b !important; border-color:#405a7a !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard input::placeholder { color:#9fb2ca !important; }
+.app-shell[data-theme="dark"] .doctor-dashboard .doctor-logout-button { color:#fff !important; background:linear-gradient(105deg,#087f83,#176da0) !important; border-color:#4b9da5 !important; }
+@media(max-width:639px) {
+  .app-shell .doctor-dashboard .doctor-workspace-hero { min-height:172px; padding:18px !important; }
+  .app-shell .doctor-dashboard .doctor-workspace-copy { max-width:100%; padding-right:78px; }
+  .app-shell .doctor-dashboard .doctor-workspace-copy h1 { font-size:21px; }
+  .app-shell .doctor-dashboard .doctor-logout-button { right:12px; top:12px; padding:8px 10px; font-size:12px; }
+}
