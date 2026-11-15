@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import DoctorPortal from "./DoctorPortal.jsx";
-import medicallLogo from "./assets/medicall-logo.svg";
 import medicallLogoDark from "./assets/medicall-logo-dark.svg";
 import healthcareHero from "./assets/healthcare-hero.svg";
 import clinicWorkspaceArt from "./assets/clinic-workspace.svg";
@@ -1141,7 +1140,7 @@ export default function App() {
           onClick={() => setPage("home")}
           className="flex items-center text-lg font-extrabold tracking-tight sm:text-xl"
         >
-          <img src={theme === "dark" ? medicallLogoDark : medicallLogo} alt="MediCall AI — Care, connected" className="h-11 w-auto sm:h-12" />
+          <img src={medicallLogoDark} alt="MediCall AI — Care, connected" className="h-11 w-auto sm:h-12" />
         </button>
 
         <nav className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
