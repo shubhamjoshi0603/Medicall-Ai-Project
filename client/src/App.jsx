@@ -149,8 +149,6 @@ export default function App() {
   const [adminClinic, setAdminClinic] = useState(null);
   const [stats, setStats] = useState({});
   const [appointments, setAppointments] = useState([]);
-  const [clinicQueue, setClinicQueue] = useState(null);
-  const [patientQueue, setPatientQueue] = useState({});
   const [patientAppointments, setPatientAppointments] = useState([]);
   const [patientView, setPatientView] = useState("account");
   const [patientClinicUpdates, setPatientClinicUpdates] = useState([]);
@@ -428,7 +426,6 @@ export default function App() {
       ]);
 
       setAdminClinic(me.data.clinic);
-      api.get("/clinic/queue").then(({data}) => setClinicQueue(data)).catch(() => setClinicQueue(null));
       setClinicProfileDraft({
         clinicName: me.data.clinic?.clinicName || "",
         adminName: me.data.clinic?.adminName || "",
@@ -497,15 +494,6 @@ export default function App() {
       setError(err.response?.data?.message || "Authentication failed.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function refreshPatientQueue(appointmentId) {
-    try {
-      const { data } = await axios.get(`${API}/patient/queue/${appointmentId}`, { headers: { Authorization: `Bearer ${patientToken}` } });
-      setPatientQueue((previous) => ({ ...previous, [appointmentId]: data }));
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not check queue position.");
     }
   }
 
@@ -1548,7 +1536,6 @@ export default function App() {
                 <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 inline-flex items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-extrabold text-teal-800"><span className="text-[10px] uppercase tracking-wider text-teal-600">Booking ID</span> {appt.bookingReference || appt._id}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
                 {selectedClinicId && appt.clinicId?._id === selectedClinicId && appt.clinicId?.location?.address && <div className="mt-2 text-xs text-slate-600"><span className="font-semibold">Clinic:</span> {appt.clinicId.location.address} <a className="ml-1 font-bold text-teal-700 underline" href={appt.clinicId.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appt.clinicId.location.address)}`} target="_blank" rel="noreferrer">Get directions</a></div>}{appt.doctorUnavailableNotice && <p className="mt-2 text-sm font-semibold text-amber-700">Doctor unavailable. Suggested dates: {(appt.alternativeDates || []).join(", ")}. Your appointment has not been changed.</p>}</div>
                 <div className="flex flex-wrap gap-2">{appt.status === "Confirmed" && <><button onClick={() => startVideoConsultation(appt)} className="rounded-lg bg-indigo-700 px-3 py-2 text-xs font-bold text-white">Video visit</button><button onClick={() => cancelPatientAppointment(appt._id)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700">Cancel</button>{appt.paymentStatus !== "Paid" && <button onClick={() => payAppointment(appt)} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Pay online</button>}</>}{appt.status === "Cancelled" && <button onClick={() => removeCancelledPatientAppointment(appt._id)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">Remove</button>}</div></div>
-                {appt.status === "Confirmed" && <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-teal-200 bg-teal-50/80 p-3"><div className="flex-1"><p className="text-xs font-extrabold text-teal-900">Today's live clinic queue</p><p className="mt-1 text-xs text-teal-800">{patientQueue[appt._id]?.active ? `Your position: ${patientQueue[appt._id].position} · ${patientQueue[appt._id].waiting} patients waiting` : "Check your position on the appointment day. Positions may change as visits are completed."}</p></div><button type="button" onClick={() => refreshPatientQueue(appt._id)} className="rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-bold text-teal-800">Check position</button></div>}
                 {appt.status === "Confirmed" && <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><input type="date" min={new Date().toISOString().slice(0,10)} className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.date || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], date: e.target.value } }))}/><input type="time" min="09:00" max="16:59" className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.time || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], time: e.target.value } }))}/><button onClick={() => requestReschedule(appt._id)} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-bold text-teal-800">Request reschedule</button></div>}
                 {appt.rescheduleRequest?.status === "Pending" && <p className="mt-2 text-xs font-semibold text-amber-700">Reschedule request pending clinic approval: {appt.rescheduleRequest.date} at {appt.rescheduleRequest.time}</p>}
                 {appt.status === "Completed" && !patientReviews.some((review)=>String(review.appointmentId)===String(appt._id)) && <form onSubmit={(e)=>{e.preventDefault();submitPatientReview(appt._id);}} className="mt-3 grid gap-2 rounded-xl border border-amber-100 bg-amber-50/50 p-3 sm:grid-cols-[150px_1fr_auto]"><label className="text-xs font-bold text-slate-700">Rate your visit<select value={reviewDrafts[appt._id]?.rating || 5} onChange={(e)=>setReviewDrafts((old)=>({...old,[appt._id]:{...old[appt._id],rating:e.target.value}}))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">{[5,4,3,2,1].map((n)=><option key={n} value={n}>{n} / 5 stars</option>)}</select></label><label className="text-xs font-bold text-slate-700">Feedback (optional)<input maxLength={1000} value={reviewDrafts[appt._id]?.comment || ""} onChange={(e)=>setReviewDrafts((old)=>({...old,[appt._id]:{...old[appt._id],comment:e.target.value}}))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" placeholder="Share your experience"/></label><button className="self-end rounded-lg bg-amber-600 px-3 py-2.5 text-xs font-bold text-white">Submit review</button></form>}
@@ -1685,7 +1672,6 @@ export default function App() {
           </aside>
           <nav className="clinic-mobile-nav mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">{[[ "overview","Overview"],["analytics","Analytics"],["appointments","Appointments"],["patients","Patients"],["team","Team"],["reports","Reports"],["settings","Settings"]].map(([key,label])=><button key={key} onClick={()=>{setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold ${clinicView===key?"bg-blue-700 text-white":"text-slate-600 hover:bg-blue-50"}`}>{label}</button>)}</nav>
 
-          {clinicView === "overview" && <section className="clinic-live-queue mb-5 rounded-2xl border border-teal-200 bg-gradient-to-r from-[#dcebed] to-[#e8f0f4] p-4 shadow-sm sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-800">Live clinic queue</p><h2 className="mt-1 text-lg font-black text-slate-900">Today's waiting list</h2><p className="mt-1 text-xs text-slate-600">Ordered by scheduled appointment time. Positions update as visits are completed or cancelled.</p></div><button type="button" onClick={loadDashboard} className="rounded-xl border border-teal-300 bg-white px-4 py-2 text-xs font-bold text-teal-800">Refresh queue</button></div><div className="mt-3 flex flex-wrap gap-3"><span className="rounded-xl bg-white/80 px-4 py-2 text-sm font-bold text-slate-800">Waiting: {clinicQueue?.waiting ?? "—"}</span><span className="rounded-xl bg-white/80 px-4 py-2 text-sm font-bold text-slate-800">Completed today: {clinicQueue?.completed ?? "—"}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{(clinicQueue?.queue || []).slice(0, 6).map(item => <div key={item.id} className="rounded-xl border border-slate-200 bg-white/90 p-3"><p className="text-xs font-black text-teal-800">Position {item.position} · {item.time}</p><p className="mt-1 text-sm font-bold text-slate-900">{item.patientName}</p><p className="text-xs text-slate-600">{item.doctorName}</p></div>)}{clinicQueue && !clinicQueue.waiting && <p className="text-sm text-slate-600">No patients currently waiting.</p>}</div></section>}
           <section id="clinic-analytics" data-clinic-panel="overview" hidden={clinicView !== "overview"} className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {[
               { label: "Today", value: todayAppointmentsCount, note: "Confirmed visits", icon: "message", tint: "bg-slate-100 text-slate-700", filter: "today" },
