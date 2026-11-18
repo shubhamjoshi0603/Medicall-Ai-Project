@@ -1490,8 +1490,16 @@ export default function App() {
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 text-lg font-black text-white shadow-lg">{(patient?.fullName || "P").trim().charAt(0).toUpperCase()}</span>
               <span className="min-w-0"><strong className="block truncate text-sm font-black text-white">{patient?.fullName || "Patient account"}</strong><span className="text-[10px] font-semibold tracking-wider text-teal-100">PATIENT PORTAL</span></span>
             </div>
-            <p className="px-3 pb-2 text-[9px] font-extrabold tracking-[.2em] text-teal-100/70">MY HEALTH</p>
-            {[["account","⌂","My account"],["profile","◉","My profile"],["appointments","▣","Appointments"],["health","♥","Health"],["updates","◷","Updates"],["records","▤","Records"],["family","♧","Family"],["payments","₹","Payments"],["ai","✦","AI assistant"],["care","⌕","Find care"],...(selectedClinicId && clinic?.id === selectedClinicId ? [["clinic-location","⌖","Clinic location"]] : [])].map(([key,icon,label]) => <button key={key} type="button" aria-current={patientView===key?"page":undefined} onClick={() => { setPatientView(key); setPatientProfileEditing(false); window.scrollTo({top:0,behavior:"smooth"}); }} className={`patient-nav-item mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition ${patientView===key?"is-active":""}`}><span className="patient-nav-icon">{icon}</span><span>{label}</span>{key==="updates" && patientClinicUpdates.length>0 && <span className="ml-auto rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700">{patientClinicUpdates.length}</span>}{patientView===key && <span className="ml-auto text-[10px] font-black">●</span>}</button>)}
+            <nav className="patient-sidebar-menu min-h-0 flex-1 overflow-y-auto pr-1" aria-label="Patient sections">
+              {[
+                { title: "OVERVIEW", items: [["account","⌂","Dashboard"],["appointments","▣","Appointments"],["care","⌕","Find care"],["ai","✦","AI assistant"]] },
+                { title: "MY HEALTH", items: [["health","♥","Health"],["records","▤","Medical records"],["payments","₹","Payments"],["updates","◷","Updates"]] },
+                { title: "ACCOUNT", items: [["profile","◉","My profile"],["family","♧","Family members"],...(selectedClinicId && clinic?.id === selectedClinicId ? [["clinic-location","⌖","Clinic location"]] : [])] },
+              ].map((group) => <div key={group.title} className="patient-sidebar-group mb-4">
+                <p className="px-3 pb-2 text-[10px] font-extrabold tracking-[.17em] text-teal-100/75">{group.title}</p>
+                {group.items.map(([key,icon,label]) => <button key={key} type="button" aria-current={patientView===key?"page":undefined} onClick={() => { setPatientView(key); setPatientProfileEditing(false); window.scrollTo({top:0,behavior:"smooth"}); }} className={`patient-nav-item mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${patientView===key?"is-active":""}`}><span className="patient-nav-icon">{icon}</span><span>{label}</span>{key==="updates" && patientClinicUpdates.length>0 && <span className="ml-auto rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700">{patientClinicUpdates.length}</span>}</button>)}
+              </div>)}
+            </nav>
             <div className="mt-auto rounded-2xl border border-white/15 bg-white/[0.08] p-3.5">
               <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-teal-100">Signed in as</p>
               <p className="mt-1 truncate text-sm font-extrabold text-white">{patient?.email || "Patient"}</p>
