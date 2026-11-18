@@ -1437,41 +1437,57 @@ body { background:#eaf0f5; color:#263849; }
 .app-shell[data-theme="dark"] .clinic-add-doctor-card input::placeholder { color:#b3c8d8 !important; }
 .app-shell[data-theme="dark"] .clinic-add-doctor-card form > div button { color:#b8e8ff !important; }
 
-/* Queue cards: dark-mode readability and compact mobile presentation. */
-.app-shell[data-theme="dark"] .clinic-dashboard section:has(> div > div > h2) .text-slate-900 { color:#edf5ff; }
-.app-shell[data-theme="dark"] .patient-appointment-card .bg-teal-50\/80 {
-  background:#1a4149 !important;
-  border-color:#376a73 !important;
-}
-.app-shell[data-theme="dark"] .patient-appointment-card .bg-teal-50\/80 p { color:#d8f3f2 !important; }
+/* Keep compact clinic KPI cards on smaller screens. */
 @media(max-width:640px) {
   .app-shell .clinic-dashboard .clinic-stat-card { padding:12px; }
   .app-shell .clinic-dashboard .clinic-stat-card p.text-3xl { font-size:24px; }
 }
 
-/* Live clinic queue: dedicated dark surfaces, never light-theme white cards. */
-.app-shell[data-theme="dark"] .clinic-dashboard .clinic-live-queue {
-  background:linear-gradient(125deg,#12263b 0%,#17364a 58%,#16434a 100%) !important;
-  border-color:#34566a !important;
-  box-shadow:0 10px 28px rgba(0,0,0,.20) !important;
+
+/* Refined light theme: layered cool-grey cards instead of large pure-white surfaces.
+   Dark theme and print styling remain unchanged. */
+.app-shell[data-theme="light"] {
+  --color-white:#eaf0f4;
+  --color-slate-50:#e7edf1;
+  --color-slate-100:#dce5eb;
+  --color-slate-200:#cdd9e1;
+  background:linear-gradient(145deg,#e2e9ee 0%,#e9eff2 48%,#dce8ea 100%) !important;
 }
-.app-shell[data-theme="dark"] .clinic-live-queue h2 { color:#f1f7fd !important; }
-.app-shell[data-theme="dark"] .clinic-live-queue p { color:#c5d8e6 !important; }
-.app-shell[data-theme="dark"] .clinic-live-queue p.text-teal-800 { color:#8ee2d9 !important; }
-.app-shell[data-theme="dark"] .clinic-live-queue > div > div > span {
-  background:#213d54 !important;
-  color:#e5f2fa !important;
-  border:1px solid #42637a !important;
+.app-shell[data-theme="light"] .bg-white,
+.app-shell[data-theme="light"] .bg-white\/90,
+.app-shell[data-theme="light"] .bg-white\/80 {
+  background-color:#eaf0f4 !important;
 }
-.app-shell[data-theme="dark"] .clinic-live-queue button {
-  background:#24465b !important;
-  border-color:#52788b !important;
-  color:#e9f6ff !important;
+.app-shell[data-theme="light"] article,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-stat-card,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-appointments,
+.app-shell[data-theme="light"] .patient-dashboard .patient-appointment-card,
+.app-shell[data-theme="light"] .doctor-dashboard .doctor-summary-card {
+  background:linear-gradient(145deg,#eef3f6 0%,#e2eaef 100%) !important;
+  border-color:#c8d6df !important;
+  box-shadow:0 6px 18px rgba(30,60,82,.07) !important;
 }
-.app-shell[data-theme="dark"] .clinic-live-queue button:hover { background:#305b70 !important; }
-.app-shell[data-theme="dark"] .clinic-live-queue .grid > div {
-  background:#203a50 !important;
-  border-color:#3e6078 !important;
+.app-shell[data-theme="light"] .clinic-dashboard,
+.app-shell[data-theme="light"] .patient-dashboard,
+.app-shell[data-theme="light"] .doctor-dashboard {
+  background:linear-gradient(145deg,#e1e9ef 0%,#e8eef2 60%,#dce8e9 100%) !important;
 }
-.app-shell[data-theme="dark"] .clinic-live-queue .grid > div p.text-slate-900 { color:#f3f8ff !important; }
-.app-shell[data-theme="dark"] .clinic-live-queue .grid > div p.text-slate-600 { color:#c5d8e6 !important; }
+.app-shell[data-theme="light"] .clinic-dashboard > section:first-child {
+  background:linear-gradient(110deg,#eaf0f4 0%,#dce9ee 100%) !important;
+}
+.app-shell[data-theme="light"] input,
+.app-shell[data-theme="light"] select,
+.app-shell[data-theme="light"] textarea {
+  background-color:#eaf0f4 !important;
+  border-color:#b8cad6 !important;
+  color:#20394b !important;
+}
+.app-shell[data-theme="light"] input::placeholder,
+.app-shell[data-theme="light"] textarea::placeholder {
+  color:#60798b !important;
+}
+.app-shell[data-theme="light"] .text-slate-400 { color:#617789 !important; }
+.app-shell[data-theme="light"] .text-slate-500 { color:#526a7c !important; }
+.app-shell[data-theme="light"] .landing-connected-card {
+  background:linear-gradient(120deg,#dce7ed 0%,#e6edf1 55%,#d6e5e6 100%) !important;
+}
