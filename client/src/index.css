@@ -1448,3 +1448,30 @@ body { background:#eaf0f5; color:#263849; }
   .app-shell .clinic-dashboard .clinic-stat-card { padding:12px; }
   .app-shell .clinic-dashboard .clinic-stat-card p.text-3xl { font-size:24px; }
 }
+
+/* Live clinic queue: dedicated dark surfaces, never light-theme white cards. */
+.app-shell[data-theme="dark"] .clinic-dashboard .clinic-live-queue {
+  background:linear-gradient(125deg,#12263b 0%,#17364a 58%,#16434a 100%) !important;
+  border-color:#34566a !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.20) !important;
+}
+.app-shell[data-theme="dark"] .clinic-live-queue h2 { color:#f1f7fd !important; }
+.app-shell[data-theme="dark"] .clinic-live-queue p { color:#c5d8e6 !important; }
+.app-shell[data-theme="dark"] .clinic-live-queue p.text-teal-800 { color:#8ee2d9 !important; }
+.app-shell[data-theme="dark"] .clinic-live-queue > div > div > span {
+  background:#213d54 !important;
+  color:#e5f2fa !important;
+  border:1px solid #42637a !important;
+}
+.app-shell[data-theme="dark"] .clinic-live-queue button {
+  background:#24465b !important;
+  border-color:#52788b !important;
+  color:#e9f6ff !important;
+}
+.app-shell[data-theme="dark"] .clinic-live-queue button:hover { background:#305b70 !important; }
+.app-shell[data-theme="dark"] .clinic-live-queue .grid > div {
+  background:#203a50 !important;
+  border-color:#3e6078 !important;
+}
+.app-shell[data-theme="dark"] .clinic-live-queue .grid > div p.text-slate-900 { color:#f3f8ff !important; }
+.app-shell[data-theme="dark"] .clinic-live-queue .grid > div p.text-slate-600 { color:#c5d8e6 !important; }
