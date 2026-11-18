@@ -1372,3 +1372,67 @@ body { background:#eaf0f5; color:#263849; }
   .app-shell[data-theme="light"] .clinic-dashboard,
   .app-shell[data-theme="light"] .doctor-dashboard { background:#eaf1f5 !important; }
 }
+
+
+/* Readability pass: landing page and clinic team form, in both themes. */
+.app-shell[data-theme="light"] .landing-about-card {
+  background:linear-gradient(135deg,#163b4c 0%,#1a4d60 100%) !important;
+  color:#f1f8fc !important;
+}
+.app-shell[data-theme="light"] .landing-about-card h2 { color:#fff !important; }
+.app-shell[data-theme="light"] .landing-about-card p:not(:first-child) { color:#d7e8f0 !important; }
+.app-shell[data-theme="light"] .landing-connected-card {
+  background:linear-gradient(120deg,#dce9f0 0%,#eaf2f5 55%,#d6e8e8 100%) !important;
+  border-color:#bed3df !important;
+}
+.app-shell[data-theme="light"] .landing-connected-card h2 { color:#173549 !important; }
+.app-shell[data-theme="light"] .landing-connected-card > p:last-of-type { color:#405e70 !important; }
+.app-shell[data-theme="light"] .clinic-add-doctor-card {
+  background:linear-gradient(145deg,#e7eff4 0%,#f0f5f7 100%) !important;
+  border-color:#cbdce4 !important;
+}
+.app-shell[data-theme="light"] .clinic-add-doctor-card h2 { color:#173549 !important; }
+.app-shell[data-theme="light"] .clinic-add-doctor-card label span { color:#3c5365 !important; }
+.app-shell[data-theme="light"] .clinic-add-doctor-card input {
+  background:#e1ebf1 !important;
+  color:#18364b !important;
+  border:1px solid #b9ccd9 !important;
+}
+.app-shell[data-theme="light"] .clinic-add-doctor-card input::placeholder { color:#59758a !important; }
+.app-shell[data-theme="light"] .clinic-add-doctor-card form > div {
+  background:#d5e9e9 !important;
+  border-color:#b8d5d4 !important;
+}
+.app-shell[data-theme="light"] .clinic-add-doctor-card form > div p { color:#214e54 !important; }
+.app-shell[data-theme="light"] .clinic-add-doctor-card form > div input { background:#edf4f5 !important; }
+.app-shell[data-theme="dark"] .landing-about-card {
+  background:linear-gradient(135deg,#143844,#164456) !important;
+  color:#eff9ff !important;
+}
+.app-shell[data-theme="dark"] .landing-about-card h2 { color:#fff !important; }
+.app-shell[data-theme="dark"] .landing-about-card p:not(:first-child) { color:#d7eaf4 !important; }
+.app-shell[data-theme="dark"] .landing-connected-card {
+  background:linear-gradient(120deg,#1a344d 0%,#29445b 100%) !important;
+  border-color:#42647a !important;
+}
+.app-shell[data-theme="dark"] .landing-connected-card h2 { color:#f3f8ff !important; }
+.app-shell[data-theme="dark"] .landing-connected-card > p:last-of-type { color:#c5d8e7 !important; }
+.app-shell[data-theme="dark"] .clinic-add-doctor-card {
+  background:linear-gradient(145deg,#1a3148 0%,#203e50 100%) !important;
+  border-color:#42647a !important;
+}
+.app-shell[data-theme="dark"] .clinic-add-doctor-card h2 { color:#f0f7ff !important; }
+.app-shell[data-theme="dark"] .clinic-add-doctor-card > div > p { color:#c7d8e7 !important; }
+.app-shell[data-theme="dark"] .clinic-add-doctor-card label span { color:#c5d8e7 !important; }
+.app-shell[data-theme="dark"] .clinic-add-doctor-card form > div {
+  background:#204653 !important;
+  border-color:#42717c !important;
+}
+.app-shell[data-theme="dark"] .clinic-add-doctor-card form > div p { color:#e1f4f3 !important; }
+.app-shell[data-theme="dark"] .clinic-add-doctor-card input {
+  background:#213e56 !important;
+  color:#f2f8ff !important;
+  border-color:#52718a !important;
+}
+.app-shell[data-theme="dark"] .clinic-add-doctor-card input::placeholder { color:#b3c8d8 !important; }
+.app-shell[data-theme="dark"] .clinic-add-doctor-card form > div button { color:#b8e8ff !important; }
