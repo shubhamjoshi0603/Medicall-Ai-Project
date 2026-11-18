@@ -1296,7 +1296,7 @@ export default function App() {
           </section>
 
           <section className="mx-auto mt-10 max-w-6xl grid gap-6 md:grid-cols-[.9fr_1.1fr] md:items-center">
-            <div className="rounded-[1.75rem] bg-[#102c3a] p-8 text-white sm:p-10">
+            <div className="landing-about-card rounded-[1.75rem] bg-[#102c3a] p-8 text-white sm:p-10">
               <p className="text-xs font-extrabold uppercase tracking-[.22em] text-cyan-200">Why MediCall AI?</p>
               <h2 className="mt-4 text-3xl font-black leading-tight">Making healthcare access easier for everyone.</h2>
               <p className="mt-4 text-sm leading-7 text-slate-200">We developed MediCall AI to reduce the friction of finding a clinic, understanding available services and arranging appointments. Patients get a simpler way to connect with care, while clinics get tools to organise their daily work.</p>
@@ -1305,7 +1305,7 @@ export default function App() {
               {[{icon:"✦",title:"AI-powered assistance",body:"Ask questions and get guided support through chat or voice."},{icon:"⌖",title:"Clinic discovery",body:"Choose from clinics that have created an account on MediCall AI."},{icon:"▦",title:"Appointment management",body:"Request, review and manage appointments in one place."},{icon:"♡",title:"Connected care teams",body:"Patients, doctors and clinic teams use role-based workspaces."}].map((item) => <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><span className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-50 text-xl text-cyan-800">{item.icon}</span><h3 className="mt-4 font-extrabold text-slate-900">{item.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p></article>)}
             </div>
           </section>
-          <section className="mx-auto mt-9 max-w-6xl rounded-[1.75rem] border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white p-8 text-center sm:p-10">
+          <section className="landing-connected-card mx-auto mt-9 max-w-6xl rounded-[1.75rem] border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white p-8 text-center sm:p-10">
             <p className="text-xs font-extrabold uppercase tracking-[.2em] text-cyan-800">One platform · Three experiences</p>
             <h2 className="mt-3 text-3xl font-black text-slate-950">Care works better when everyone is connected.</h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">Patients can find registered clinics, doctors can manage their schedules, and clinics can coordinate appointments and their teams.</p>
@@ -1657,9 +1657,9 @@ export default function App() {
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-3 py-1.5 text-[11px] font-bold tracking-wide text-blue-700 shadow-sm"><span className="h-2 w-2 rounded-full bg-emerald-500" /> CLINIC WORKSPACE</div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">Good day, ${adminClinic?.clinicName || "Your clinic"}</h1>
+                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">Good day, {adminClinic?.clinicName || "Your clinic"}</h1>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Your clinic at a glance. Manage appointments, care teams and daily operations from one place.</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600"><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🩺 ${adminDoctors.length} doctors</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">📅 ${todayAppointmentsCount} visits today</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🤖 ${adminClinic?.aiAgentName || "MediCall AI"} assistant</span></div>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600"><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🩺 {adminDoctors.length} doctors</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">📅 {todayAppointmentsCount} visits today</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🤖 {adminClinic?.aiAgentName || "MediCall AI"} assistant</span></div>
               </div>
               <div className="flex shrink-0 items-center gap-3 self-stretch sm:self-center"><img src={clinicWorkspaceArt} alt="Illustration of a modern clinic team" className="hidden h-24 w-28 rounded-2xl object-contain sm:block md:h-28 md:w-36"/><button title="Reload the latest clinic profile, appointments, statistics, doctors and analytics from the server." aria-label="Refresh clinic dashboard data" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50" onClick={loadDashboard}><Icon name="arrow" size={16}/> Refresh data</button></div>
             </div>
@@ -1841,7 +1841,7 @@ export default function App() {
           </section>
 
           <section id="clinic-team" data-clinic-panel="team" hidden={clinicView !== "team"} className="grid scroll-mt-28 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-            <div className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
+            <div className="clinic-add-doctor-card rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
               <div className="mb-5">
                 <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700"><Icon name="plus" size={13}/> Team setup</span>
                 <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Add your first doctor</h2>
