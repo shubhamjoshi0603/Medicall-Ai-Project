@@ -1868,6 +1868,45 @@ app.get("/api/appointments", protect, async (req, res) => {
   }
 });
 
+// Live clinic queue: today's confirmed appointments, ordered by scheduled time.
+// Positions are dynamic; they are not permanent ticket numbers or wait-time estimates.
+app.get("/api/clinic/queue", protect, async (req, res) => {
+  try {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const items = await Appointment.find({ clinicId: req.clinicId, date: today, status: { $in: ["Confirmed", "Completed"] } })
+      .select("time status patientName bookingReference doctorId")
+      .populate("doctorId", "name")
+      .sort({ time: 1, createdAt: 1, _id: 1 })
+      .lean();
+    const active = items.filter(item => item.status === "Confirmed");
+    return res.json({ date: today, total: items.length, completed: items.length - active.length, waiting: active.length,
+      queue: active.map((item, index) => ({ id: item._id, position: index + 1, time: item.time, patientName: item.patientName, bookingReference: item.bookingReference || String(item._id), doctorName: item.doctorId?.name || "Doctor" })) });
+  } catch (error) {
+    console.error("Clinic queue error:", error);
+    return res.status(500).json({ message: "Could not load today's queue." });
+  }
+});
+
+// Patient queue position is returned only for an appointment owned by the signed-in patient.
+app.get("/api/patient/queue/:appointmentId", protectPatient, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.appointmentId)) return res.status(400).json({ message: "Invalid appointment ID." });
+    const patient = await Patient.findById(req.patientId).select("email");
+    if (!patient) return res.status(401).json({ message: "Patient account not found." });
+    const own = await Appointment.findOne({ _id: req.params.appointmentId, patientEmail: patient.email }).select("clinicId date status time");
+    if (!own) return res.status(404).json({ message: "Appointment not found." });
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    if (own.date !== today || own.status !== "Confirmed") return res.json({ active: false, date: own.date, status: own.status });
+    const active = await Appointment.find({ clinicId: own.clinicId, date: today, status: "Confirmed" })
+      .select("_id").sort({ time: 1, createdAt: 1, _id: 1 }).lean();
+    const index = active.findIndex(item => String(item._id) === String(own._id));
+    return res.json({ active: index >= 0, date: today, position: index >= 0 ? index + 1 : null, waiting: active.length });
+  } catch (error) {
+    console.error("Patient queue error:", error);
+    return res.status(500).json({ message: "Could not load queue position." });
+  }
+});
+
 // ==================== UPDATE APPOINTMENT STATUS ====================
 
 app.patch(
