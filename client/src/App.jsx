@@ -1965,7 +1965,7 @@ export default function App() {
         © {new Date().getFullYear()} MediCall AI · Clinic-managed appointments
       </footer>
 
-      {chatOpen && (
+      {page === "patient-dashboard" && chatOpen && (
         <section className="fixed bottom-20 right-3 z-50 flex h-[min(720px,82dvh)] w-[min(440px,calc(100vw-24px))] flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_24px_80px_-28px_rgba(15,23,42,0.35)] sm:bottom-24 sm:right-5">
           <header className="flex items-center justify-between border-b border-slate-100 bg-white p-4 text-slate-900">
             <div>
@@ -2052,7 +2052,7 @@ export default function App() {
         </section>
       )}
 
-      {!chatOpen && (
+      {page === "patient-dashboard" && !chatOpen && (
         <button
           className="fixed bottom-5 right-5 z-40 grid h-16 w-16 place-items-center rounded-2xl bg-teal-700 text-2xl text-white shadow-xl shadow-teal-900/25 transition hover:-translate-y-1 hover:bg-teal-800"
           onClick={() => setChatOpen(true)}
