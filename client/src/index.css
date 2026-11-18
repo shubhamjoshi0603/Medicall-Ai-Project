@@ -1436,3 +1436,15 @@ body { background:#eaf0f5; color:#263849; }
 }
 .app-shell[data-theme="dark"] .clinic-add-doctor-card input::placeholder { color:#b3c8d8 !important; }
 .app-shell[data-theme="dark"] .clinic-add-doctor-card form > div button { color:#b8e8ff !important; }
+
+/* Queue cards: dark-mode readability and compact mobile presentation. */
+.app-shell[data-theme="dark"] .clinic-dashboard section:has(> div > div > h2) .text-slate-900 { color:#edf5ff; }
+.app-shell[data-theme="dark"] .patient-appointment-card .bg-teal-50\/80 {
+  background:#1a4149 !important;
+  border-color:#376a73 !important;
+}
+.app-shell[data-theme="dark"] .patient-appointment-card .bg-teal-50\/80 p { color:#d8f3f2 !important; }
+@media(max-width:640px) {
+  .app-shell .clinic-dashboard .clinic-stat-card { padding:12px; }
+  .app-shell .clinic-dashboard .clinic-stat-card p.text-3xl { font-size:24px; }
+}
