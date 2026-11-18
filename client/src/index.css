@@ -1491,3 +1491,81 @@ body { background:#eaf0f5; color:#263849; }
 .app-shell[data-theme="light"] .landing-connected-card {
   background:linear-gradient(120deg,#dce7ed 0%,#e6edf1 55%,#d6e5e6 100%) !important;
 }
+
+/* MediCall professional UI refinement — scoped to app shell and portals. */
+.app-shell {
+  --mc-radius:18px;
+  --mc-border:#c9d7df;
+  --mc-shadow:0 8px 24px rgba(29,57,74,.065);
+}
+.app-shell[data-theme="light"] {
+  background:#e8eef2 !important;
+}
+.app-shell[data-theme="light"] .patient-dashboard,
+.app-shell[data-theme="light"] .clinic-dashboard,
+.app-shell[data-theme="light"] .doctor-dashboard {
+  background:#e8eef2 !important;
+}
+.app-shell[data-theme="light"] .patient-dashboard > section,
+.app-shell[data-theme="light"] .clinic-dashboard > section,
+.app-shell[data-theme="light"] .doctor-dashboard > section {
+  border-color:#cbd8df !important;
+  box-shadow:var(--mc-shadow);
+}
+.app-shell[data-theme="light"] .patient-dashboard .patient-appointment-card,
+.app-shell[data-theme="light"] .clinic-dashboard .clinic-stat-card {
+  background:#f0f4f6 !important;
+  border:1px solid #cbd8df !important;
+  border-radius:var(--mc-radius) !important;
+  box-shadow:0 3px 12px rgba(29,57,74,.045) !important;
+}
+.app-shell[data-theme="light"] .patient-dashboard button:focus-visible,
+.app-shell[data-theme="light"] .clinic-dashboard button:focus-visible,
+.app-shell[data-theme="light"] .doctor-dashboard button:focus-visible {
+  outline:3px solid #159b9e;
+  outline-offset:2px;
+}
+.app-shell .patient-sidebar {
+  background:linear-gradient(180deg,#132b40 0%,#183c50 58%,#173a45 100%) !important;
+}
+.app-shell .patient-sidebar .patient-sidebar-menu {
+  scrollbar-width:thin;
+  scrollbar-color:#537789 transparent;
+}
+.app-shell .patient-sidebar .patient-sidebar-group + .patient-sidebar-group {
+  border-top:1px solid rgba(221,240,247,.12);
+  padding-top:14px;
+}
+.app-shell .patient-sidebar .patient-nav-item {
+  min-height:40px;
+  letter-spacing:.005em;
+}
+.app-shell .patient-sidebar .patient-nav-item:hover:not(.is-active) {
+  background:rgba(255,255,255,.095);
+}
+.app-shell .patient-sidebar .patient-nav-item.is-active {
+  background:#2c6172 !important;
+  color:#fff !important;
+  box-shadow:inset 3px 0 0 #71e0d8;
+}
+.app-shell .patient-sidebar .patient-nav-item:focus-visible,
+.app-shell .patient-portal-nav .patient-nav-link:focus-visible {
+  outline:2px solid #6ce3df;
+  outline-offset:2px;
+}
+.app-shell .patient-portal-nav {
+  scrollbar-width:thin;
+  scroll-snap-type:x proximity;
+}
+.app-shell .patient-portal-nav .patient-nav-link {
+  scroll-snap-align:start;
+  min-height:42px;
+}
+.app-shell[data-theme="dark"] .patient-sidebar {
+  background:linear-gradient(180deg,#0c1e2d,#142e42 65%,#123039) !important;
+}
+@media(max-width:640px) {
+  .app-shell .patient-dashboard {padding-top:12px;}
+  .app-shell .patient-portal-nav {border-radius:14px;}
+  .app-shell .patient-dashboard .patient-appointment-card {padding:14px;}
+}
