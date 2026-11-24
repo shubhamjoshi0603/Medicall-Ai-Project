@@ -1569,3 +1569,75 @@ body { background:#eaf0f5; color:#263849; }
   .app-shell .patient-portal-nav {border-radius:14px;}
   .app-shell .patient-dashboard .patient-appointment-card {padding:14px;}
 }
+.schedule-calendar {
+  --schedule-surface: #f1f7fa;
+  --schedule-card: #fff;
+  --schedule-border: #cedee7;
+  --schedule-text: #132d43;
+  --schedule-muted: #4c667b;
+  --schedule-accent: #006b6c;
+  margin: 1rem;
+  padding: clamp(.65rem, 2vw, 1.25rem);
+  border: 1px solid var(--schedule-border);
+  border-radius: 1rem;
+  background: var(--schedule-surface);
+  color: var(--schedule-text);
+}
+
+[data-theme="dark"] .schedule-calendar {
+  --schedule-surface: #102235;
+  --schedule-card: #182f45;
+  --schedule-border: #36516a;
+  --schedule-text: #e7f4fa;
+  --schedule-muted: #b2c8d9;
+  --schedule-accent: #79e7dd;
+}
+
+.schedule-calendar-header,
+.schedule-calendar-header > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.schedule-calendar-header { justify-content: space-between; margin-bottom: .75rem; }
+.schedule-calendar h3, .schedule-calendar h4 { font-weight: 750; }
+.schedule-calendar-body { display: grid; gap: 1rem; }
+.schedule-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .2rem; }
+.schedule-weekday { text-align: center; font-size: .7rem; color: var(--schedule-muted); }
+.schedule-calendar button {
+  min-height: 44px;
+  padding: .2rem;
+  border: 1px solid var(--schedule-border);
+  border-radius: .5rem;
+  background: var(--schedule-card);
+  color: var(--schedule-text);
+  font-size: .8rem;
+  cursor: pointer;
+}
+
+.schedule-calendar-header button,
+.schedule-agenda button { padding-inline: .65rem; }
+.schedule-calendar button:hover,
+.schedule-calendar button[aria-pressed="true"] { border-color: var(--schedule-accent); color: var(--schedule-accent); }
+.schedule-calendar button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--schedule-accent); }
+.schedule-calendar button:focus-visible { outline: 2px solid var(--schedule-accent); outline-offset: 2px; }
+.schedule-calendar small { display: block; font-size: .65rem; font-weight: 750; color: var(--schedule-accent); }
+.schedule-agenda { min-width: 0; }
+.schedule-agenda p { color: var(--schedule-muted); font-size: .8rem; }
+.schedule-agenda article {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .5rem;
+  padding: .65rem;
+  border-radius: .65rem;
+  background: var(--schedule-card);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 760px) {
+  .schedule-calendar-body { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); }
+}

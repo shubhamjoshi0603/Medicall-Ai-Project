@@ -1,3 +1,4 @@
+import AppointmentCalendar from "./AppointmentCalendar.jsx";
 
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
@@ -1539,6 +1540,7 @@ export default function App() {
               <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Paid visits</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.paymentStatus==="Paid").length}</p></div>
             </div>
             <div id="patient-appointments" hidden={patientView !== "appointments" && patientView !== "account"} className="patient-appointments-list scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+            {patientView === "appointments" && <AppointmentCalendar appointments={patientAppointments} getTitle={(item) => item.doctorId?.name || "Doctor"} />}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold text-slate-900">My appointments</h2><button onClick={loadPatientAppointments} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh</button></div>
               <div className="space-y-3">{(showAllPatientAppointments ? patientAppointments : patientAppointments.slice(0, 3)).map((appt) => <article key={appt._id} className="patient-appointment-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 inline-flex items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-extrabold text-teal-800"><span className="text-[10px] uppercase tracking-wider text-teal-600">Booking ID</span> {appt.bookingReference || appt._id}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
@@ -1757,6 +1759,7 @@ export default function App() {
           </section>
 
           <section id="clinic-appointments" data-clinic-panel="appointments" hidden={clinicView !== "appointments"} className="clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
+            {clinicView === "appointments" && <AppointmentCalendar appointments={appointments} getTitle={(item) => item.patientName || "Patient"} />}
             <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">Appointments</h2>

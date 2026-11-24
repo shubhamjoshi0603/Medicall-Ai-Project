@@ -1,3 +1,4 @@
+import AppointmentCalendar from "./AppointmentCalendar.jsx";
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import doctorWorkspaceArt from "./assets/doctor-workspace.svg";
@@ -21,7 +22,6 @@ export default function DoctorPortal({ onExit }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [calendarMode, setCalendarMode] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [clinicalNote, setClinicalNote] = useState({ symptoms: "", diagnosis: "", treatmentPlan: "", doctorNotes: "", followUpDate: "", medicinesText: "" });
   const [noteBusy, setNoteBusy] = useState(false);
@@ -188,12 +188,8 @@ export default function DoctorPortal({ onExit }) {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
           <div className="flex gap-2"><button type="button" onClick={() => setCalendarMode(false)} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">List view</button><button type="button" onClick={() => setCalendarMode(true)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white">Calendar view</button></div>
-          {calendarMode && <div className="flex items-center gap-2"><button type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))} className="rounded-lg border px-3 py-2">‹</button><strong>{calendarMonth.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong><button type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))} className="rounded-lg border px-3 py-2">›</button></div>}
         </div>
-        {calendarMode && <div className="grid grid-cols-7 gap-1 p-3 sm:gap-2 sm:p-5">
-          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day) => <div key={day} className="py-2 text-center text-xs font-bold text-slate-500">{day}</div>)}
-          {Array.from({length:42},(_,index)=>{const firstDay=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),1).getDay();const date=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),index-firstDay+1);const key=dateKey(date);const dayItems=appointments.filter((a)=>a.date===key);const inMonth=date.getMonth()===calendarMonth.getMonth();return <div key={key} className={"min-h-[82px] rounded-xl border p-1.5 sm:min-h-[100px] "+(inMonth?"border-slate-200 bg-white":"border-transparent bg-slate-50")}><p className="text-xs font-bold text-slate-700">{date.getDate()}</p><div className="mt-1 space-y-1">{dayItems.slice(0,2).map((a)=><button type="button" key={a._id} onClick={()=>openPatientFile(a)} className={"block w-full truncate rounded px-1 py-1 text-left text-[9px] font-bold "+(a.status==="Completed"?"bg-emerald-100 text-emerald-800":a.status==="Cancelled"?"bg-rose-100 text-rose-700":"bg-blue-100 text-blue-800")}>{a.time} {a.patientName}</button>)}{dayItems.length>2&&<p className="text-[9px] text-slate-500">+{dayItems.length-2} more</p>}</div></div>})}
-        </div>}
+        {calendarMode && <AppointmentCalendar appointments={appointments} getTitle={(item) => item.patientName || "Patient"} onOpen={openPatientFile} />}
         {!calendarMode && <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Patient</th><th className="p-4">Phone</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Status</th><th className="p-4">Consultation</th><th className="p-4">Patient file</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredAppointments.map(a => <tr key={a._id}><td className="p-4 font-semibold">{a.patientName}</td><td className="p-4">{a.phone}</td><td className="p-4">{a.date}</td><td className="p-4">{a.time}</td><td className="p-4">{a.status}</td><td className="p-4">{a.videoRoomId ? <a href={"https://meet.jit.si/" + a.videoRoomId} target="_blank" rel="noreferrer" className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Join video visit ↗</a> : <span className="text-xs text-slate-400">Not started by patient</span>}</td><td className="p-4"><button type="button" onClick={() => openPatientFile(a)} className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">Open file</button></td></tr>)}{!filteredAppointments.length && <tr><td colSpan="7" className="p-10 text-center text-slate-500">No appointments in this view. Try another schedule filter.</td></tr>}</tbody></table></div>}
       </section>
       {selectedAppointment && <section className="mb-7 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
