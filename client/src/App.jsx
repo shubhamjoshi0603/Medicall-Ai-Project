@@ -1,10 +1,22 @@
+import OfflineBooking from "./OfflineBooking.jsx";
+import Prescriptions from "./Prescriptions.jsx";
+import ClinicDirectory from "./ClinicDirectory.jsx";
+import "./workspace.css";
+import ClinicInsights from "./ClinicInsights.jsx";
+import AssistantControls from "./AssistantControls.jsx";
+import WorkspaceRegister from "./WorkspaceRegister.jsx";
+import LiveQueue from "./LiveQueue.jsx";
+import ReportReader from "./ReportReader.jsx";
+import { SlotOptions, LeavePanel } from "./SchedulingTools.jsx";
+import AppointmentCalendar from "./AppointmentCalendar.jsx";
 
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import axios from "axios";
-import DoctorPortal from "./DoctorPortal.jsx";
 import medicallLogoDark from "./assets/medicall-logo-dark.svg";
 import healthcareHero from "./assets/healthcare-hero.svg";
 import clinicWorkspaceArt from "./assets/clinic-workspace.svg";
+
+const DoctorPortal = lazy(() => import("./DoctorPortal.jsx"));
 
 const API =
   import.meta.env.VITE_API_URL ||
@@ -269,7 +281,10 @@ export default function App() {
     return `${item.color} ${start}% ${end}%`;
   }).join(", ")})`;
 
-  const filteredClinicAppointments = appointments.filter((item) => {
+  const [scheduleDoctor, setScheduleDoctor] = useState("");
+  const [offlineOnly, setOfflineOnly] = useState(false);
+  const schedule = appointments.filter(item => (!scheduleDoctor || item.doctorId?._id === scheduleDoctor) && (!offlineOnly || item.bookingSource === "Offline"));
+  const filteredClinicAppointments = schedule.filter((item) => {
     if (appointmentFilter === "today") return item.status === "Confirmed" && item.date === todayDateKey;
     if (appointmentFilter === "tomorrow") return item.status === "Confirmed" && item.date === tomorrowDateKey;
     if (appointmentFilter === "later") return item.status === "Confirmed" && item.date > tomorrowDateKey;
@@ -299,8 +314,11 @@ export default function App() {
     return { ...doctor, totalAppointments: doctorAppointments.length, upcomingAppointments: doctorAppointments.filter((item) => item.status === "Confirmed" && item.date >= todayDateKey).length, completedAppointments: doctorAppointments.filter((item) => item.status === "Completed").length };
   }).sort((a, b) => b.totalAppointments - a.totalAppointments);
 
+  const loadInitialClinic = useEffectEvent(() => loadClinic(localStorage.getItem("medicall_selected_clinic") || ""));
+  const loadPatientData = useEffectEvent(() => Promise.all([loadPatientAppointments(), loadPatientModules()]));
+
   useEffect(() => {
-    loadClinic(localStorage.getItem("medicall_selected_clinic") || "");
+    loadInitialClinic();
     return () => {
       try {
         if (mediaRecorderRef.current?.state === "recording") {
@@ -322,7 +340,7 @@ export default function App() {
   useEffect(() => {
     if (!patientToken) return;
     axios.get(`${API}/patient-auth/me`, { headers: { Authorization: `Bearer ${patientToken}` } })
-      .then(({ data }) => { setPatient(data.patient); setPatientView("account"); setPatientProfileEditing(false); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); loadPatientModules(); })
+      .then(({ data }) => { setPatient(data.patient); setPatientView("account"); setPatientProfileEditing(false); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientData(); })
       .catch(() => { localStorage.removeItem("medicall_patient_token"); setPatientToken(""); setPatient(null); });
   }, [patientToken]);
 
@@ -1112,6 +1130,8 @@ export default function App() {
   function logout() {
     localStorage.removeItem("medicall_token");
     setToken("");
+    setScheduleDoctor("");
+    setOfflineOnly(false);
     setAdminClinic(null);
     setPage("home");
     setNotice("Clinic admin logged out.");
@@ -1405,26 +1425,19 @@ export default function App() {
                   </label>
                   <label className="block sm:col-span-2">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Choose a doctor *</span>
-                    <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={booking.doctorId} onChange={(e) => setBooking({ ...booking, doctorId: e.target.value })}>
+                    <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={booking.doctorId} onChange={(e) => setBooking({ ...booking, time: "", doctorId: e.target.value })}>
                       <option value="">Select a specialist</option>
                       {doctors.map((doctor) => <option key={doctor._id} value={doctor._id}>{doctor.name} — {doctor.specialization} (₹{doctor.fee})</option>)}
                     </select>
                   </label>
                   <label className="block">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Preferred date *</span>
-                    <input className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} type="date" min={today} required value={booking.date} onChange={(e) => setBooking({ ...booking, date: e.target.value })} />
+                    <input className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} type="date" min={today} required value={booking.date} onChange={(e) => setBooking({ ...booking, time: "", date: e.target.value })} />
                   </label>
                   <label className="block">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Preferred time *</span>
                     <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={booking.time} onChange={(e) => setBooking({ ...booking, time: e.target.value })}>
-                      <option value="">Choose a time</option>
-                      {Array.from({ length: 48 }, (_, i) => {
-                        const hour = Math.floor(i / 2);
-                        const minute = i % 2 ? "30" : "00";
-                        const time = `${String(hour).padStart(2, "0")}:${minute}`;
-                        if (!selectedClinicHours || selectedClinicHours.isOpen === false || time < selectedClinicHours.openTime || time >= selectedClinicHours.closeTime) return null;
-                        return <option key={time} value={time}>{time}</option>;
-                      })}
+                      <SlotOptions apiUrl={API} clinicId={selectedClinicId} doctorId={booking.doctorId} date={booking.date} />
                     </select>
                   </label>
                   {booking.date && (!selectedClinicHours || selectedClinicHours.isOpen === false) && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800 sm:col-span-2">The clinic is closed on {clinicDays[new Date(`${booking.date}T12:00:00`).getDay()]}. Please select one of its working days.</p>}
@@ -1524,6 +1537,7 @@ export default function App() {
               </div>
             </div>
 
+            {patientView === "account" && <nav className="patient-quick-actions" aria-label="Care shortcuts"><button onClick={() => {setPage("home"); window.setTimeout(() => document.getElementById("booking")?.scrollIntoView(),100);}}>Book appointment</button><button onClick={() => setPatientView("care")}>Find doctors</button><button onClick={() => setPatientView("ai")}>Ask MediCall AI</button><button onClick={() => setPatientView("records")}>My records</button></nav>}
             <div hidden={patientView !== "profile"} className="border-b border-slate-100 px-4 pb-1 pt-4 sm:px-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700">YOUR DETAILS</p><h2 className="mt-1 text-lg font-black text-slate-900">My profile</h2><p className="mt-0.5 text-xs text-slate-500">Keep your contact information up to date.</p></div><button type="button" onClick={()=>setPatientProfileEditing((value)=>!value)} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-xs font-extrabold text-teal-800 transition hover:border-teal-300 hover:bg-teal-100">{patientProfileEditing ? "Close editor" : "Edit details"} <span aria-hidden="true">✎</span></button></div></div>
             {patientView === "profile" && patientProfileEditing && <form onSubmit={savePatientProfile} className="grid gap-3 border-b border-slate-100 bg-blue-50/50 p-4 sm:grid-cols-2 sm:p-5"><label className="text-xs font-bold text-slate-600">Full name<input required value={patientProfileDraft.fullName} onChange={(e)=>setPatientProfileDraft((v)=>({...v,fullName:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Email address<input required type="email" value={patientProfileDraft.email} onChange={(e)=>setPatientProfileDraft((v)=>({...v,email:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Phone number<input required type="tel" value={patientProfileDraft.phone} onChange={(e)=>setPatientProfileDraft((v)=>({...v,phone:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><div className="flex items-end gap-2"><button className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white">Save changes</button><button type="button" onClick={()=>setPatientProfileEditing(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">Cancel</button></div></form>}
 
@@ -1539,6 +1553,8 @@ export default function App() {
               <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Paid visits</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.paymentStatus==="Paid").length}</p></div>
             </div>
             <div id="patient-appointments" hidden={patientView !== "appointments" && patientView !== "account"} className="patient-appointments-list scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+              {patientView === "appointments" && <LiveQueue role="patient" apiUrl={API} token={patientToken} />}
+            {patientView === "appointments" && <AppointmentCalendar appointments={patientAppointments} getTitle={(item) => item.doctorId?.name || "Doctor"} />}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold text-slate-900">My appointments</h2><button onClick={loadPatientAppointments} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh</button></div>
               <div className="space-y-3">{(showAllPatientAppointments ? patientAppointments : patientAppointments.slice(0, 3)).map((appt) => <article key={appt._id} className="patient-appointment-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 inline-flex items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-extrabold text-teal-800"><span className="text-[10px] uppercase tracking-wider text-teal-600">Booking ID</span> {appt.bookingReference || appt._id}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
@@ -1553,6 +1569,7 @@ export default function App() {
             </div>
 
             <section id="patient-health-dashboard" hidden={patientView !== "health"} className="scroll-mt-28 border-t border-slate-100 bg-slate-50/70 px-4 py-5 sm:px-5">
+              {patientView === "health" && <WorkspaceRegister kind="history" apiUrl={API} token={patientToken} />}
               <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700">YOUR HEALTH SNAPSHOT</p><h2 className="mt-1 text-xl font-black text-slate-900">Health dashboard</h2><p className="mt-1 text-sm text-slate-500">A summary of your MediCall appointments and recorded payments.</p></div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[{label:"Total visits",value:patientAppointments.length},{label:"Completed",value:patientAppointments.filter((item)=>item.status==="Completed").length},{label:"Upcoming",value:patientAppointments.filter((item)=>item.status==="Confirmed"&&item.date>=today).length},{label:"Health documents",value:medicalRecords.length + patientClinicUpdates.filter((item)=>item.fileName).length}].map((item)=><article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">{item.label}</p><p className="mt-2 text-2xl font-black text-slate-900">{item.value}</p></article>)}
@@ -1574,6 +1591,8 @@ export default function App() {
             </section>
 
             <section id="patient-records" hidden={patientView !== "records"} className="scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+              {patientView === "records" && <Prescriptions apiUrl={API} token={patientToken} />}
+              {patientView === "records" && <ReportReader apiUrl={API} records={medicalRecords} token={patientToken} />}
               <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-indigo-700">PRIVATE HEALTH FILES</p><h2 className="mt-1 text-xl font-black text-slate-900">Medical records & prescriptions</h2><p className="mt-1 text-sm text-slate-500">Upload prescriptions, lab reports, scans and discharge summaries. Only your signed-in account can access these files.</p></div>
               <div className="mb-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4"><div className="mb-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Shared by your clinic</p><h3 className="mt-1 font-bold text-slate-900">Clinic reports & healthcare documents</h3></div><div className="space-y-2">{patientClinicUpdates.filter((item)=>item.fileName).map((item)=><article key={item._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-white p-3"><div><p className="text-sm font-bold text-slate-900">{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.clinicId?.clinicName || "Clinic"} · {item.category} · {new Date(item.createdAt).toLocaleDateString("en-IN")}</p></div><button type="button" onClick={()=>downloadClinicUpdate(item)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white">Download</button></article>)}{!patientClinicUpdates.some((item)=>item.fileName) && <p className="text-sm text-slate-500">No clinic documents have been shared yet.</p>}</div></div>
               <form onSubmit={uploadMedicalRecord} className="grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:grid-cols-2">
@@ -1615,11 +1634,13 @@ export default function App() {
                 {assistantMessages.map((message,index)=><div key={index} className={"max-w-[90%] rounded-2xl px-3 py-2.5 text-sm " + (message.role==="user"?"ml-auto bg-indigo-700 text-white":"bg-slate-100 text-slate-800")}><p className="whitespace-pre-wrap">{message.text}</p></div>)}
                 {assistantBusy && <p className="text-xs font-semibold text-indigo-700">MediCall AI is preparing a reply…</p>}
               </div>
+              {patientView === "ai" && <AssistantControls messages={assistantMessages} onInput={setAssistantInput} />}
               <form onSubmit={askPatientAssistant} className="mt-3 flex gap-2"><input value={assistantInput} onChange={(e)=>setAssistantInput(e.target.value)} maxLength={2000} placeholder="Ask your health or appointment question…" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500"/><button disabled={assistantBusy || !assistantInput.trim()} className="rounded-xl bg-indigo-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Ask</button></form>
               <p className="mt-2 text-[10px] leading-4 text-slate-500">AI support is informational, not a diagnosis or prescription. Do not use it for emergencies; seek urgent medical care when needed.</p>
             </section>
 
             <section id="patient-smart-care" hidden={patientView !== "care"} className="smart-care-card scroll-mt-28 border-t border-slate-100 bg-gradient-to-br from-indigo-50/80 via-white to-teal-50/70 px-4 py-5 sm:px-5">
+              {patientView === "care" && <ClinicDirectory apiUrl={API} onChoose={chooseClinic} />}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-100 text-indigo-700"><Icon name="spark" size={18}/></span><div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-indigo-700">SMART CARE FINDER</p><h2 className="text-lg font-black text-slate-950">Find the right specialist</h2></div></div>
                 <span className="rounded-full border border-indigo-100 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-indigo-700">Guidance, not diagnosis</span>
@@ -1702,6 +1723,7 @@ export default function App() {
             ))}
           </section>
 
+          {clinicView === "analytics" && <ClinicInsights appointments={appointments} downloadCsv={downloadCsv} />}
           <section data-clinic-panel="analytics" hidden={clinicView !== "analytics"} className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 clinic-ai-metrics">
             {[{ label: "AI conversations", value: analytics?.totalConversations ?? 0 }, { label: "Booked from AI", value: analytics?.convertedConversations ?? 0 }, { label: "AI conversion", value: `${analytics?.conversionRate ?? 0}%` }, { label: "Chat / Voice", value: `${analytics?.chatConversations ?? 0} / ${analytics?.voiceConversations ?? 0}` }].map((item) => <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{item.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{item.value}</p></article>)}
             <p className="sm:col-span-2 xl:col-span-4 text-xs text-slate-500">Conversion = unique tracked AI conversations that created an appointment ÷ total unique AI conversations. Chat and voice are counted separately using the conversation channel sent by the website.</p>
@@ -1757,6 +1779,12 @@ export default function App() {
           </section>
 
           <section id="clinic-appointments" data-clinic-panel="appointments" hidden={clinicView !== "appointments"} className="clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
+            {clinicView === "appointments" && <OfflineBooking api={api} apiUrl={API} clinicId={adminClinic?._id || adminClinic?.id} doctors={adminDoctors} today={todayDateKey} onSaved={loadDashboard} />}
+            <div className="flex flex-wrap items-center gap-4 px-5 py-4">
+              <label>Doctor <select className="rounded-lg border p-2" value={scheduleDoctor} onChange={e => setScheduleDoctor(e.target.value)}><option value="">All doctors</option>{adminDoctors.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}</select></label>
+              <label><input type="checkbox" checked={offlineOnly} onChange={e => setOfflineOnly(e.target.checked)} /> Offline bookings only</label>
+            </div>
+            {clinicView === "appointments" && <AppointmentCalendar appointments={schedule} getTitle={(item) => item.patientName || "Patient"} />}
             <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">Appointments</h2>
@@ -1786,7 +1814,7 @@ export default function App() {
                   {filteredClinicAppointments.map((appointment) => (
                     <tr key={appointment._id} className="transition hover:bg-slate-50/70">
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-slate-800">{appointment.patientName}</div>
+                        <div className="font-semibold text-slate-800">{appointment.patientName}{appointment.bookingSource === "Offline" && <small className="ml-2">Offline</small>}</div>
                         <div className="mt-1 text-xs text-slate-500">{appointment.phone}</div><div className="mt-1 text-[10px] font-semibold text-slate-400">{appointment.bookingReference || appointment._id}</div>
                       </td>
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.doctorId?.name || "Doctor"}</div></td>
@@ -1848,6 +1876,7 @@ export default function App() {
             </div>
           </section>
 
+          {clinicView === "team" && <><WorkspaceRegister kind="staff" apiUrl={API} token={token} /><WorkspaceRegister kind="pharmacy" apiUrl={API} token={token} /><LeavePanel role="clinic" apiUrl={API} token={token} /></>}
           <section id="clinic-team" data-clinic-panel="team" hidden={clinicView !== "team"} className="grid scroll-mt-28 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
             <div className="clinic-add-doctor-card rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
               <div className="mb-5">
@@ -1928,7 +1957,7 @@ export default function App() {
           </details>
         </main>
       )}
-      {page === "doctor-portal" && <DoctorPortal onExit={() => setPage("home")} />}
+      {page === "doctor-portal" && <Suspense fallback={<p role="status">Loading doctor portal…</p>}><DoctorPortal onExit={() => setPage("home")} /></Suspense>}
 
       {collectionModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCollectionModal(null); }}>
