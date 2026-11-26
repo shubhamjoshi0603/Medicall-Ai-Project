@@ -54,7 +54,7 @@ module.exports = function registerVideo(app,{Doctor,Clinic,Patient,Appointment,p
         [appointment]=await Appointment.create([{bookingReference,clinicId:req.clinicId,doctorId:req.doctorId,patientName:patient.fullName,patientEmail:patient.email,phone:request.phone,date,time,reason:"Video consultation",videoRoomId:"MediCallAI-"+crypto.randomBytes(20).toString("hex")}],{session});
       }));
     } catch(e){if(e.status===409||e.code===11000)return res.status(409).json({message:"Request already processed or slot taken. Refresh and choose an available slot."});throw e;}
-    const sent=await sendAppointmentEmail({to:patient.email,patientName:patient.fullName,clinicName:clinic.clinicName,clinicPhone:clinic.phone,doctorName:doctor.name,specialty:doctor.specialization,location:{address:"Video visit — open Appointments in your patient portal to join."},date,time,bookingReference:appointment.bookingReference}).catch(()=>false);
+    const sent=await sendAppointmentEmail({clinicId:clinic._id,to:patient.email,patientName:patient.fullName,clinicName:clinic.clinicName,clinicPhone:clinic.phone,doctorName:doctor.name,specialty:doctor.specialization,location:{address:"Video visit — open Appointments in your patient portal to join."},date,time,bookingReference:appointment.bookingReference}).catch(()=>false);
     res.json({message:sent?"Appointment booked and confirmation emailed.":"Appointment booked. Confirmation email could not be sent."});
   });
 };

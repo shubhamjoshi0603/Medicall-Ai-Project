@@ -95,11 +95,13 @@ function bookingMessage({ patientName, clinicName, doctorName, specialty, locati
   return { bookingId, confirmed, html, subject, fields, from };
 }
 async function sendAppointmentEmail(details) {
-  if (!mailTransporter || !details.to) return false;
+  if (!details.to) return false;
+  const mailbox = await clinicGmail.sender(details.clinicId, Clinic);
+  if (!mailbox) return false;
   const { bookingId, confirmed, html, subject, fields, from } = bookingMessage(details);
   const to = details.to;
   const attachments = confirmed ? [{ filename: `Booking-${bookingId}.pdf`, content: await renderConfirmation(html), contentType: "application/pdf", contentDisposition: "attachment" }] : [];
-  await mailTransporter.sendMail({ from, to, subject, html: confirmed ? html + "<p>Your booking confirmation PDF is attached. Download it for your visit.</p>" : html, attachments,
+  await sendGmail(mailbox.token, { from: mailbox.email, to, subject, html: confirmed ? html + "<p>Your booking confirmation PDF is attached. Download it for your visit.</p>" : html, attachments,
     text: [subject, ...(confirmed ? ["Your booking confirmation PDF is attached."] : []), ...fields.map(([label, value]) => `${label}: ${value}`)].join("\n") });
   return true;
 }
@@ -120,10 +122,14 @@ async function sendAccountCreatedEmail({ to, name, role }) {
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;color:#183044"><h2 style="color:#087d72">MediCall AI</h2><p>Hello ${greeting},</p><h3>${clinic ? "Your clinic workspace is ready" : "Welcome to your patient account"}</h3><p>${details}</p><p>For your security, never share your password or password reset link.</p><p>— MediCall AI</p></div>`;
   const message = { to, subject, html, text: `Hello ${name || "there"}. ${details} Never share your password or reset link.` };
   if (!process.env.GMAIL_REFRESH_TOKEN) return sendMediCallEmail(message);
+  return sendGmail(process.env.GMAIL_REFRESH_TOKEN, { ...message, from: "MediCall AI <shubhamjoshi20060203@gmail.com>" });
+}
+
+async function sendGmail(refreshToken, message) {
   const tokenResult = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     body: new URLSearchParams({
-      grant_type: "refresh_token", refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+      grant_type: "refresh_token", refresh_token: refreshToken,
       client_id: process.env.GMAIL_CLIENT_ID || "", client_secret: process.env.GMAIL_CLIENT_SECRET || ""
     }),
     signal: AbortSignal.timeout(10000)
@@ -131,7 +137,7 @@ async function sendAccountCreatedEmail({ to, name, role }) {
   if (!tokenResult.ok) throw new Error("Google could not authorize the welcome email sender.");
   const { access_token } = await tokenResult.json();
   const mime = await nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "windows" }).sendMail({
-    ...message, from: "MediCall AI <shubhamjoshi20060203@gmail.com>"
+    ...message
   });
   const sent = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST", headers: { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" },
@@ -446,7 +452,7 @@ app.post("/api/chat", async (req, res) => {
           }
           const appointment = await createAppointment({ clinicId: clinic._id, doctorId: doctor._id, patientName: session.patientName, patientEmail: session.patientEmail, phone: session.phone, date: session.date, time: session.time, reason: session.reason || '' });
           let emailSent = false;
-          try { emailSent = await sendAppointmentEmail({ to: session.patientEmail, patientName: session.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date: session.date, time: session.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
+          try { emailSent = await sendAppointmentEmail({ clinicId: appointment.clinicId, to: session.patientEmail, patientName: session.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date: session.date, time: session.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
           catch (mailError) { console.error("Chat booking email failed:", mailError.message); }
           await recordConversation({ clinicId: clinic._id, conversationId, channel: req.body?.channel === "voice" ? "voice" : "chat", appointmentId: appointment._id });
           bookingSessions.delete(conversationId);
@@ -531,7 +537,7 @@ Return ONLY valid JSON matching: {"reply":"text to show user","bookingIntent":tr
       try {
         const appointment = await createAppointment({ clinicId: clinic._id, doctorId: doctor._id, patientName, patientEmail, phone, date, time, reason });
         let emailSent = false;
-        try { emailSent = await sendAppointmentEmail({ to: patientEmail, patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date, time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
+        try { emailSent = await sendAppointmentEmail({ clinicId: appointment.clinicId, to: patientEmail, patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date, time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
         catch (mailError) { console.error("AI booking email failed:", mailError.message); }
         await recordConversation({ clinicId: clinic._id, conversationId, channel: req.body?.channel === "voice" ? "voice" : "chat", appointmentId: appointment._id });
         return res.status(201).json({
@@ -1796,13 +1802,13 @@ async function bookVisit(req, res, offline) {
 
     let emailSent = false;
     try {
-      if (normalizedEmail) emailSent = await sendAppointmentEmail({ to: normalizedEmail, patientName: appointment.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference });
+      if (normalizedEmail) emailSent = await sendAppointmentEmail({ clinicId: appointment.clinicId, to: normalizedEmail, patientName: appointment.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference });
     } catch (mailError) {
       console.error("Appointment confirmation email failed:", mailError.message);
     }
 
     return res.status(201).json({
-      message: !normalizedEmail ? "Offline appointment confirmed." : emailSent ? "Appointment confirmed. Confirmation email sent." : "Appointment confirmed, but email could not be sent. Please check SMTP settings.",
+      message: !normalizedEmail ? "Offline appointment confirmed." : emailSent ? "Appointment confirmed. Confirmation email sent." : "Appointment confirmed, but email could not be sent. Check the Gmail connection in clinic settings.",
       emailSent,
       appointment: {
         id: appointment._id,
@@ -2150,6 +2156,7 @@ app.patch(
         try {
           const clinic = await Clinic.findById(appointment.clinicId).select("clinicName");
           emailSent = await sendAppointmentEmail({
+            clinicId: appointment.clinicId,
             to: appointment.patientEmail,
             patientName: appointment.patientName,
             clinicName: clinic?.clinicName || "the clinic",
@@ -2440,6 +2447,19 @@ app.get("/api/patient/prescriptions", protectPatient, async (req, res) => {
   const visits = await Appointment.find({ patientEmail: patient.email, status: "Completed" }).distinct("_id");
   res.set("Cache-Control", "no-store").json(await DoctorClinicalNote.find({ appointmentId: { $in: visits }, patientEmail: patient.email, "medicines.0": { $exists: true } })
     .select("doctorId clinicId appointmentId medicines followUpDate").populate("doctorId", "name").populate("clinicId", "clinicName").populate("appointmentId", "date").sort({ updatedAt: -1 }));
+});
+const clinicGmail = require("./clinicGmail");
+clinicGmail.routes(app, protect, Clinic);
+app.post("/api/clinic/appointments/:id/resend-confirmation", protect, async (req,res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.sendStatus(400);
+  const appointment = await Appointment.findOne({_id:req.params.id,clinicId:req.clinicId,status:"Confirmed"}).populate("doctorId","name specialization");
+  if (!appointment?.patientEmail) return res.status(404).json({message:"Confirmed appointment with a patient email required."});
+  const clinic = await Clinic.findById(req.clinicId);
+  try {
+    const sent = await sendAppointmentEmail({clinicId:clinic._id,clinicName:clinic.clinicName,clinicPhone:clinic.phone,location:clinic.location,to:appointment.patientEmail,patientName:appointment.patientName,doctorName:appointment.doctorId?.name,specialty:appointment.doctorId?.specialization,date:appointment.date,time:appointment.time,appointmentId:appointment._id,bookingReference:appointment.bookingReference});
+    if (sent) return res.json({message:"Confirmation sent."});
+  } catch {}
+  res.status(503).json({message:"Could not send confirmation. Check the Gmail connection in clinic settings."});
 });
 require("./clinicBilling")(app, protect, Appointment, { Clinic, sendEmail: mailTransporter ? sendClinicPlanEmail : null });
 require("./homeLabs").registerLabRequests(app, { Clinic, listedClinics, protect, protectPatient });
