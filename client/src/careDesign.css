@@ -591,3 +591,34 @@
   .booking-hero-copy > p:not(.booking-hero-eyebrow) { margin: 1rem 0 1.2rem !important; }
   .app-shell:has(.booking-landing) .site-header > button:first-child img { width: 100% !important; height: 42px !important; }
 }
+.app-shell[data-theme="dark"] .chat-history { background-color: #102235; }
+
+/* Let navigation take a second row whenever its labels and the brand cannot fit. */
+@media (max-width: 640px) {
+  .app-shell > header.site-header {
+    flex-wrap: wrap !important;
+    height: auto !important;
+    gap: .375rem .75rem !important;
+    padding-block: .5rem;
+  }
+  .app-shell > header.site-header > button:first-child {
+    flex: 0 0 8rem !important;
+    min-width: 8rem !important;
+    max-width: 8rem !important;
+  }
+  .app-shell > header.site-header > button:first-child img {
+    width: 100% !important;
+    height: 2.625rem !important;
+  }
+  .app-shell > header.site-header > nav {
+    flex: 1 1 max-content !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    max-width: 100%;
+  }
+  .app-shell > header.site-header > nav > button,
+  .app-shell > header.site-header > nav > .relative > button {
+    min-height: 2.75rem !important;
+    font-size: .875rem !important;
+  }
+}

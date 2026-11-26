@@ -551,7 +551,7 @@ export default function App() {
         setPage("patient-dashboard");
         setTimeout(() => loadPatientAppointments(), 0);
         setForgotPasswordOpen(false);
-        setNotice(isRegister ? data.emailSent ? "Patient account created successfully. A welcome email was sent to your Gmail inbox." : "Patient account created successfully, but the welcome email could not be sent. Check the server Gmail/SMTP settings." : "Patient login successful.");
+        setNotice(isRegister ? data.emailSent ? "Patient account created successfully. A welcome email was sent to your Gmail inbox." : "Patient account created successfully, but the welcome email could not be sent. You can sign in with your registered email." : "Patient login successful.");
       } else {
         setNotice("");
         localStorage.setItem("medicall_token", data.token);
@@ -560,7 +560,7 @@ export default function App() {
         if (isRegister) setClinicView("billing");
         setPage("dashboard");
         setForgotPasswordOpen(false);
-        setNotice(isRegister ? data.emailSent ? "Clinic account created. A welcome email with your Free plan details was sent." : "Clinic account created, but the welcome email could not be sent. Check the server Gmail/SMTP settings." : "Clinic login successful.");
+        setNotice(isRegister ? data.emailSent ? "Clinic account created. A welcome email with your Free plan details was sent." : "Clinic account created, but the welcome email could not be sent. You can sign in with your registered email." : "Clinic login successful.");
         await loadClinic();
       }
     } catch (err) {
@@ -791,7 +791,7 @@ export default function App() {
           }
         } catch (err) {
           console.error("Transcription error:", err.response?.data || err.message);
-          setError(err.response?.data?.message || "Voice transcription failed. Check the Sarvam API key.");
+          stopVoiceConversation(); setNotice(""); setError(err.response?.data?.message || "Voice recognition is unavailable. You can type your message.");
         } finally {
           processingVoiceRef.current = false;
           setChatLoading(false);
@@ -866,7 +866,7 @@ export default function App() {
       }
     } catch (error) {
       console.error("Sarvam voice playback failed:", error.response?.data || error.message);
-      setError(error.response?.data?.message || "Natural voice playback failed. Check SARVAM_API_KEY.");
+      setError(error.response?.data?.message || "Voice playback is unavailable. You can read the reply in chat.");
     }
   }
 
@@ -1239,7 +1239,7 @@ export default function App() {
               </svg>
             )}
           </button>
-          <div className="relative">
+          {!token && !patientToken && <div className="relative">
             <button
               type="button"
               aria-haspopup="true"
@@ -1288,7 +1288,7 @@ export default function App() {
                 </button>
               </div>
             )}
-          </div>
+          </div>}
         </nav>
       </header>
 
@@ -2023,11 +2023,11 @@ export default function App() {
             </button>
           </header>
           <div className="border-b border-slate-100 bg-white px-3 py-2">
-            <label className="flex items-center gap-2 text-[11px] font-bold text-slate-500"><span className="shrink-0">Clinic context</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700"><option value="">Select a clinic for AI recommendations</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
+            <label className="flex items-center gap-2 text-[11px] font-bold text-slate-500"><span className="shrink-0">Clinic context</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700"><option value="">Choose a clinic</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
             {selectedClinicId && clinic?.id===selectedClinicId && clinic.location?.address && <p className="mt-1 truncate text-[10px] text-slate-500">📍 {clinic.location.address}</p>}
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto bg-[#f8fafc] p-4">
+          <div className="chat-history flex-1 space-y-3 overflow-y-auto bg-[#f8fafc] p-4">
             {chatMessages.map((message, index) => (
               <div
                 key={index}
@@ -2077,7 +2077,7 @@ export default function App() {
               disabled={chatLoading && !voiceMode}
               aria-label={voiceMode ? "Stop live voice conversation" : "Start live voice conversation"}
             >
-              <span className="inline-flex items-center gap-2">{voiceMode ? <Icon name="close" size={16} /> : <Icon name="mic" size={16} />}{voiceMode ? "End voice" : "Live voice"}</span>
+              <span className="inline-flex items-center gap-2">{voiceMode ? <Icon name="close" size={16} /> : <Icon name="mic" size={16} />}<span className="hidden sm:inline">{voiceMode ? "End voice" : "Live voice"}</span></span>
             </button>
 
             <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-700 text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={chatLoading || !chatInput.trim()} aria-label="Send message" title="Send message">

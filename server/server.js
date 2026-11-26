@@ -47,7 +47,20 @@ const { Schema } = mongoose;
 
 // ==================== GROQ AI CHAT ====================
 
-const mailTransporter = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
+const mailTransporter = process.env.RESEND_API_KEY ? {
+  async sendMail({ from, to, subject, html, text, attachments = [] }) {
+    if (!from) throw new Error("Configure MAIL_FROM with a verified sender.");
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to, subject, html, text, attachments: attachments.map(file => ({
+        filename: file.filename, content: Buffer.from(file.content).toString("base64")
+      })) }),
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) throw new Error(`Email provider returned HTTP ${response.status}.`);
+  }
+} : process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
   ? nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT || 587),
@@ -105,7 +118,27 @@ async function sendAccountCreatedEmail({ to, name, role }) {
     ? "Your clinic account is ready on the Free plan. Sign in to start a Pro trial or explore Clinic Pro whenever you are ready."
     : "Your free patient account is ready. You can find clinics, book appointments and keep your care details together.";
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;color:#183044"><h2 style="color:#087d72">MediCall AI</h2><p>Hello ${greeting},</p><h3>${clinic ? "Your clinic workspace is ready" : "Welcome to your patient account"}</h3><p>${details}</p><p>For your security, never share your password or password reset link.</p><p>— MediCall AI</p></div>`;
-  return sendMediCallEmail({ to, subject, html, text: `Hello ${name || "there"}. ${details} Never share your password or reset link.` });
+  const message = { to, subject, html, text: `Hello ${name || "there"}. ${details} Never share your password or reset link.` };
+  if (!process.env.GMAIL_REFRESH_TOKEN) return sendMediCallEmail(message);
+  const tokenResult = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    body: new URLSearchParams({
+      grant_type: "refresh_token", refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+      client_id: process.env.GMAIL_CLIENT_ID || "", client_secret: process.env.GMAIL_CLIENT_SECRET || ""
+    }),
+    signal: AbortSignal.timeout(10000)
+  });
+  if (!tokenResult.ok) throw new Error("Google could not authorize the welcome email sender.");
+  const { access_token } = await tokenResult.json();
+  const mime = await nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "windows" }).sendMail({
+    ...message, from: "MediCall AI <shubhamjoshi20060203@gmail.com>"
+  });
+  const sent = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST", headers: { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ raw: mime.message.toString("base64url") }), signal: AbortSignal.timeout(15000)
+  });
+  if (!sent.ok) throw new Error(`Gmail rejected the welcome email (HTTP ${sent.status}).`);
+  return true;
 }
 
 async function sendClinicPlanEmail({ to, clinicName, plan, validUntil, price }) {
@@ -194,7 +227,7 @@ app.post("/api/transcribe", uploadAudio.single("audio"), async (req, res) => {
   try {
     const apiKey = process.env.SARVAM_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ message: "SARVAM_API_KEY is missing from server/.env" });
+      return res.status(503).json({ message: "Voice is unavailable. You can still type your message." });
     }
     if (!req.file) return res.status(400).json({ message: "Audio recording is required." });
 
@@ -215,7 +248,7 @@ app.post("/api/transcribe", uploadAudio.single("audio"), async (req, res) => {
     if (!response.ok) {
       console.error("Sarvam STT error:", response.status, payload);
       return res.status(response.status === 429 ? 429 : 502).json({
-        message: payload?.error?.message || payload?.message || "Sarvam speech recognition failed. Check SARVAM_API_KEY and try again.",
+        message: "Voice recognition is unavailable. Please type your message or try again later.",
       });
     }
     const text = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
@@ -223,7 +256,7 @@ app.post("/api/transcribe", uploadAudio.single("audio"), async (req, res) => {
     return res.json({ text, languageCode: payload.language_code || "unknown" });
   } catch (error) {
     console.error("Sarvam transcription error:", error.message || error);
-    return res.status(502).json({ message: "Speech recognition failed. Check the network and Sarvam API key." });
+    return res.status(502).json({ message: "Speech recognition failed. Please try again later." });
   }
 });
 
@@ -231,7 +264,7 @@ app.post("/api/transcribe", uploadAudio.single("audio"), async (req, res) => {
 app.post("/api/tts", async (req, res) => {
   try {
     const apiKey = process.env.SARVAM_API_KEY;
-    if (!apiKey) return res.status(500).json({ message: "SARVAM_API_KEY is missing from server/.env" });
+    if (!apiKey) return res.status(503).json({ message: "Voice is unavailable. You can still type your message." });
     const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
     if (!text) return res.status(400).json({ message: "Text is required for speech." });
     if (text.length > 2500) return res.status(400).json({ message: "Please shorten the reply before generating speech." });
@@ -255,7 +288,7 @@ app.post("/api/tts", async (req, res) => {
     if (!response.ok) {
       console.error("Sarvam TTS error:", response.status, payload);
       return res.status(response.status === 429 ? 429 : 502).json({
-        message: payload?.error?.message || payload?.message || "Voice generation failed. Check the Sarvam API configuration.",
+        message: "Voice playback is unavailable. You can read the reply in chat.",
       });
     }
     const audioBase64 = payload.audios?.[0];
@@ -263,7 +296,7 @@ app.post("/api/tts", async (req, res) => {
     return res.json({ audio: audioBase64, mimeType: "audio/mpeg" });
   } catch (error) {
     console.error("Sarvam TTS error:", error.message || error);
-    return res.status(502).json({ message: "Voice generation failed. Check the network and Sarvam API key." });
+    return res.status(502).json({ message: "Voice generation failed. Please try again later." });
   }
 });
 
