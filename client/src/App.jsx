@@ -537,6 +537,10 @@ export default function App() {
         ? `/patient-auth/${isRegister ? "register" : "login"}`
         : `/auth/${isRegister ? "register" : "login"}`;
       const payload = isPatient ? patientAuth : auth;
+      if (isPatient && isRegister && !/^\d{10}$/.test(payload.phone.trim())) {
+        setError("Enter a valid 10-digit mobile number.");
+        return;
+      }
       const { data } = await axios.post(`${API}${endpoint}`, payload);
 
       if (isPatient) {
@@ -560,7 +564,7 @@ export default function App() {
         await loadClinic();
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Authentication failed.");
+      setError(err.response?.data?.message || (err.response ? "The server could not complete your request. Please try again." : "Unable to reach MediCall. Check your connection and try again."));
     } finally {
       setBusy(false);
     }
@@ -1394,7 +1398,7 @@ export default function App() {
               <div className="care-login-context"><span>{authStory.eyebrow}</span><p>{authStory.description}</p></div>
               <div className="care-login-fields">
                 {authMode.startsWith("patient-") ? <>
-                  {authMode.endsWith("register") && <><label className="care-login-label">Full name<input autoComplete="name" placeholder="Your full name" required value={patientAuth.fullName} onChange={(e) => setPatientAuth({ ...patientAuth, fullName: e.target.value })} /></label><label className="care-login-label">Phone number<input type="tel" autoComplete="tel" placeholder="Your phone number" required value={patientAuth.phone} onChange={(e) => setPatientAuth({ ...patientAuth, phone: e.target.value })} /></label></>}
+                  {authMode.endsWith("register") && <><label className="care-login-label">Full name<input autoComplete="name" placeholder="Your full name" required value={patientAuth.fullName} onChange={(e) => setPatientAuth({ ...patientAuth, fullName: e.target.value })} /></label><label className="care-login-label">Phone number<input type="tel" autoComplete="tel" inputMode="numeric" placeholder="10-digit mobile number" required value={patientAuth.phone} onChange={(e) => setPatientAuth({ ...patientAuth, phone: e.target.value })} /></label></>}
                   <label className="care-login-label">Email address<input type="email" autoComplete="email" placeholder="you@example.com" required value={patientAuth.email} onChange={(e) => setPatientAuth({ ...patientAuth, email: e.target.value })} /></label>
                   <label className="care-login-label">Password<div className="care-password-wrap"><input type={showPatientPassword ? "text" : "password"} minLength={8} autoComplete={authMode.endsWith("register") ? "new-password" : "current-password"} placeholder="Enter your password" required value={patientAuth.password} onChange={(e) => setPatientAuth({ ...patientAuth, password: e.target.value })} /><button type="button" onClick={() => setShowPatientPassword((v) => !v)}>{showPatientPassword ? "Hide" : "Show"}</button></div></label>
                 </> : <>

@@ -949,7 +949,18 @@ app.get("/api/health", (req, res) => {
 
 // ==================== REGISTER ====================
 
-app.post("/api/auth/register", async (req, res) => {
+function validateAccountCredentials(req, res, next) {
+  const { email, password } = req.body || {};
+  if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return res.status(400).json({ message: "Enter a valid email address, for example name@example.com." });
+  }
+  if (typeof password !== "string" || password.length < 8) {
+    return res.status(400).json({ message: "Password must be at least 8 characters." });
+  }
+  next();
+}
+
+app.post("/api/auth/register", validateAccountCredentials, async (req, res) => {
   try {
     const {
       clinicName,
@@ -1026,7 +1037,7 @@ app.post("/api/auth/register", async (req, res) => {
 
 // ==================== LOGIN ====================
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", validateAccountCredentials, async (req, res) => {
   try {
     const email = String(
       req.body?.email || ""
@@ -1163,11 +1174,12 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
 });
 
 // ==================== PATIENT AUTHENTICATION ====================
-app.post("/api/patient-auth/register", async (req, res) => {
+app.post("/api/patient-auth/register", validateAccountCredentials, async (req, res) => {
   try {
     const fullName = String(req.body?.fullName || "").trim();
     const email = String(req.body?.email || "").toLowerCase().trim();
     const phone = String(req.body?.phone || "").trim();
+    if (!/^\d{10}$/.test(phone)) return res.status(400).json({ message: "Enter a valid 10-digit mobile number." });
     const password = String(req.body?.password || "");
     if (!fullName || !email || !phone || !password) return res.status(400).json({ message: "Please fill in all fields." });
     if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters." });
@@ -1184,7 +1196,7 @@ app.post("/api/patient-auth/register", async (req, res) => {
   }
 });
 
-app.post("/api/patient-auth/login", async (req, res) => {
+app.post("/api/patient-auth/login", validateAccountCredentials, async (req, res) => {
   try {
     const email = String(req.body?.email || "").toLowerCase().trim();
     const password = String(req.body?.password || "");
@@ -1786,7 +1798,7 @@ async function bookVisit(req, res, offline) {
 }
 
 // ==================== DOCTOR AUTHENTICATION & PORTAL ====================
-app.post("/api/doctor-auth/login", async (req, res) => {
+app.post("/api/doctor-auth/login", validateAccountCredentials, async (req, res) => {
   try {
     const email = String(req.body?.email || "").trim().toLowerCase();
     const password = String(req.body?.password || "");

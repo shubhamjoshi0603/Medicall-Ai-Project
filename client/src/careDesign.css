@@ -582,3 +582,12 @@
   .app-shell .site-footer-home { align-items:flex-start; flex-direction:column; padding:1.2rem 1rem; }
   .site-footer-home nav { justify-content:space-between; width:100%; gap:1rem; }
 }
+
+@media (max-width: 600px) {
+  .app-shell .booking-landing .booking-hero { padding-block: 1.75rem; }
+  .booking-hero-layout { gap: 1.5rem; }
+  .booking-hero-copy .booking-hero-eyebrow { margin-bottom: .85rem; }
+  .booking-hero-copy h1 { max-width: 16ch !important; font-size: clamp(2rem, 9vw, 2.75rem) !important; }
+  .booking-hero-copy > p:not(.booking-hero-eyebrow) { margin: 1rem 0 1.2rem !important; }
+  .app-shell:has(.booking-landing) .site-header > button:first-child img { width: 100% !important; height: 42px !important; }
+}
