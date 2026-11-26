@@ -17,13 +17,13 @@ function slotTimes(hours, shifts, booked, date, now = new Date()) {
   if (!hours?.isOpen) return [];
   const start = minutes(hours.openTime), end = minutes(hours.closeTime);
   const weekday = new Date(date + "T12:00:00").getDay();
-  const windows = shifts.length ? shifts.filter(s => s.dayOfWeek === weekday) : [{ startTime: hours.openTime, endTime: hours.closeTime, slotMinutes: 30 }];
+  const windows = shifts.filter(s => s.dayOfWeek === weekday);
   const slots = new Set();
   for (const window of windows) {
     if (!(window.slotMinutes > 0)) continue;
     for (let t = minutes(window.startTime); t + window.slotMinutes <= Math.min(end, minutes(window.endTime)); t += window.slotMinutes) {
       const time = [Math.floor(t/60), t%60].map(n => String(n).padStart(2,"0")).join(":");
-      if (t >= start && !booked.includes(time) && new Date(date + "T" + time) > now) slots.add(time);
+      if (t >= start && !booked.includes(time) && new Date(date + "T" + time + ":00+05:30") > now) slots.add(time);
     }
   }
   return [...slots].sort();

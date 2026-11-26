@@ -10,11 +10,11 @@ test("lab comparison uses only explicit ranges printed with the value", () => {
   assert.deepEqual(extractRows(text).map(r => r.flag), ["Below", "Within", "Above"]);
 });
 test("booking windows use approved shifts, clinic hours and occupied slots", () => {
-  const day = "2030-01-07", now = new Date(day + "T09:05:00");
+  const day = "2030-01-07", now = new Date(day + "T09:05:00+05:30");
   const hours = { isOpen: true, openTime: "09:00", closeTime: "10:00" };
   const shifts = [{ dayOfWeek: 1, startTime: "09:00", endTime: "11:00", slotMinutes: 15 }];
   assert.deepEqual(slotTimes(hours, shifts, ["09:30"], day, now), ["09:15","09:45"]);
-  assert.deepEqual(slotTimes(hours, [], [], day, now), ["09:30"]);
+  assert.deepEqual(slotTimes(hours, [], [], day, now), []);
   assert.deepEqual(slotTimes(hours, shifts, [], "2030-01-08", now), []);
   assert.deepEqual(slotTimes({ ...hours, isOpen:false }, [], [], day, now), []);
   assert.equal(validDay("2030-02-30"), false);

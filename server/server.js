@@ -51,29 +51,72 @@ const mailTransporter = process.env.SMTP_HOST && process.env.SMTP_USER && proces
   ? nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT || 587),
-      secure: String(process.env.SMTP_SECURE || "false") === "true",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      secure: Number(process.env.SMTP_PORT || 587) === 465 || String(process.env.SMTP_SECURE).trim().toLowerCase() === "true",
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_HOST === "smtp.gmail.com" ? process.env.SMTP_PASS.replace(/\s/g, "") : process.env.SMTP_PASS },
     })
   : null;
 
-async function sendAppointmentEmail({ to, patientName, clinicName, doctorName, date, time, status = "Confirmed", appointmentId, bookingReference }) {
-  if (!mailTransporter || !to) return false;
+const { renderConfirmation } = require("./bookingPdf");
+function bookingMessage({ patientName, clinicName, doctorName, specialty, location, clinicPhone, date, time, status = "Confirmed", appointmentId, bookingReference }) {
+
   const bookingId = bookingReference || appointmentId;
   const from = process.env.MAIL_FROM || process.env.SMTP_USER;
   const subject = status === "Confirmed" ? "Your MediCall AI appointment is confirmed" : `Your MediCall AI appointment was ${status.toLowerCase()}`;
+  const confirmed = status === "Confirmed";
+  const fields = confirmed ? [
+    ["Patient", patientName], ["Clinic", clinicName], ["Doctor", doctorName],
+    ["Specialty", specialty || "Contact the clinic"], ["Date", date], ["Time (clinic local time)", time],
+    ["Clinic location", location?.address || location?.mapsUrl || "Contact the clinic for directions"],
+    ...(clinicPhone ? [["Clinic phone", clinicPhone]] : []), ["Booking ID", String(bookingId)]
+  ] : [["Date", date], ["Time", time], ["Booking ID", String(bookingId)]];
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#172033">
       <h2 style="color:#0f766e">MediCall AI</h2>
       <p>Dear ${escapeHtml(patientName)},</p>
       <p>Your appointment with <strong>${escapeHtml(doctorName)}</strong> at <strong>${escapeHtml(clinicName)}</strong> is <strong>${escapeHtml(status)}</strong>.</p>
       <div style="background:#f0fdfa;padding:16px;border-radius:12px">
-        <p><strong>Date:</strong> ${escapeHtml(date)}</p><p><strong>Time:</strong> ${escapeHtml(time)}</p>
-        <p><strong>Booking ID:</strong> ${escapeHtml(String(bookingId))}</p>
+        ${fields.map(([label, value]) => `<p><strong>${label}:</strong> ${escapeHtml(value)}</p>`).join("")}
       </div>
       <p>If you need to change your appointment, please contact the clinic.</p><p>Thank you,<br/>MediCall AI</p>
     </div>`;
-  await mailTransporter.sendMail({ from, to, subject, html, text: `Dear ${patientName}, your appointment with ${doctorName} at ${clinicName} is ${status}. Date: ${date}; Time: ${time}; Booking ID: ${bookingId}.` });
+  return { bookingId, confirmed, html, subject, fields, from };
+}
+async function sendAppointmentEmail(details) {
+  if (!mailTransporter || !details.to) return false;
+  const { bookingId, confirmed, html, subject, fields, from } = bookingMessage(details);
+  const to = details.to;
+  const attachments = confirmed ? [{ filename: `Booking-${bookingId}.pdf`, content: await renderConfirmation(html), contentType: "application/pdf", contentDisposition: "attachment" }] : [];
+  await mailTransporter.sendMail({ from, to, subject, html: confirmed ? html + "<p>Your booking confirmation PDF is attached. Download it for your visit.</p>" : html, attachments,
+    text: [subject, ...(confirmed ? ["Your booking confirmation PDF is attached."] : []), ...fields.map(([label, value]) => `${label}: ${value}`)].join("\n") });
   return true;
+}
+
+async function sendMediCallEmail({ to, subject, html, text }) {
+  if (!mailTransporter || !to) return false;
+  await mailTransporter.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject, html, text });
+  return true;
+}
+
+async function sendAccountCreatedEmail({ to, name, role }) {
+  const clinic = role === "clinic";
+  const greeting = escapeHtml(name || (clinic ? "Clinic administrator" : "there"));
+  const subject = clinic ? "Your MediCall AI clinic account is ready" : "Welcome to MediCall AI";
+  const details = clinic
+    ? "Your clinic account is ready on the Free plan. Sign in to start a Pro trial or explore Clinic Pro whenever you are ready."
+    : "Your free patient account is ready. You can find clinics, book appointments and keep your care details together.";
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;color:#183044"><h2 style="color:#087d72">MediCall AI</h2><p>Hello ${greeting},</p><h3>${clinic ? "Your clinic workspace is ready" : "Welcome to your patient account"}</h3><p>${details}</p><p>For your security, never share your password or password reset link.</p><p>— MediCall AI</p></div>`;
+  return sendMediCallEmail({ to, subject, html, text: `Hello ${name || "there"}. ${details} Never share your password or reset link.` });
+}
+
+async function sendClinicPlanEmail({ to, clinicName, plan, validUntil, price }) {
+  const paid = plan === "Clinic Pro";
+  const validText = validUntil ? new Date(validUntil).toLocaleDateString("en-IN", { dateStyle: "long" }) : "the end of your trial";
+  const subject = paid ? "Clinic Pro subscription confirmed" : "Your Clinic Pro trial has started";
+  const details = paid
+    ? `Your Clinic Pro subscription for ${clinicName} is active${price ? ` at INR ${price} for 30 days` : ""}. Your current access is valid until ${validText}.`
+    : `Your 14-day Clinic Pro trial for ${clinicName} is active until ${validText}.`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;color:#183044"><h2 style="color:#087d72">MediCall AI</h2><h3>${escapeHtml(subject)}</h3><p>${escapeHtml(details)}</p><p>Manage your plan from the Subscription section in your clinic portal.</p><p>— MediCall AI</p></div>`;
+  return sendMediCallEmail({ to, subject, html, text: `${details} Manage your plan from the Subscription section in your clinic portal.` });
 }
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char] || char));
@@ -229,13 +272,12 @@ app.post("/api/chat", async (req, res) => {
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
     if (!message) return res.status(400).json({ message: "Please enter a message." });
     if (message.length > 4000) return res.status(400).json({ message: "Message is too long." });
-    if (!groq) return res.status(500).json({ message: "GROQ_API_KEY is missing from server/.env" });
 
     const requestedClinicId = req.body?.clinicId;
     if (!requestedClinicId || !mongoose.isValidObjectId(requestedClinicId)) {
       return res.status(400).json({ message: "Clinic context is missing. Refresh the page and try again." });
     }
-    const clinic = await Clinic.findById(requestedClinicId).select("clinicName location");
+    const clinic = await Clinic.findById(requestedClinicId).select("clinicName location phone");
     if (!clinic) return res.status(404).json({ message: "Clinic not found." });
     const doctors = await Doctor.find({ clinicId: clinic._id, isActive: true }).select("name specialization fee").sort({ name: 1 });
     const history = Array.isArray(req.body?.history) ? req.body.history.slice(-16) : [];
@@ -369,9 +411,9 @@ app.post("/api/chat", async (req, res) => {
             session.step = "time";
             return res.json({ reply: "This slot is unavailable. Please choose another date or time.", bookingCreated: false });
           }
-          const appointment = await Appointment.create({ clinicId: clinic._id, doctorId: doctor._id, patientName: session.patientName, patientEmail: session.patientEmail, phone: session.phone, date: session.date, time: session.time, reason: session.reason || '' });
+          const appointment = await createAppointment({ clinicId: clinic._id, doctorId: doctor._id, patientName: session.patientName, patientEmail: session.patientEmail, phone: session.phone, date: session.date, time: session.time, reason: session.reason || '' });
           let emailSent = false;
-          try { emailSent = await sendAppointmentEmail({ to: session.patientEmail, patientName: session.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date: session.date, time: session.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
+          try { emailSent = await sendAppointmentEmail({ to: session.patientEmail, patientName: session.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date: session.date, time: session.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
           catch (mailError) { console.error("Chat booking email failed:", mailError.message); }
           await recordConversation({ clinicId: clinic._id, conversationId, channel: req.body?.channel === "voice" ? "voice" : "chat", appointmentId: appointment._id });
           bookingSessions.delete(conversationId);
@@ -406,6 +448,8 @@ Your job includes actually booking appointments. Use the entire conversation to 
 Once all required fields are known, summarize all details and ask the user to confirm. Do NOT book until the latest user message clearly confirms (yes, confirm, book it, etc.) after you asked for confirmation. If confirmed, set confirmed=true and return the exact structured fields. If a user asks about status, do not claim to check by name/phone unless you have actually queried records; tell them you can book or staff can verify status.
 Return ONLY valid JSON matching: {"reply":"text to show user","bookingIntent":true|false,"confirmationRequested":true|false,"confirmed":true|false,"booking":{"patientName":"","phone":"","email":"","doctorName":"","date":"YYYY-MM-DD","time":"HH:MM","reason":""}}. Always include all keys. If not booking, bookingIntent=false and confirmed=false. If fields are incomplete, put known fields in booking and blank unknown fields. Do not output markdown or extra keys.`;
 
+    const bookingHelp = () => res.json({ reply: "I can guide you through booking at " + clinic.clinicName + ". Type ‘book an appointment’ to begin, or choose a doctor in Find care.", bookingCreated: false });
+    if (!groq) return bookingHelp();
     let parsed;
     const model = process.env.GROQ_CHAT_MODEL || "openai/gpt-oss-120b";
     try {
@@ -421,7 +465,7 @@ Return ONLY valid JSON matching: {"reply":"text to show user","bookingIntent":tr
       parsed = JSON.parse(raw);
     } catch (modelError) {
       console.error("Groq structured chat error:", modelError.status || "", modelError.message || modelError);
-      return res.status(502).json({ message: "AI reply failed. Please try again; your message was not booked." });
+      return bookingHelp();
     }
 
     const reply = typeof parsed.reply === "string" ? parsed.reply.trim() : "";
@@ -452,9 +496,9 @@ Return ONLY valid JSON matching: {"reply":"text to show user","bookingIntent":tr
       }
       if (!(await slotsFor(clinic._id, doctor._id, date)).includes(time)) return res.json({ reply: "This slot is unavailable. Please choose another date or time.", bookingCreated: false });
       try {
-        const appointment = await Appointment.create({ clinicId: clinic._id, doctorId: doctor._id, patientName, patientEmail, phone, date, time, reason });
+        const appointment = await createAppointment({ clinicId: clinic._id, doctorId: doctor._id, patientName, patientEmail, phone, date, time, reason });
         let emailSent = false;
-        try { emailSent = await sendAppointmentEmail({ to: patientEmail, patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date, time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
+        try { emailSent = await sendAppointmentEmail({ to: patientEmail, patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date, time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference }); }
         catch (mailError) { console.error("AI booking email failed:", mailError.message); }
         await recordConversation({ clinicId: clinic._id, conversationId, channel: req.body?.channel === "voice" ? "voice" : "chat", appointmentId: appointment._id });
         return res.status(201).json({
@@ -490,6 +534,7 @@ MediCall AI se baat karne ke liye shukriya! Aapse baat karke achha laga. Apna kh
 
 const clinicSchema = new Schema(
   {
+    registeredAt: Date,
     clinicName: {
       type: String,
       required: true,
@@ -513,6 +558,7 @@ const clinicSchema = new Schema(
       type: String,
       required: true,
     },
+    sessionVersion: { type: Number, default: 0 },
     location: {
       address: { type: String, default: "", trim: true },
       latitude: { type: Number, default: null },
@@ -553,17 +599,30 @@ const doctorSchema = new Schema(
     fee: { type: Number, default: 500, min: 0 },
     email: { type: String, lowercase: true, trim: true, sparse: true, unique: true },
     password: { type: String, select: false },
+    sessionVersion: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-function generateBookingReference() {
-  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = require("crypto").randomBytes(8);
-  const suffix = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
-  return `MCA-${datePart}-${suffix}`;
+async function withBookingReference(date, time, write) {
+  const crypto = require("node:crypto");
+  const slot = String(date).slice(-2) + String(time).replace(":", "");
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const reference = attempt < 5 && /^\d{6}$/.test(slot)
+      ? slot + String(crypto.randomInt(100)).padStart(2, "0")
+      : String(crypto.randomInt(100000000)).padStart(8, "0");
+    try { return await write(reference); }
+    catch (error) {
+      if (error.code !== 11000 || !error.keyPattern?.bookingReference) throw error;
+    }
+  }
+  throw new Error("Could not allocate a booking reference.");
+}
+
+function createAppointment(values) {
+  return withBookingReference(values.date, values.time, bookingReference =>
+    Appointment.create({ ...values, bookingReference }));
 }
 
 const appointmentSchema = new Schema(
@@ -572,8 +631,9 @@ const appointmentSchema = new Schema(
       type: String,
       unique: true,
       sparse: true,
-      default: generateBookingReference,
+
     },
+    offlineVisitKey: { type: String, unique: true, sparse: true },
     bookingSource: { type: String, enum: ["Offline", "Online"], default: "Online" },
     patientRemovedAt: { type: Date, default: null },
     queueState: { type: String, enum: ["Waiting", "Called", "Consulting", "Skipped", "Completed"] },
@@ -690,6 +750,7 @@ const patientSchema = new Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, required: true, trim: true },
   password: { type: String, required: true },
+  sessionVersion: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const familyMemberSchema = new Schema({
@@ -780,7 +841,7 @@ function makeToken(clinic) {
   }
 
   return jwt.sign(
-    { clinicId: clinic._id.toString() },
+    { clinicId: clinic._id.toString(), role: "clinic", sessionVersion: Number(clinic.sessionVersion || 0) },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -788,16 +849,18 @@ function makeToken(clinic) {
 
 function makePatientToken(patient) {
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is missing.");
-  return jwt.sign({ patientId: patient._id.toString(), role: "patient" }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign({ patientId: patient._id.toString(), role: "patient", sessionVersion: Number(patient.sessionVersion || 0) }, process.env.JWT_SECRET, { expiresIn: "7d" });
 }
 
-function protectPatient(req, res, next) {
+async function protectPatient(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return res.status(401).json({ message: "Please log in first." });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.role !== "patient" || !decoded.patientId) return res.status(401).json({ message: "Invalid patient session." });
+    const account = await Patient.findById(decoded.patientId).select("sessionVersion").lean();
+    if (!account || Number(decoded.sessionVersion || 0) !== Number(account.sessionVersion || 0)) return res.status(401).json({ message: "Your session ended because the password changed. Please sign in again." });
     req.patientId = decoded.patientId;
     return next();
   } catch {
@@ -805,7 +868,7 @@ function protectPatient(req, res, next) {
   }
 }
 
-function protectDoctor(req, res, next) {
+async function protectDoctor(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return res.status(401).json({ message: "Please log in first." });
@@ -814,6 +877,8 @@ function protectDoctor(req, res, next) {
     if (decoded.role !== "doctor" || !decoded.doctorId || !decoded.clinicId) {
       return res.status(403).json({ message: "Doctor access required." });
     }
+    const account = await Doctor.findOne({ _id: decoded.doctorId, clinicId: decoded.clinicId, isActive: true }).select("sessionVersion").lean();
+    if (!account || Number(decoded.sessionVersion || 0) !== Number(account.sessionVersion || 0)) return res.status(401).json({ message: "Your session ended because the password changed or your clinic access was removed. Please sign in again." });
     req.doctorId = decoded.doctorId;
     req.clinicId = decoded.clinicId;
     return next();
@@ -822,7 +887,7 @@ function protectDoctor(req, res, next) {
   }
 }
 
-function protect(req, res, next) {
+async function protect(req, res, next) {
   const header = req.headers.authorization || "";
 
   const token = header.startsWith("Bearer ")
@@ -844,6 +909,8 @@ function protect(req, res, next) {
     if (!decoded.clinicId || decoded.role === "patient" || decoded.role === "doctor") {
       return res.status(403).json({ message: "Clinic admin access required." });
     }
+    const account = await Clinic.findById(decoded.clinicId).select("sessionVersion").lean();
+    if (!account || Number(decoded.sessionVersion || 0) !== Number(account.sessionVersion || 0)) return res.status(401).json({ message: "Your session ended because the password changed. Please sign in again." });
     req.clinicId = decoded.clinicId;
     return next();
   } catch {
@@ -852,6 +919,24 @@ function protect(req, res, next) {
     });
   }
 }
+
+const resetClientOrigins = (process.env.CLIENT_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:5173"))
+  .split(",").map((value) => value.trim()).filter(Boolean);
+let resetBaseUrl = null;
+for (const candidate of resetClientOrigins) {
+  try {
+    const parsed = new URL(candidate);
+    if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") continue;
+    resetBaseUrl = parsed.origin;
+    break;
+  } catch { /* Ignore invalid configured origins. */ }
+}
+require("./passwordSecurity")(app, {
+  Clinic, Patient, Doctor, protect, protectPatient, protectDoctor,
+  sendEmail: mailTransporter ? sendMediCallEmail : null,
+  resetBaseUrl,
+});
+require("./platformReviews")(app, { patient: protectPatient, doctor: protectDoctor, clinic: protect });
 
 // ==================== HEALTH CHECK ====================
 
@@ -903,14 +988,19 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const clinic = await Clinic.create({
+      registeredAt: new Date(),
       clinicName: clinicName.trim(),
       adminName: adminName.trim(),
       email: normalizedEmail,
       password: await bcrypt.hash(password, 12),
     });
+    let emailSent = false;
+    try { emailSent = await sendAccountCreatedEmail({ to: clinic.email, name: clinic.adminName, role: "clinic" }); }
+    catch (mailError) { console.error("Clinic welcome email failed:", mailError.message); }
 
     return res.status(201).json({
       token: makeToken(clinic),
+      emailSent,
       clinic: {
         id: clinic._id,
         clinicName: clinic.clinicName,
@@ -1083,7 +1173,10 @@ app.post("/api/patient-auth/register", async (req, res) => {
     if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters." });
     if (await Patient.findOne({ email })) return res.status(409).json({ message: "An account with this email already exists." });
     const patient = await Patient.create({ fullName, email, phone, password: await bcrypt.hash(password, 12) });
-    return res.status(201).json({ token: makePatientToken(patient), patient: { id: patient._id, fullName: patient.fullName, email: patient.email, phone: patient.phone } });
+    let emailSent = false;
+    try { emailSent = await sendAccountCreatedEmail({ to: patient.email, name: patient.fullName, role: "patient" }); }
+    catch (mailError) { console.error("Patient welcome email failed:", mailError.message); }
+    return res.status(201).json({ token: makePatientToken(patient), emailSent, patient: { id: patient._id, fullName: patient.fullName, email: patient.email, phone: patient.phone } });
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ message: "An account with this email already exists." });
     console.error("Patient registration error:", error);
@@ -1417,10 +1510,7 @@ app.post("/api/patient/appointments/:id/video-room", protectPatient, async (req,
     const patient = await Patient.findById(req.patientId).select("email");
     const appointment = await Appointment.findOne({ _id: req.params.id, patientEmail: patient?.email, status: "Confirmed" });
     if (!appointment) return res.status(404).json({ message: "A video room is available only for your confirmed appointment." });
-    if (!appointment.videoRoomId) {
-      appointment.videoRoomId = "MediCallAI-" + require("crypto").randomBytes(20).toString("hex");
-      await appointment.save();
-    }
+    if (!appointment.videoRoomId) return res.status(409).json({ message: "Request a video visit and wait for doctor approval." });
     return res.json({ roomId: appointment.videoRoomId, roomUrl: "https://meet.jit.si/" + appointment.videoRoomId });
   } catch (error) {
     console.error("Video consultation room:", error);
@@ -1432,7 +1522,6 @@ app.post("/api/patient/assistant", protectPatient, async (req, res) => {
   try {
     const question = String(req.body?.message || "").trim();
     if (!question || question.length > 2000) return res.status(400).json({ message: "Enter a question under 2,000 characters." });
-    if (!groq) return res.status(503).json({ message: "The AI assistant is not configured. Please contact the clinic." });
     const patient = await Patient.findById(req.patientId).select("fullName email");
     const [appointments, records] = await Promise.all([
       Appointment.find({ patientEmail: patient.email }).sort({ date: -1 }).limit(8).populate("doctorId", "name specialization").populate("clinicId", "clinicName"),
@@ -1442,17 +1531,33 @@ app.post("/api/patient/assistant", protectPatient, async (req, res) => {
       appointments: appointments.map((item) => ({ date: item.date, time: item.time, status: item.status, doctor: item.doctorId?.name, specialty: item.doctorId?.specialization, clinic: item.clinicId?.clinicName })),
       uploadedDocumentTitles: records.map((item) => ({ title: item.title, category: item.category, uploaded: item.createdAt })),
     };
+    const portalHelp = async () => {
+      let answer = "Portal help: Open Find care to choose a clinic and doctor, Appointments to manage visits, or Medical records to view documents. I can also check your next appointment.";
+      if (/next|schedule|upcoming|appointment/i.test(question)) {
+        const now = new Date(Date.now() + 330 * 60000).toISOString();
+        const date = now.slice(0,10), time = now.slice(11,16);
+        const next = await Appointment.findOne({patientEmail:patient.email,status:"Confirmed",$or:[{date:{$gt:date}},{date,time:{$gte:time}}]})
+          .sort({date:1,time:1}).populate("doctorId","name").populate("clinicId","clinicName");
+        answer = next ? "Your next confirmed visit is on " + next.date + " at " + next.time + " IST with " + (next.doctorId?.name || "your doctor") + " at " + (next.clinicId?.clinicName || "your clinic") + "." : "You have no upcoming confirmed appointments. Open Find care to book one.";
+      } else if (/prepar|bring/i.test(question)) answer = "Open Appointments for the visit details. Have your booking confirmation and relevant reports ready, and check your clinic’s instructions.";
+      else if (/report|record/i.test(question)) answer = "Open Medical records to find your documents, prescriptions and Report analyzer.";
+      return res.json({answer, mode:"portal-help"});
+    };
+    if (!groq) return portalHelp();
+    try {
     const completion = await groq.chat.completions.create({
       model: process.env.GROQ_CHAT_MODEL || "openai/gpt-oss-120b",
       temperature: 0.25,
-      max_tokens: 650,
+      max_completion_tokens: 1000,
       messages: [
         { role: "system", content: "You are MediCall AI, a patient-support assistant. You may explain general health information, help patients understand their appointment schedule and explain common medical terms. You are not a doctor: never diagnose, prescribe, change medication doses, or claim certainty. Do not infer test results from document titles. Encourage the patient to contact their clinician for personal medical decisions. For emergency symptoms such as chest pain, severe breathing difficulty, stroke signs, heavy bleeding or loss of consciousness, tell them to seek emergency services immediately. Use concise, calm language. The following patient context is private and may only be used to answer this patient's question: " + JSON.stringify(context) },
         { role: "user", content: question },
       ],
     });
-    const answer = completion.choices?.[0]?.message?.content?.trim() || "I could not prepare an answer. Please try again.";
+    const answer = completion.choices?.[0]?.message?.content?.trim();
+    if (!answer) return portalHelp();
     return res.json({ answer });
+    } catch { return portalHelp(); }
   } catch (error) {
     console.error("Patient AI assistant:", error.message || error);
     return res.status(502).json({ message: "The AI assistant is temporarily unavailable." });
@@ -1461,9 +1566,30 @@ app.post("/api/patient/assistant", protectPatient, async (req, res) => {
 
 // ==================== PUBLIC CLINIC INFO ====================
 
+// Retired demo clinics are omitted from patient-facing clinic selectors.
+const listedClinics = {
+  clinicName: { $not: /^\s*(?:a|aakash\s+hospital)\s*$/i },
+  // Accounts created before registeredAt was introduced have the same login fields.
+  $or: [
+    { registeredAt: { $type: "date" } },
+    { registeredAt: null, email: /\S/, password: /^\$2[aby]\$\d{2}\$/ },
+  ],
+};
+app.get("/api/patient/find-care", protectPatient, async (req, res) => {
+  const clinics = await Clinic.find(listedClinics).select("clinicName location").lean();
+  const doctors = await Doctor.find({clinicId: { $in: clinics.map(c => c._id) }, isActive: true})
+    .select("clinicId name specialization fee").sort({name:1}).lean();
+  const grouped = new Map();
+  for (const doctor of doctors) {
+    const id = String(doctor.clinicId);
+    if (!grouped.has(id)) grouped.set(id, []);
+    grouped.get(id).push(doctor);
+  }
+  res.set("Cache-Control","no-store").json(clinics.map(c => ({...c, doctors:grouped.get(String(c._id)) || []})));
+});
 async function publicClinicsHandler(req, res) {
   try {
-    const clinics = await Clinic.find({}).sort({ clinicName: 1 }).select("clinicName location businessHours");
+    const clinics = await Clinic.find(listedClinics).sort({ clinicName: 1 }).select("clinicName location businessHours");
     if (!clinics.length) return res.status(404).json({ message: "No clinic registered yet." });
     const requestedId = req.query.clinicId;
     const selectedClinic = requestedId
@@ -1482,17 +1608,6 @@ async function publicClinicsHandler(req, res) {
   }
 }
 app.get("/api/public/clinics", publicClinicsHandler);
-app.get("/api/public/directory", async (req, res) => {
-  const [clinics, doctors, reviews] = await Promise.all([
-    Clinic.find({}).select("clinicName location").lean(),
-    Doctor.find({ isActive: true }).select("name specialization clinicId").lean(),
-    PatientReview.aggregate([{ $group: { _id: "$clinicId", average: { $avg: "$rating" }, count: { $sum: 1 } } }]),
-  ]);
-  res.json(clinics.map(clinic => ({ ...clinic,
-    doctors: doctors.filter(d => String(d.clinicId) === String(clinic._id)),
-    rating: reviews.find(r => String(r._id) === String(clinic._id)) || null,
-  })));
-});
 // Backwards-compatible endpoint for older clients.
 app.get("/api/public/clinic", publicClinicsHandler);
 
@@ -1513,6 +1628,7 @@ async function bookVisit(req, res, offline) {
       time,
       reason,
     } = req.body || {};
+    const completed = offline && req.body?.visitType === "completed";
     const clinicId = offline ? req.clinicId : req.body?.clinicId;
     const normalizedEmail = String(patientEmail || email || "").trim().toLowerCase();
 
@@ -1564,15 +1680,36 @@ async function bookVisit(req, res, offline) {
       appointmentDate.getDate() !== day ||
       appointmentDate.getHours() !== hour ||
       appointmentDate.getMinutes() !== minute ||
-      appointmentDate.getTime() <= Date.now()
+      (completed ? appointmentDate.getTime() > Date.now() : appointmentDate.getTime() <= Date.now())
     ) {
       return res.status(400).json({
-        message: "Choose a valid future appointment time.",
+        message: completed ? "Choose the actual visit time, up to now." : "Choose a valid future appointment time.",
       });
     }
 
     const clinic = await Clinic.findById(clinicId);
     if (!clinic) return res.status(404).json({ message: "Clinic not found." });
+    if (completed) {
+      const amount = Number(req.body.paymentAmount);
+      const method = req.body.paymentMethod;
+      if (!/^\d{1,8}(\.\d{1,2})?$/.test(String(req.body.paymentAmount)) || amount <= 0 || !["Cash","Card","UPI","Other"].includes(method)) {
+        return res.status(400).json({ message: "Enter the amount received and a valid payment method." });
+      }
+      if (!await Doctor.exists({ _id: doctorId, clinicId })) return res.status(404).json({ message: "Doctor not found at this clinic." });
+      const visit = { clinicId, doctorId, phone: phone.trim(), date, time };
+      const payment = { paymentStatus: "Paid", paymentAmount: amount, paymentMethod: method, paidAt: appointmentDate };
+      const existing = await Appointment.findOne({ ...visit, status: { $in: ["Confirmed", "Completed"] } });
+      if (existing) {
+        if (existing.paymentStatus === "Paid") return res.status(409).json({ message: "Payment already recorded. Review the original appointment." });
+        const updated = await Appointment.updateOne({ _id: existing._id, clinicId, status: existing.status, paymentStatus: { $ne: "Paid" } },
+          { $set: { ...payment, status: "Completed", queueState: "Completed", queueLane: null } });
+        if (!updated.modifiedCount) return res.status(409).json({ message: "The appointment changed. Refresh before continuing." });
+        return res.json({ message: "Original visit completed and payment recorded.", appointment: { bookingReference: existing.bookingReference || existing._id } });
+      }
+      const reference = "MCA-W-" + require("crypto").createHash("sha256").update(JSON.stringify(visit)).digest("hex").slice(0,24);
+      const saved = await createAppointment({ ...visit, ...payment, offlineVisitKey: reference, bookingSource: "Offline", status: "Completed", queueState: "Completed", patientName: patientName.trim(), patientEmail: normalizedEmail || undefined });
+      return res.status(201).json({ message: "Visit and payment recorded.", appointment: { bookingReference: saved.bookingReference } });
+    }
     const dayOfWeek = new Date(year, month - 1, day).getDay();
     const hours = (clinic.businessHours || []).find((item) => item.dayOfWeek === dayOfWeek);
     const opensAt = hours?.openTime || "09:00";
@@ -1597,7 +1734,7 @@ async function bookVisit(req, res, offline) {
     }
 
     if (!(await slotsFor(clinicId, doctorId, date)).includes(time)) return res.status(409).json({ message: "This slot is unavailable. Choose another time." });
-    const appointment = await Appointment.create({
+    const appointment = await createAppointment({
       clinicId,
       doctorId,
       patientName: patientName.trim(),
@@ -1614,7 +1751,7 @@ async function bookVisit(req, res, offline) {
 
     let emailSent = false;
     try {
-      if (normalizedEmail) emailSent = await sendAppointmentEmail({ to: normalizedEmail, patientName: appointment.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference });
+      if (normalizedEmail) emailSent = await sendAppointmentEmail({ to: normalizedEmail, patientName: appointment.patientName, clinicName: clinic.clinicName, doctorName: doctor.name, specialty: doctor.specialization, location: clinic.location, clinicPhone: clinic.phone, date: appointment.date, time: appointment.time, status: appointment.status, appointmentId: appointment._id, bookingReference: appointment.bookingReference });
     } catch (mailError) {
       console.error("Appointment confirmation email failed:", mailError.message);
     }
@@ -1658,15 +1795,17 @@ app.post("/api/doctor-auth/login", async (req, res) => {
     if (!doctor || !doctor.password || !(await bcrypt.compare(password, doctor.password))) {
       return res.status(401).json({ message: "Invalid doctor email or password." });
     }
-    const token = jwt.sign({ role: "doctor", doctorId: doctor._id.toString(), clinicId: doctor.clinicId.toString() }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    return res.json({ token, doctor: { id: doctor._id, name: doctor.name, email: doctor.email, specialization: doctor.specialization, fee: doctor.fee, createdAt: doctor.createdAt, clinicId: doctor.clinicId } });
+    const token = jwt.sign({ role: "doctor", doctorId: doctor._id.toString(), clinicId: doctor.clinicId.toString(), sessionVersion: Number(doctor.sessionVersion || 0) }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const clinic = await Clinic.findById(doctor.clinicId).select('clinicName').lean();
+    return res.json({ token, doctor: { clinicName: clinic?.clinicName, id: doctor._id, name: doctor.name, email: doctor.email, specialization: doctor.specialization, fee: doctor.fee, createdAt: doctor.createdAt, clinicId: doctor.clinicId } });
   } catch (error) { console.error("Doctor login error:", error); return res.status(500).json({ message: "Doctor login failed." }); }
 });
 
 app.get("/api/doctor/me", protectDoctor, async (req, res) => {
   const doctor = await Doctor.findOne({ _id: req.doctorId, clinicId: req.clinicId, isActive: true }).select("name email specialization fee clinicId createdAt");
   if (!doctor) return res.status(404).json({ message: "Doctor account not found." });
-  return res.json({ doctor });
+  const clinic = await Clinic.findById(doctor.clinicId).select("clinicName").lean();
+  return res.json({ doctor: { ...doctor.toObject(), clinicName: clinic?.clinicName } });
 });
 
 app.get("/api/doctor/appointments", protectDoctor, async (req, res) => {
@@ -1739,8 +1878,15 @@ app.post("/api/doctor/availability", protectDoctor, async (req, res) => {
     if (!Number.isInteger(day) || day < 0 || day > 6 || !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime || "") || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime || "") || startTime >= endTime || !Number.isInteger(slot) || slot < 10 || slot > 180) {
       return res.status(400).json({ message: "Enter a valid day, time range and slot duration." });
     }
-    const item = await Availability.create({ clinicId: req.clinicId, doctorId: req.doctorId, dayOfWeek: day, startTime, endTime, slotMinutes: slot, approved: false });
-    return res.status(201).json({ message: "Availability submitted for clinic approval.", availability: item });
+    const scope = { clinicId: req.clinicId, doctorId: req.doctorId, dayOfWeek: day };
+    const item = await mongoose.connection.transaction(async session => {
+      // Serialize schedule changes for this doctor, including first-time publication.
+      await Doctor.updateOne({ _id: req.doctorId, clinicId: req.clinicId }, { $inc: { __v: 1 } }, { session });
+      await Availability.deleteMany(scope, { session });
+      const [published] = await Availability.create([{ ...scope, startTime, endTime, slotMinutes: slot, approved: true }], { session });
+      return published;
+    });
+    return res.status(201).json({ message: "Availability published to patient booking.", availability: item });
   } catch (error) { console.error("Save availability error:", error); return res.status(500).json({ message: "Could not save availability." }); }
 });
 
@@ -2084,6 +2230,15 @@ app.post("/api/patient/appointments/:id/reschedule-request", protectPatient, asy
   } catch (e) { console.error("Reschedule request:", e); return res.status(500).json({ message: "Could not submit reschedule request." }); }
 });
 
+app.get("/api/patient/appointments/:id/confirmation", protectPatient, async (req, res) => {
+  const patient = await Patient.findById(req.patientId).select("email");
+  if (!patient || !mongoose.isValidObjectId(req.params.id)) return res.sendStatus(404);
+  const a = await Appointment.findOne({ _id: req.params.id, patientEmail: patient.email, status: "Confirmed" }).populate("clinicId", "clinicName location phone").populate("doctorId", "name specialization");
+  if (!a) return res.sendStatus(404);
+  const { html } = bookingMessage({ patientName: a.patientName, clinicName: a.clinicId?.clinicName, doctorName: a.doctorId?.name, specialty: a.doctorId?.specialization, location: a.clinicId?.location, clinicPhone: a.clinicId?.phone, date: a.date, time: a.time, bookingReference: a.bookingReference || a._id });
+  res.set("Cache-Control","no-store").type("application/pdf").send(await renderConfirmation(html));
+});
+
 app.get("/api/patient/appointments", protectPatient, async (req, res) => {
   try {
     const patient = await Patient.findById(req.patientId).select("email");
@@ -2092,13 +2247,9 @@ app.get("/api/patient/appointments", protectPatient, async (req, res) => {
     // have one. Assign and persist it once so refreshes never generate a new ID.
     for (const item of items) {
       if (!item.bookingReference) {
-        item.bookingReference = generateBookingReference();
-        try { await item.save(); }
-        catch (saveError) {
-          if (saveError.code !== 11000) throw saveError;
-          item.bookingReference = generateBookingReference();
-          await item.save();
-        }
+        const assigned = await withBookingReference(item.date, item.time, bookingReference =>
+          Appointment.findOneAndUpdate({ _id: item._id, bookingReference: null }, { $set: { bookingReference } }, { new: true }).select("bookingReference"));
+        item.bookingReference = assigned?.bookingReference || (await Appointment.findById(item._id).select("bookingReference"))?.bookingReference;
       }
     }
     return res.json(items);
@@ -2156,7 +2307,7 @@ app.patch("/api/appointments/:id/reschedule-request", protect, async (req, res) 
 // Razorpay order creation. Amount comes from the server-side doctor fee, never the browser.
 app.post("/api/payments/create-order", protectPatient, async (req, res) => {
   try {
-    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) return res.status(503).json({ message: "Razorpay is not configured on the server." });
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET || /your_|placeholder|xxxx/i.test(process.env.RAZORPAY_KEY_ID + process.env.RAZORPAY_KEY_SECRET)) return res.status(503).json({ message: "Online payment is unavailable. The clinic must configure a valid Razorpay key pair." });
     const patient = await Patient.findById(req.patientId).select("email fullName phone");
     const appointment = await Appointment.findOne({ _id: req.body?.appointmentId, patientEmail: patient?.email, status: "Confirmed" }).populate("doctorId", "fee name");
     if (!appointment) return res.status(404).json({ message: "Appointment not found." });
@@ -2245,11 +2396,13 @@ app.get("/api/patient/prescriptions", protectPatient, async (req, res) => {
   res.set("Cache-Control", "no-store").json(await DoctorClinicalNote.find({ appointmentId: { $in: visits }, patientEmail: patient.email, "medicines.0": { $exists: true } })
     .select("doctorId clinicId appointmentId medicines followUpDate").populate("doctorId", "name").populate("clinicId", "clinicName").populate("appointmentId", "date").sort({ updatedAt: -1 }));
 });
-require("./queue")(app, { Appointment, Patient, protectDoctor, protectPatient });
+require("./clinicBilling")(app, protect, Appointment, { Clinic, sendEmail: mailTransporter ? sendClinicPlanEmail : null });
+require("./homeLabs").registerLabRequests(app, { Clinic, listedClinics, protect, protectPatient });
 require("./reportReader").registerReports(app, { MedicalRecord, protectPatient, groq });
 const scheduling = require("./scheduling");
 const schedulingModels = { Clinic, Doctor, Availability, Appointment };
 const slotsFor = (...args) => scheduling.availableSlots(schedulingModels, ...args);
+require("./videoRequests")(app,{Doctor,Clinic,Patient,Appointment,protectDoctor,protectPatient,slotsFor,withBookingReference,sendAppointmentEmail});
 scheduling.register(app, schedulingModels, { protect, protectDoctor });
 
 app.use((error, req, res, next) => {
