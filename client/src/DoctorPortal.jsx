@@ -1,3 +1,4 @@
+import {EmailCode, ProfileFields, EditDoctor, JoinClinic} from "./DoctorMembership.jsx";
 import PortalNavigation from "./PortalNavigation.jsx";
 import VideoRequests from "./VideoRequests.jsx";
 import PlatformReview from "./PlatformReview.jsx";
@@ -16,6 +17,8 @@ const btn = "doctor-primary-button rounded-xl bg-blue-700 px-4 py-3 text-sm font
 export default function DoctorPortal({ onExit, onSelectRole }) {
   const [token, setToken] = useState(() => localStorage.getItem("medicall_doctor_token") || "");
   const [doctor, setDoctor] = useState(null);
+  const [register,setRegister]=useState(false);
+  const [emailCode,setEmailCode]=useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,8 +41,9 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
 
   const loadPortal = useCallback(async (authToken = token) => {
     const headers = { Authorization: `Bearer ${authToken}` };
-    const [me, appts, slots] = await Promise.all([
-      axios.get(`${API}/doctor/me`, { headers }),
+    const me=await axios.get(API+"/doctor/me",{headers});
+    if (!me.data.doctor.clinicId) {setDoctor(me.data.doctor);setAppointments([]);setAvailability([]);return;}
+    const [appts, slots] = await Promise.all([
       axios.get(`${API}/doctor/appointments`, { headers }),
       axios.get(`${API}/doctor/availability`, { headers }),
     ]);
@@ -77,6 +81,7 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
   async function login(e) {
     e.preventDefault(); setBusy(true); setError("");
     try {
+      if(register){ const fields=Object.fromEntries(new FormData(e.currentTarget)); await axios.post(API+"/doctor-auth/register",{...fields,email,password,emailCode});setRegister(false);setMessage("Account created. Sign in to join a clinic.");return;}
       const { data } = await axios.post(`${API}/doctor-auth/login`, { email, password });
       localStorage.setItem("medicall_doctor_token", data.token); setToken(data.token); setDoctor(data.doctor); setForgotPasswordOpen(false); setMessage("Doctor login successful.");
     } catch (err) { setError(err.response?.data?.message || "Could not sign in."); }
@@ -179,7 +184,7 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
       </section>
       <div className="mx-auto w-full max-w-md space-y-4">
       <form onSubmit={login} className="doctor-login-card w-full space-y-5 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-xl">
-        <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-700">MediCall AI · CARE, CONNECTED</p><h2 className="mt-2 text-3xl font-black text-slate-950">Welcome back</h2><p className="mt-2 text-sm text-slate-500">Sign in with the doctor account registered by your clinic.</p></div>
+        <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-700">MediCall AI · CARE, CONNECTED</p><h2 className="mt-2 text-3xl font-black text-slate-950">{register?"Create doctor account":"Welcome back"}</h2><p className="mt-2 text-sm text-slate-500">Use your registered email to access your workspace.</p></div>
         <div className="care-role-selector" role="group" aria-label="Choose your account type">
           <button type="button" onClick={() => onSelectRole?.("patient")}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Patient</span></button>
           <button type="button" aria-pressed="true" className="is-active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v5a5 5 0 0 0 10 0V3M5 3h4M15 3h4M12 13v2a5 5 0 0 0 10 0v-1M20 11v3"/></svg><span>Doctor</span></button>
@@ -188,7 +193,9 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
         {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         <label className="block text-sm font-semibold">Email address<input className={`${input} mt-2`} type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="doctor@clinic.com" /></label>
         <label className="block text-sm font-semibold">Password<span className="relative mt-2 block"><input className={`${input} pr-16`} type={showPassword ? "text" : "password"} minLength={8} required value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" /><button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showPassword ? "Hide" : "Show"}</button></span></label>
-        <button className={`${btn} w-full`} disabled={busy}>{busy ? "Signing in…" : "Sign in to doctor portal"}</button>
+        {message && <p role="status">{message}</p>}{register && <><ProfileFields/><EmailCode api={API} role="doctor" email={email} value={emailCode} onChange={setEmailCode}/></>}
+        <button className={btn} disabled={busy}>{busy?"Please wait…":register?"Create account":"Sign in to doctor portal"}</button>
+        <button type="button" onClick={()=>{setRegister(!register);setMessage("");setError("");setForgotPasswordOpen(false);}}>{register?"Already registered? Sign in":"Create a doctor account"}</button>
         <button type="button" onClick={() => setForgotPasswordOpen(true)} className="w-full text-sm font-bold text-teal-700 hover:text-teal-900">Forgot password?</button>
         <button type="button" onClick={onExit} className="w-full text-sm font-semibold text-slate-500">← Back to patient website</button>
       </form>
@@ -197,6 +204,7 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
     </main>
   );
 
+  if (!doctor.clinicId) return <JoinClinic api={API} token={token} doctor={doctor} refresh={loadPortal} logout={logout}/>;
   return (
     <div className="doctor-portal-layout">
       <aside className="doctor-portal-sidebar" aria-label="Doctor portal navigation">
@@ -218,6 +226,7 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
           <p>{[doctor.specialization, doctor.email].filter(Boolean).join(" · ")}</p>
         </div><div className="doctor-welcome-actions"><button type="button" onClick={() => loadPortal().catch((err) => setError(err.response?.data?.message || "Could not refresh your workspace."))}>Refresh</button><button type="button" onClick={logout}>Log out</button></div>
       </section>
+      <EditDoctor api={API} profile={doctor} save={async fields=>{await doctorApi.patch("/doctor/profile",fields);await loadPortal();}}/>
       <details id="doctor-settings" className="doctor-password-settings mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <summary className="cursor-pointer font-bold text-slate-800">Change my doctor portal password</summary>
         <div className="mt-4"><ChangePasswordPanel apiUrl={API} token={token} role="doctor" onChanged={() => { logout(); setError("Password changed. Sign in again using your new password."); }} /></div>

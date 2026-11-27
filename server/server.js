@@ -623,8 +623,10 @@ const doctorSchema = new Schema(
     clinicId: {
       type: Schema.Types.ObjectId,
       ref: "Clinic",
-      required: true,
+      default: null,
     },
+    requestedClinic: {type: Schema.Types.ObjectId, ref: "Clinic", default: null},
+    selfRegistered: {type: Boolean, default: false},
     name: {
       type: String,
       required: true,
@@ -907,23 +909,27 @@ async function protectPatient(req, res, next) {
   }
 }
 
-async function protectDoctor(req, res, next) {
+async function doctorIdentity(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return res.status(401).json({ message: "Please log in first." });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "doctor" || !decoded.doctorId || !decoded.clinicId) {
+    if (decoded.role !== "doctor" || !decoded.doctorId) {
       return res.status(403).json({ message: "Doctor access required." });
     }
-    const account = await Doctor.findOne({ _id: decoded.doctorId, clinicId: decoded.clinicId, isActive: true }).select("sessionVersion").lean();
+    const account = await Doctor.findOne({ _id: decoded.doctorId, isActive: true }).select("sessionVersion clinicId").lean();
     if (!account || Number(decoded.sessionVersion || 0) !== Number(account.sessionVersion || 0)) return res.status(401).json({ message: "Your session ended because the password changed or your clinic access was removed. Please sign in again." });
     req.doctorId = decoded.doctorId;
-    req.clinicId = decoded.clinicId;
+    req.clinicId = account.clinicId;
     return next();
   } catch {
     return res.status(401).json({ message: "Invalid or expired token." });
   }
+}
+
+function protectDoctor(req,res,next) {
+  return doctorIdentity(req,res,() => req.clinicId ? next() : res.status(403).json({message:"Join a clinic to access this section."}));
 }
 
 async function protect(req, res, next) {
@@ -999,7 +1005,9 @@ function validateAccountCredentials(req, res, next) {
   next();
 }
 
-app.post("/api/auth/register", validateAccountCredentials, async (req, res) => {
+const {setupVerification, verifySignup} = require("./signupVerification");
+setupVerification(app, message => process.env.GMAIL_REFRESH_TOKEN ? sendGmail(process.env.GMAIL_REFRESH_TOKEN, {...message, from:"MediCall AI <shubhamjoshi20060203@gmail.com>"}) : sendMediCallEmail(message));
+app.post("/api/auth/register", validateAccountCredentials, verifySignup("clinic"), async (req, res) => {
   try {
     const {
       clinicName,
@@ -1213,7 +1221,7 @@ app.patch("/api/clinic/profile", protect, async (req, res) => {
 });
 
 // ==================== PATIENT AUTHENTICATION ====================
-app.post("/api/patient-auth/register", validateAccountCredentials, async (req, res) => {
+app.post("/api/patient-auth/register", validateAccountCredentials, verifySignup("patient"), async (req, res) => {
   try {
     const fullName = String(req.body?.fullName || "").trim();
     const email = String(req.body?.email || "").toLowerCase().trim();
@@ -1836,6 +1844,7 @@ async function bookVisit(req, res, offline) {
   }
 }
 
+require("./doctorMembership")({app, Doctor, Clinic, doctorIdentity, protect, validateAccountCredentials, verifySignup});
 // ==================== DOCTOR AUTHENTICATION & PORTAL ====================
 app.post("/api/doctor-auth/login", validateAccountCredentials, async (req, res) => {
   try {
@@ -1846,14 +1855,14 @@ app.post("/api/doctor-auth/login", validateAccountCredentials, async (req, res) 
     if (!doctor || !doctor.password || !(await bcrypt.compare(password, doctor.password))) {
       return res.status(401).json({ message: "Invalid doctor email or password." });
     }
-    const token = jwt.sign({ role: "doctor", doctorId: doctor._id.toString(), clinicId: doctor.clinicId.toString(), sessionVersion: Number(doctor.sessionVersion || 0) }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ role: "doctor", doctorId: doctor._id.toString(), clinicId: doctor.clinicId?.toString(), sessionVersion: Number(doctor.sessionVersion || 0) }, process.env.JWT_SECRET, { expiresIn: "7d" });
     const clinic = await Clinic.findById(doctor.clinicId).select('clinicName').lean();
     return res.json({ token, doctor: { clinicName: clinic?.clinicName, id: doctor._id, name: doctor.name, email: doctor.email, specialization: doctor.specialization, fee: doctor.fee, createdAt: doctor.createdAt, clinicId: doctor.clinicId } });
   } catch (error) { console.error("Doctor login error:", error); return res.status(500).json({ message: "Doctor login failed." }); }
 });
 
-app.get("/api/doctor/me", protectDoctor, async (req, res) => {
-  const doctor = await Doctor.findOne({ _id: req.doctorId, clinicId: req.clinicId, isActive: true }).select("name email specialization fee clinicId createdAt");
+app.get("/api/doctor/me", doctorIdentity, async (req, res) => {
+  const doctor = await Doctor.findOne({ _id: req.doctorId, clinicId: req.clinicId, isActive: true }).select("name email specialization fee clinicId createdAt requestedClinic");
   if (!doctor) return res.status(404).json({ message: "Doctor account not found." });
   const clinic = await Clinic.findById(doctor.clinicId).select("clinicName").lean();
   return res.json({ doctor: { ...doctor.toObject(), clinicName: clinic?.clinicName } });
@@ -1980,7 +1989,7 @@ app.get("/api/doctors", protect, async (req, res) => {
       "Dr. Rajendra Sharma", "Dr. Aditi Verma", "Dr. Arjun Mehta",
       "Dr. Neha Kapoor", "Dr. Imran Khan", "Dr. Priya Singh",
     ];
-    const legacy = await Doctor.find({ clinicId: req.clinicId, name: { $in: legacyDemoNames } }).select("_id");
+    const legacy = await Doctor.find({ clinicId: req.clinicId, selfRegistered: { $ne: true }, email: { $exists: false }, name: { $in: legacyDemoNames } }).select("_id");
     if (legacy.length) {
       const legacyIds = legacy.map((item) => item._id);
       await Availability.deleteMany({ clinicId: req.clinicId, doctorId: { $in: legacyIds } });
@@ -2011,7 +2020,7 @@ app.patch("/api/doctors/:id/fee", protect, async (req, res) => {
 
 // ==================== ADD DOCTOR ====================
 
-app.post("/api/doctors", protect, async (req, res) => {
+app.post("/api/doctors", protect, verifySignup("doctor"), async (req, res) => {
   try {
     const { name, specialization, fee, email, password } = req.body || {};
 
@@ -2069,7 +2078,8 @@ app.delete("/api/doctors/:id", protect, async (req, res) => {
       return res.status(409).json({ message: `This doctor has ${linkedAppointments} upcoming confirmed appointment(s). Confirm removal to continue.`, requiresConfirmation: true, upcomingAppointments: linkedAppointments });
     }
     await Availability.deleteMany({ clinicId: req.clinicId, doctorId: doctor._id });
-    await Doctor.deleteOne({ _id: doctor._id, clinicId: req.clinicId });
+    if (doctor.selfRegistered) await Doctor.updateOne({_id:doctor._id, clinicId:req.clinicId}, {$set:{clinicId:null,requestedClinic:null,isActive:true},$inc:{sessionVersion:1}});
+    else await Doctor.deleteOne({ _id: doctor._id, clinicId: req.clinicId });
     return res.json({ message: `${doctor.name} was removed from your clinic team. Existing appointment history has been retained.` });
   } catch (error) {
     console.error("Remove doctor error:", error);
