@@ -1,3 +1,4 @@
+import PortalNavigation from "./PortalNavigation.jsx";
 import VideoRequests from "./VideoRequests.jsx";
 import PlatformReview from "./PlatformReview.jsx";
 import AppointmentCalendar from "./AppointmentCalendar.jsx";
@@ -7,6 +8,7 @@ import axios from "axios";
 import consultationPhoto from "./assets/clinic-consultation.jpg";
 
 const API = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000/api`;
+const doctorSections = [["overview","Dashboard","doctor-overview"],["appointments","Appointments","doctor-appointments"],["video","Video visits","doctor-video-visits"],["availability","Availability","doctor-availability"],["files","Patient files","doctor-appointments"],["settings","Settings","doctor-settings"]];
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const input = "w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50";
 const btn = "doctor-primary-button rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-50";
@@ -201,15 +203,14 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
         <div className="doctor-sidebar-brand"><span className="doctor-sidebar-mark">+</span><span><strong>MediCall AI</strong><small>{doctor.clinicName || "DOCTOR PORTAL"}</small></span></div>
         <p className="doctor-sidebar-label">WORKSPACE</p>
         <nav className="doctor-sidebar-nav">
-          {[["overview","Dashboard","doctor-overview"],["appointments","Appointments","doctor-appointments"],["video","Video visits","doctor-video-visits"],["availability","Availability","doctor-availability"],["files","Patient files","doctor-appointments"],["settings","Settings","doctor-settings"]].map(([key,label,id]) => <button key={key} type="button" aria-current={activeSection === key ? "page" : undefined} className={activeSection === key ? "is-active" : ""} onClick={() => navigateToSection(key,id)}><span aria-hidden="true">{({overview:"⌂",appointments:"▣",video:"◉",availability:"◷",files:"▤",settings:"⚙"})[key]}</span>{label}</button>)}
+          {doctorSections.map(([key,label,id]) => <button key={key} type="button" aria-current={activeSection === key ? "page" : undefined} className={activeSection === key ? "is-active" : ""} onClick={() => navigateToSection(key,id)}><span aria-hidden="true">{({overview:"⌂",appointments:"▣",video:"◉",availability:"◷",files:"▤",settings:"⚙"})[key]}</span>{label}</button>)}
         </nav>
         <div className="doctor-sidebar-profile"><span>{(doctor.name || "D").trim().charAt(0).toUpperCase()}</span><div><strong>{doctor.name}</strong><small>{doctor.specialization || "Doctor"}</small></div></div>
         <button type="button" className="doctor-sidebar-logout" onClick={logout}>↗ <span>Log out</span></button>
       </aside>
       <div className="doctor-portal-content">
-        <nav className="doctor-mobile-nav" aria-label="Doctor portal navigation">
-          {[["overview","Dashboard","doctor-overview"],["appointments","Appointments","doctor-appointments"],["video","Video visits","doctor-video-visits"],["availability","Availability","doctor-availability"],["files","Patient files","doctor-appointments"],["settings","Settings","doctor-settings"]].map(([key,label,id]) => <button key={key} type="button" aria-current={activeSection === key ? "page" : undefined} className={activeSection === key ? "is-active" : ""} onClick={() => navigateToSection(key,id)}>{label}</button>)}
-        </nav>
+        <PortalNavigation role="Doctor" value={activeSection} sections={doctorSections}
+            onChange={key => navigateToSection(key, doctorSections.find(([section]) => section === key)[2])} />
     <main className="doctor-dashboard mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <section id="doctor-overview" className="doctor-welcome">
         <div>{doctor.clinicName && <p className="doctor-welcome-clinic">{doctor.clinicName}</p>}
