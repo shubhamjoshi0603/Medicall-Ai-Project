@@ -1,0 +1,63 @@
+.app-shell {
+  --panel: #ffffff;
+  --panel-soft: #eff6f8;
+  --ink: #132c40;
+  --muted: #4c6575;
+  --line: #cbdce4;
+  --action: #08696c;
+  --accent: #76e3da;
+}
+.app-shell[data-theme="dark"] {
+  --panel: #102336;
+  --panel-soft: #193348;
+  --ink: #eaf4f9;
+  --muted: #b0c8d5;
+  --line: #345367;
+  --action: #87e8de;
+}
+.app-shell .workspace-panel {
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: clamp(1rem, 2.5vw, 1.6rem);
+  margin-block: 1rem;
+  box-shadow: 0 8px 26px #0c293b0b;
+  min-width: 0;
+}
+.workspace-panel header, .workspace-panel li, .workspace-panel footer, .assistant-tools {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .65rem;
+}
+.workspace-panel h3 { font-size: 1.15rem; font-weight: 750; letter-spacing: -.025em; }
+.workspace-panel h4 { margin-block: .8rem .35rem; font-weight: 700; }
+.workspace-panel p, .workspace-panel small { color: var(--muted); font-size: .85rem; line-height: 1.55; }
+.workspace-panel li { padding-block: .7rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.workspace-panel form { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%, 11rem),1fr)); align-items: end; gap: .8rem; margin-block: 1rem; }
+.workspace-panel label { display: grid; gap: .3rem; color: var(--muted); font-size: .8rem; font-weight: 650; }
+.workspace-panel :is(input,select,textarea), .assistant-tools select {
+  min-height: 44px; min-width: 0; width: 100%; padding: .5rem .7rem; border: 1px solid var(--line);
+  color: var(--ink); background: var(--panel); border-radius: .65rem;
+}
+.workspace-panel button, .assistant-tools button, .workspace-panel a {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: .65rem;
+  border: 1px solid var(--line); padding: .5rem .85rem; background: var(--panel-soft); color: var(--action); font-size: .8rem; font-weight: 700;
+}
+.workspace-panel button:hover, .assistant-tools button:hover { border-color: var(--action); }
+.workspace-panel button:disabled { opacity: .6; }
+.workspace-panel pre { max-height: 17rem; white-space: pre-wrap; overflow: auto; overflow-wrap: anywhere; padding: 1rem; }
+.workspace-panel iframe { border: 0; width: 100%; height: 17rem; border-radius: .75rem; }
+.workspace-panel [role="alert"] { border-inline-start: 3px solid #c57833; padding-inline-start: .65rem; }
+.assistant-tools { justify-content: flex-start; margin-top: .75rem; }
+.assistant-tools select { width: auto; }
+.insight-tiles { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(9rem,100%),1fr)); gap: .6rem; margin-block: 1rem; }
+.insight-tiles > div { display: grid; background: var(--panel-soft); border-radius: .8rem; padding: .9rem; }
+.insight-tiles strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.workspace-panel .specialty-bar { grid-template-columns: minmax(5rem, 1fr) 2fr auto; align-items: center; margin-block: .5rem; }
+.specialty-bar progress { width: 100%; accent-color: var(--action); }
+.app-shell :is(.patient-hero,.doctor-workspace-hero) { isolation: isolate; }
+.app-shell .doctor-summary-card, .app-shell .clinic-stat-card { font-variant-numeric: tabular-nums; }
+.app-shell .site-header { backdrop-filter: blur(12px); }
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-panel { animation: workspace-appear .18s ease-out; }
+  @keyframes workspace-appear { from { opacity: .65; transform: translateY(3px); } }
+}

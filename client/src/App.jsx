@@ -1,11 +1,37 @@
+import LoginHeader from "./LoginHeader.jsx";
+import { EmailCode, EditDoctor, TeamRequests } from "./DoctorMembership.jsx";
+import PortalNavigation from "./PortalNavigation.jsx";
+const clinicSections = [[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["offline-booking","Offline booking","plus"],["labs","Home lab tests","check"],["patients","Patients","user"],["team","Doctors & team","user"],["reports","Reports","check"],["settings","Clinic settings","plus"],["billing","Subscription","check"]];
+const patientSections = [["care","Find care"],["account","Dashboard"],["appointments","Appointments"],["health","Health"],["records","Medical records"],["labs","Home lab requests"],["updates","Updates"],["payments","Payments"],["profile","My profile"],["family","Family members"],["ai","AI assistant"]];
 
-import { useEffect, useRef, useState } from "react";
+import VideoRequests from "./VideoRequests.jsx";
+import PlatformReview, { PublicReviews } from "./PlatformReview.jsx";
+import "./careDesign.css";
+import NearbyCare from "./NearbyCare.jsx";
+import HomeLabs from "./HomeLabs.jsx";
+import OfflineBooking from "./OfflineBooking.jsx";
+import Prescriptions from "./Prescriptions.jsx";
+import "./workspace.css";
+import ClinicInsights from "./ClinicInsights.jsx";
+import AssistantControls from "./AssistantControls.jsx";
+import WorkspaceRegister from "./WorkspaceRegister.jsx";
+import ReportReader from "./ReportReader.jsx";
+import { SlotOptions } from "./SchedulingTools.jsx";
+import AppointmentCalendar from "./AppointmentCalendar.jsx";
+
+import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import axios from "axios";
-import DoctorPortal from "./DoctorPortal.jsx";
-import medicallLogo from "./assets/medicall-logo.svg";
 import medicallLogoDark from "./assets/medicall-logo-dark.svg";
-import healthcareHero from "./assets/healthcare-hero.svg";
+import lightLogo from "./assets/medicall-logo.svg";
 import clinicWorkspaceArt from "./assets/clinic-workspace.svg";
+
+const DoctorPortal = lazy(() => import("./DoctorPortal.jsx"));
+const CareTimeline = lazy(() => import("./CareTimeline.jsx"));
+const ForgotPasswordPanel = lazy(() => import("./PasswordSecurity.jsx").then((module) => ({ default: module.ForgotPasswordPanel })));
+const ResetPasswordPanel = lazy(() => import("./PasswordSecurity.jsx").then((module) => ({ default: module.ResetPasswordPanel })));
+const ChangePasswordPanel = lazy(() => import("./PasswordSecurity.jsx").then((module) => ({ default: module.ChangePasswordPanel })));
+const ClinicBilling = lazy(() => import("./ClinicBilling.jsx").then((module) => ({ default: module.default })));
+const PublicClinicPlans = lazy(() => import("./ClinicBilling.jsx").then((module) => ({ default: module.PublicClinicPlans })));
 
 const API =
   import.meta.env.VITE_API_URL ||
@@ -22,6 +48,15 @@ api.interceptors.request.use((config) => {
 function Icon({ name, size = 18, className = "" }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", className, "aria-hidden": true };
   const paths = {
+    care: <path d="M21 21l-5-5 M18 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0"/>,
+    account: <path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"/>,
+    appointments: <path d="M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4"/>,
+    health: <path d="M2 12h5l3-8 4 16 3-8h5"/>,
+    records: <path d="M6 3h9l4 4v14H6z M9 12h7 M9 16h5"/>,
+    labs: <path d="M9 3h6 M10 3v7L4 20h16l-6-10V3"/>,
+    updates: <path d="M5 17h14l-2-4V9a5 5 0 0 0-10 0v4z M10 20h4"/>,
+    payments: <path d="M3 5h18v14H3z M3 10h18"/>,
+    family: <path d="M3 20a6 6 0 0 1 12 0 M12 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0 M17 6a3 3 0 0 1 0 6 M17 15a5 5 0 0 1 5 5"/>,
     plus: <><path d="M12 5v14"/><path d="M5 12h14"/></>,
     spark: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/><path d="m19 14 1 2.5 2 1-2 1-1 2.5-1-2.5-2-1 2-1 1-2.5Z"/></>,
     mic: <><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11.5a7 7 0 0 0 14 0"/><path d="M12 18.5v3"/><path d="M8.5 21.5h7"/></>,
@@ -46,8 +81,32 @@ const emptyBooking = {
   reason: "",
 };
 
+function downloadCsv(filename, rows) {
+  if (!rows.length) return;
+  const escapeCell = (value) => {
+    const raw = String(value ?? "");
+    const safe = /^[=+@-]/.test(raw) ? `'${raw}` : raw;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+  const csv = rows.map((row) => row.map(escapeCell).join(",")).join("\r\n");
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export default function App() {
-  const [page, setPage] = useState("home");
+  const [emailCode,setEmailCode]=useState("");
+  const [teamCode,setTeamCode]=useState("");
+  const passwordResetParams = new URLSearchParams(window.location.search);
+  const passwordResetToken = passwordResetParams.get("passwordResetToken") || "";
+  const passwordResetRole = passwordResetParams.get("role") || "";
+  const [page, setPage] = useState(() => passwordResetToken ? "password-reset" : "home");
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const [theme, setTheme] = useState(() => {
     try {
@@ -60,7 +119,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem("medicall_theme", theme);
-    } catch {}
+    } catch { /* Ignore non-critical storage and cleanup failures. */ }
     document.documentElement.style.colorScheme = theme;
     document.documentElement.dataset.theme = theme;
     document.body.dataset.theme = theme;
@@ -70,6 +129,8 @@ export default function App() {
     try { return localStorage.getItem("medicall_selected_clinic") || ""; }
     catch { return ""; }
   });
+  const clinicRequest = useRef(0);
+  const [clinicLoadState, setClinicLoadState] = useState("loading");
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [booking, setBooking] = useState(emptyBooking);
@@ -91,7 +152,7 @@ export default function App() {
     },
   ]);
 
-  const [listening, setListening] = useState(false);
+  const [, setListening] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const voiceModeRef = useRef(false);
   const processingVoiceRef = useRef(false);
@@ -109,6 +170,7 @@ export default function App() {
     () => localStorage.getItem("medicall_token") || ""
   );
   const [authMode, setAuthMode] = useState("clinic-login");
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [patientToken, setPatientToken] = useState(() => localStorage.getItem("medicall_patient_token") || "");
   const [patient, setPatient] = useState(null);
   const [symptomQuery, setSymptomQuery] = useState("");
@@ -123,15 +185,52 @@ export default function App() {
     email: "",
     password: "",
   });
+  const authStory = authMode.startsWith("patient-") ? {
+    icon: "♥",
+    eyebrow: "PATIENT PORTAL · FREE ACCOUNT",
+    title: "Your care, made easier.",
+    description: "Find registered clinics, compare doctors, book appointments and keep track of your care from one free patient account.",
+    features: [
+      "Discover doctors and compare consultation fees",
+      "Book, manage and review your appointments",
+      "Keep prescriptions and clinic-shared reports together",
+    ],
+  } : {
+    icon: "+",
+    eyebrow: "CLINIC PORTAL · TEAM WORKSPACE",
+    title: "Run your clinic with confidence.",
+    description: "A dedicated workspace for your clinic team to coordinate schedules, appointments and day-to-day patient operations.",
+    features: [
+      "Manage online and walk-in appointments",
+      "Coordinate your doctors and availability",
+      "Review clinic reports, activity and payments",
+    ],
+  };
 
   const [clinicView, setClinicView] = useState("overview");
-  const [clinicProfileDraft, setClinicProfileDraft] = useState({ clinicName: "", adminName: "", email: "", aiAgentName: "MediCall AI", businessHours: [] });
+  const [clinicProfileDraft, setClinicProfileDraft] = useState({ clinicName: "", adminName: "", email: "", phone: "", aiAgentName: "MediCall AI", businessHours: [] });
   const [patientProfileEditing, setPatientProfileEditing] = useState(false);
   const [patientProfileDraft, setPatientProfileDraft] = useState({ fullName: "", email: "", phone: "" });
   const [adminClinic, setAdminClinic] = useState(null);
   const [stats, setStats] = useState({});
   const [appointments, setAppointments] = useState([]);
   const [patientAppointments, setPatientAppointments] = useState([]);
+  const [patientView, setPatientView] = useState("care");
+  const [patientClinicUpdates, setPatientClinicUpdates] = useState([]);
+  const [clinicUpdates, setClinicUpdates] = useState([]);
+  const [clinicUpdateDraft, setClinicUpdateDraft] = useState({ patientEmail: "", title: "", category: "Medical report", message: "", appointmentId: "" });
+  const [clinicUpdateFile, setClinicUpdateFile] = useState(null);
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [medicalRecords, setMedicalRecords] = useState([]);
+  const [patientReviews, setPatientReviews] = useState([]);
+  const [reviewDrafts, setReviewDrafts] = useState({});
+  const [assistantMessages, setAssistantMessages] = useState([]);
+  const [assistantInput, setAssistantInput] = useState("");
+  const [assistantBusy, setAssistantBusy] = useState(false);
+  const [familyDraft, setFamilyDraft] = useState({ fullName: "", relationship: "Child", dateOfBirth: "", phone: "" });
+  const [recordDraft, setRecordDraft] = useState({ title: "", category: "Prescription", familyMemberId: "", appointmentId: "" });
+  const [recordFile, setRecordFile] = useState(null);
+  const [patientModuleBusy, setPatientModuleBusy] = useState(false);
   const [showAllPatientAppointments, setShowAllPatientAppointments] = useState(false);
   const [clinicLocationDraft, setClinicLocationDraft] = useState({ address: "", latitude: "", longitude: "" });
   const [analytics, setAnalytics] = useState(null);
@@ -139,7 +238,9 @@ export default function App() {
   const [collectionModal, setCollectionModal] = useState(null);
   const [collectionMethod, setCollectionMethod] = useState("Cash");
   const [appointmentFilter, setAppointmentFilter] = useState("upcoming");
+  const [patientSearch, setPatientSearch] = useState("");
   const [adminDoctors, setAdminDoctors] = useState([]);
+  const [doctorSearch, setDoctorSearch] = useState("");
   const [availabilityRequests, setAvailabilityRequests] = useState([]);
   const [doctorForm, setDoctorForm] = useState({
     name: "",
@@ -186,6 +287,7 @@ export default function App() {
     return `${year}-${month}-${day}`;
   };
   const todayDateKey = dateKey(new Date());
+  const nextVisit = patientAppointments.filter(a => a.status === "Confirmed" && new Date(a.date + "T" + a.time) >= new Date()).sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
   const tomorrowDate = new Date();
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const tomorrowDateKey = dateKey(tomorrowDate);
@@ -234,7 +336,10 @@ export default function App() {
     return `${item.color} ${start}% ${end}%`;
   }).join(", ")})`;
 
-  const filteredClinicAppointments = appointments.filter((item) => {
+  const [scheduleDoctor, setScheduleDoctor] = useState("");
+  const [offlineOnly, setOfflineOnly] = useState(false);
+  const schedule = appointments.filter(item => (!scheduleDoctor || item.doctorId?._id === scheduleDoctor) && (!offlineOnly || item.bookingSource === "Offline"));
+  const filteredClinicAppointments = schedule.filter((item) => {
     if (appointmentFilter === "today") return item.status === "Confirmed" && item.date === todayDateKey;
     if (appointmentFilter === "tomorrow") return item.status === "Confirmed" && item.date === tomorrowDateKey;
     if (appointmentFilter === "later") return item.status === "Confirmed" && item.date > tomorrowDateKey;
@@ -244,14 +349,40 @@ export default function App() {
     return item.status === "Confirmed" && item.date >= todayDateKey;
   });
 
+  const clinicPatients = Object.values(appointments.reduce((groups, item) => {
+    const identity = String(item.patientEmail || item.phone || item._id).trim().toLowerCase();
+    if (!groups[identity]) groups[identity] = { identity, patientName: item.patientName || "Patient", email: item.patientEmail || "", phone: item.phone || "", appointments: [] };
+    groups[identity].appointments.push(item);
+    return groups;
+  }, {})).map((patientRecord) => {
+    const history = [...patientRecord.appointments].sort((a, b) => `${b.date || ""} ${b.time || ""}`.localeCompare(`${a.date || ""} ${a.time || ""}`));
+    return { ...patientRecord, totalVisits: history.length, completedVisits: history.filter((item) => item.status === "Completed").length, upcomingVisits: history.filter((item) => item.status === "Confirmed" && item.date >= todayDateKey).length, lastAppointment: history[0]?.date || "—" };
+  }).sort((a, b) => a.patientName.localeCompare(b.patientName));
+
+  const filteredClinicPatients = clinicPatients.filter((item) => {
+    const query = patientSearch.trim().toLowerCase();
+    return !query || [item.patientName, item.email, item.phone].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+
+  const clinicTeamDoctors = adminDoctors.filter((doctor) => [doctor.name, doctor.specialization, doctor.email].some((value) => String(value || "").toLowerCase().includes(doctorSearch.trim().toLowerCase())));
+  const doctorWorkload = adminDoctors.map((doctor) => {
+    const doctorAppointments = appointments.filter((item) => String(item.doctorId?._id || item.doctorId || "") === String(doctor._id));
+    return { ...doctor, totalAppointments: doctorAppointments.length, upcomingAppointments: doctorAppointments.filter((item) => item.status === "Confirmed" && item.date >= todayDateKey).length, completedAppointments: doctorAppointments.filter((item) => item.status === "Completed").length };
+  }).sort((a, b) => b.totalAppointments - a.totalAppointments);
+
+  const loadInitialClinic = useEffectEvent(() => loadClinic(localStorage.getItem("medicall_selected_clinic") || ""));
   useEffect(() => {
-    loadClinic(localStorage.getItem("medicall_selected_clinic") || "");
+    if (page !== "patient-dashboard" || ["care", "labs", "booking"].includes(patientView)) loadInitialClinic();
+  }, [page, patientView]);
+  const loadPatientData = useEffectEvent(() => Promise.all([loadPatientAppointments(), loadPatientModules()]));
+
+  useEffect(() => {
     return () => {
       try {
         if (mediaRecorderRef.current?.state === "recording") {
           mediaRecorderRef.current.stop();
         }
-      } catch {}
+      } catch { /* Ignore non-critical storage and cleanup failures. */ }
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current);
       audioContextRef.current?.close?.();
@@ -267,7 +398,7 @@ export default function App() {
   useEffect(() => {
     if (!patientToken) return;
     axios.get(`${API}/patient-auth/me`, { headers: { Authorization: `Bearer ${patientToken}` } })
-      .then(({ data }) => { setPatient(data.patient); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientAppointments(); })
+      .then(({ data }) => { setPatient(data.patient); setPatientProfileEditing(false); setPatientProfileDraft({ fullName: data.patient.fullName || "", email: data.patient.email || "", phone: data.patient.phone || "" }); setBooking((old) => ({ ...old, patientName: old.patientName || data.patient.fullName, patientEmail: old.patientEmail || data.patient.email, phone: old.phone || data.patient.phone })); loadPatientData(); })
       .catch(() => { localStorage.removeItem("medicall_patient_token"); setPatientToken(""); setPatient(null); });
   }, [patientToken]);
 
@@ -296,10 +427,14 @@ export default function App() {
   }, [token, page, clinicView]);
 
   async function loadClinic(clinicId = "") {
+    const request = ++clinicRequest.current;
+    setClinicLoadState("loading");
     try {
       const { data } = await axios.get(`${API}/public/clinics`, {
         params: clinicId ? { clinicId } : {},
       });
+      if (request !== clinicRequest.current) return;
+      setClinicLoadState(data.clinics?.length ? "ready" : "empty");
       setClinics(data.clinics || []);
       setClinic(data.clinic || null);
       setDoctors(data.doctors || []);
@@ -309,16 +444,18 @@ export default function App() {
           ? previous.doctorId : (data.doctors?.[0]?._id || ""),
         patientEmail: previous.patientEmail || patient?.email || "",
       }));
+      return data;
     } catch (err) {
-      if (clinicId) {
-        try { localStorage.removeItem("medicall_selected_clinic"); } catch {}
+      if (request !== clinicRequest.current) return;
+      if (clinicId && err.response?.status === 404) {
+        try { localStorage.removeItem("medicall_selected_clinic"); } catch { /* Ignore non-critical storage and cleanup failures. */ }
         setSelectedClinicId("");
         setClinic(null);
         setDoctors([]);
         await loadClinic("");
         return;
       }
-      setClinics([]); setClinic(null); setDoctors([]);
+      setClinicLoadState(err.response?.status === 404 ? "empty" : "error");
       console.error("Clinic loading failed:", err.message);
     }
   }
@@ -330,19 +467,44 @@ export default function App() {
     try {
       if (clinicId) localStorage.setItem("medicall_selected_clinic", clinicId);
       else localStorage.removeItem("medicall_selected_clinic");
-    } catch {}
+    } catch { /* Ignore non-critical storage and cleanup failures. */ }
     setBooking((previous) => ({ ...previous, doctorId: "" }));
-    await loadClinic(clinicId);
+    return await loadClinic(clinicId);
+  }
+
+  async function sendClinicUpdate(event) {
+    event.preventDefault();
+    if (!clinicUpdateDraft.patientEmail || !clinicUpdateDraft.title.trim()) { setError("Choose a patient and enter a report title."); return; }
+    const formData = new FormData();
+    Object.entries(clinicUpdateDraft).forEach(([key, value]) => { if (value !== "") formData.append(key, value); });
+    if (clinicUpdateFile) formData.append("file", clinicUpdateFile);
+    setPatientModuleBusy(true);
+    try {
+      const { data } = await api.post("/clinic/patient-updates", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      setClinicUpdates((items) => [data.update, ...items]);
+      setClinicUpdateDraft({ patientEmail: "", title: "", category: "Medical report", message: "", appointmentId: "" });
+      setClinicUpdateFile(null); event.target.reset();
+      setNotice(data.message || "Report shared with the patient.");
+    } catch (err) { setError(err.response?.data?.message || "Could not share this report."); }
+    finally { setPatientModuleBusy(false); }
+  }
+
+  async function downloadClinicUpdate(update) {
+    try {
+      const { data } = await axios.get(API + "/patient/clinic-updates/" + update._id + "/download", { headers: { Authorization: "Bearer " + patientToken }, responseType: "blob" });
+      const url = URL.createObjectURL(data); const link = document.createElement("a");
+      link.href = url; link.download = update.fileName || "clinic-report";
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) { setError(err.response?.data?.message || "Could not download clinic report."); }
   }
 
   async function loadDashboard() {
     try {
-      const [me, stat, appt, doc, analyticsResponse] = await Promise.all([
-        api.get("/auth/me"),
-        api.get("/dashboard/stats"),
-        api.get("/appointments"),
-        api.get("/doctors"),
+      const [me, stat, appt, doc, analyticsResponse, updatesResponse] = await Promise.all([
+        api.get("/auth/me"), api.get("/dashboard/stats"), api.get("/appointments"), api.get("/doctors"),
         api.get("/dashboard/analytics").catch(() => ({ data: null })),
+        api.get("/clinic/patient-updates").catch(() => ({ data: [] })),
       ]);
 
       setAdminClinic(me.data.clinic);
@@ -350,6 +512,7 @@ export default function App() {
         clinicName: me.data.clinic?.clinicName || "",
         adminName: me.data.clinic?.adminName || "",
         email: me.data.clinic?.email || "",
+        phone: me.data.clinic?.phone || "",
         aiAgentName: me.data.clinic?.aiAgentName || "MediCall AI",
         businessHours: (me.data.clinic?.businessHours?.length ? me.data.clinic.businessHours : [0,1,2,3,4,5,6].map((dayOfWeek) => ({ dayOfWeek, isOpen: dayOfWeek !== 0, openTime: "09:00", closeTime: "17:00" }))).map((item) => ({ ...item })),
       });
@@ -362,6 +525,7 @@ export default function App() {
       setAppointments(appt.data);
       setAdminDoctors(doc.data);
       setAnalytics(analyticsResponse.data);
+      setClinicUpdates(updatesResponse.data || []);
       const availabilityResponse = await api.get("/availability").catch(() => ({ data: [] }));
       setAvailabilityRequests(availabilityResponse.data);
     } catch (err) {
@@ -390,26 +554,34 @@ export default function App() {
         ? `/patient-auth/${isRegister ? "register" : "login"}`
         : `/auth/${isRegister ? "register" : "login"}`;
       const payload = isPatient ? patientAuth : auth;
-      const { data } = await axios.post(`${API}${endpoint}`, payload);
+      if (isPatient && isRegister && !/^\d{10}$/.test(payload.phone.trim())) {
+        setError("Enter a valid 10-digit mobile number.");
+        return;
+      }
+      const { data } = await axios.post(`${API}${endpoint}`, isRegister ? {...payload,emailCode} : payload);
 
       if (isPatient) {
         localStorage.setItem("medicall_patient_token", data.token);
         setPatientToken(data.token);
         setPatient(data.patient);
+        setPatientView("care");
         setPage("patient-dashboard");
         setTimeout(() => loadPatientAppointments(), 0);
-        setNotice(isRegister ? "Patient account created successfully." : "Patient login successful.");
+        setForgotPasswordOpen(false);
+        setNotice(isRegister ? data.emailSent ? "Patient account created successfully. A welcome email was sent to your Gmail inbox." : "Patient account created successfully, but the welcome email could not be sent. You can sign in with your registered email." : "Patient login successful.");
       } else {
         setNotice("");
         localStorage.setItem("medicall_token", data.token);
         setToken(data.token);
         setAdminClinic(data.clinic);
+        if (isRegister) setClinicView("billing");
         setPage("dashboard");
-        setNotice(isRegister ? "Clinic account created successfully." : "Clinic login successful.");
+        setForgotPasswordOpen(false);
+        setNotice(isRegister ? data.emailSent ? "Clinic account created. A welcome email with your Free plan details was sent." : "Clinic account created, but the welcome email could not be sent. You can sign in with your registered email." : "Clinic login successful.");
         await loadClinic();
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Authentication failed.");
+      setError(err.response?.data?.message || (err.response ? "The server could not complete your request. Please try again." : "Unable to reach MediCall. Check your connection and try again."));
     } finally {
       setBusy(false);
     }
@@ -503,14 +675,6 @@ export default function App() {
   async function sendChat(e) {
     e?.preventDefault();
     await sendMessage(chatInput, false);
-  }
-
-  function stopRecording() {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state === "recording") {
-      recorder.stop();
-      setNotice("I heard you. Preparing a reply…");
-    }
   }
 
   function stopVoiceConversation() {
@@ -612,7 +776,7 @@ export default function App() {
         silenceIntervalRef.current = null;
         stream.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
-        try { await audioContextRef.current?.close?.(); } catch {}
+        try { await audioContextRef.current?.close?.(); } catch { /* Ignore non-critical storage and cleanup failures. */ }
         audioContextRef.current = null;
         setListening(false);
 
@@ -644,7 +808,7 @@ export default function App() {
           }
         } catch (err) {
           console.error("Transcription error:", err.response?.data || err.message);
-          setError(err.response?.data?.message || "Voice transcription failed. Check the Sarvam API key.");
+          stopVoiceConversation(); setNotice(""); setError(err.response?.data?.message || "Voice recognition is unavailable. You can type your message.");
         } finally {
           processingVoiceRef.current = false;
           setChatLoading(false);
@@ -697,7 +861,7 @@ export default function App() {
 
   async function speak(text, waitForEnd = false, languageCodeOverride = "") {
     try {
-      const englishOnly = /^[\x00-\x7F]*$/.test(text) && /\b(the|and|your|please|how|what|would|appointment|doctor|hello|thank)\b/i.test(text);
+      const englishOnly = Array.from(String(text || "")).every((character) => character.codePointAt(0) <= 127) && /\b(the|and|your|please|how|what|would|appointment|doctor|hello|thank)\b/i.test(text);
       const { data } = await axios.post(`${API}/tts`, {
         text: String(text || "").slice(0, 2500),
         languageCode: languageCodeOverride || (englishOnly ? "en-IN" : "hi-IN"),
@@ -719,7 +883,7 @@ export default function App() {
       }
     } catch (error) {
       console.error("Sarvam voice playback failed:", error.response?.data || error.message);
-      setError(error.response?.data?.message || "Natural voice playback failed. Check SARVAM_API_KEY.");
+      setError(error.response?.data?.message || "Voice playback is unavailable. You can read the reply in chat.");
     }
   }
 
@@ -733,7 +897,7 @@ export default function App() {
         ...doctorForm,
         fee: Number(doctorForm.fee),
         email: doctorForm.email.trim(),
-        password: doctorForm.password,
+        password: doctorForm.password, emailCode:teamCode,
       });
 
       setDoctorForm({
@@ -862,12 +1026,147 @@ export default function App() {
     } catch (err) { setError(err.response?.data?.message || "Could not load patient appointments."); }
   }
 
+  async function loadPatientModules() {
+    if (!patientToken) return;
+    const headers = { Authorization: "Bearer " + patientToken };
+    try {
+      const [familyResult, recordsResult, reviewsResult, updatesResult] = await Promise.all([
+        axios.get(API + "/patient/family", { headers }),
+        axios.get(API + "/patient/records", { headers }),
+        axios.get(API + "/patient/reviews", { headers }),
+        axios.get(API + "/patient/clinic-updates", { headers }),
+      ]);
+      setFamilyMembers(familyResult.data || []);
+      setMedicalRecords(recordsResult.data || []);
+      setPatientReviews(reviewsResult.data || []);
+      setPatientClinicUpdates(updatesResult.data || []);
+    } catch (err) { setError(err.response?.data?.message || "Could not load your health records."); }
+  }
+
+  async function saveFamilyMember(event) {
+    event.preventDefault();
+    if (!patientToken) return;
+    setPatientModuleBusy(true);
+    try {
+      const response = await axios.post(API + "/patient/family", familyDraft, { headers: { Authorization: "Bearer " + patientToken } });
+      setFamilyMembers((items) => [response.data.member, ...items]);
+      setFamilyDraft({ fullName: "", relationship: "Child", dateOfBirth: "", phone: "" });
+      setNotice(response.data.message || "Family member added.");
+    } catch (err) { setError(err.response?.data?.message || "Could not add family member."); }
+    finally { setPatientModuleBusy(false); }
+  }
+
+  async function removeFamilyMember(member) {
+    if (!window.confirm("Remove " + member.fullName + " and their linked medical records?")) return;
+    try {
+      const response = await axios.delete(API + "/patient/family/" + member._id, { headers: { Authorization: "Bearer " + patientToken } });
+      setFamilyMembers((items) => items.filter((item) => item._id !== member._id));
+      await loadPatientModules();
+      setNotice(response.data.message || "Family member removed.");
+    } catch (err) { setError(err.response?.data?.message || "Could not remove family member."); }
+  }
+
+  async function uploadMedicalRecord(event) {
+    event.preventDefault();
+    if (!recordFile || !recordDraft.title.trim()) { setError("Add a document title and choose a PDF, JPG or PNG file."); return; }
+    const formData = new FormData();
+    formData.append("file", recordFile);
+    formData.append("title", recordDraft.title);
+    formData.append("category", recordDraft.category);
+    if (recordDraft.familyMemberId) formData.append("familyMemberId", recordDraft.familyMemberId);
+    if (recordDraft.appointmentId) formData.append("appointmentId", recordDraft.appointmentId);
+    setPatientModuleBusy(true);
+    try {
+      const response = await axios.post(API + "/patient/records", formData, { headers: { Authorization: "Bearer " + patientToken, "Content-Type": "multipart/form-data" } });
+      setMedicalRecords((items) => [response.data.record, ...items]);
+      setRecordDraft({ title: "", category: "Prescription", familyMemberId: "", appointmentId: "" });
+      setRecordFile(null);
+      event.target.reset();
+      setNotice(response.data.message || "Medical document saved.");
+    } catch (err) { setError(err.response?.data?.message || "Could not upload medical document."); }
+    finally { setPatientModuleBusy(false); }
+  }
+
+  async function downloadMedicalRecord(record) {
+    try {
+      const response = await axios.get(API + "/patient/records/" + record._id + "/download", { headers: { Authorization: "Bearer " + patientToken }, responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url; link.download = record.fileName || "medical-record";
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) { setError(err.response?.data?.message || "Could not download medical document."); }
+  }
+
+  async function submitPatientReview(appointmentId) {
+    const draft = reviewDrafts[appointmentId] || { rating: 5, comment: "" };
+    try {
+      const response = await axios.post(API + "/patient/reviews", { appointmentId, rating: Number(draft.rating), comment: draft.comment }, { headers: { Authorization: "Bearer " + patientToken } });
+      setPatientReviews((items) => [response.data.review, ...items]);
+      setNotice(response.data.message || "Review saved.");
+    } catch (err) { setError(err.response?.data?.message || "Could not save review."); }
+  }
+
+
+  async function askPatientAssistant(event) {
+    event.preventDefault();
+    const question = assistantInput.trim();
+    if (!question || assistantBusy) return;
+    setAssistantMessages((items) => [...items, { role: "user", text: question }]);
+    setAssistantInput("");
+    setAssistantBusy(true);
+    try {
+      const response = await axios.post(API + "/patient/assistant", { message: question }, { headers: { Authorization: "Bearer " + patientToken } });
+      setAssistantMessages((items) => [...items, { role: "assistant", text: response.data.answer }]);
+    } catch (err) {
+      setAssistantMessages((items) => [...items, { role: "assistant", text: err.response?.data?.message || "The assistant is temporarily unavailable." }]);
+    } finally { setAssistantBusy(false); }
+  }
+
+  async function deleteMedicalRecord(record) {
+    if (!window.confirm("Delete " + record.title + "?")) return;
+    try {
+      const response = await axios.delete(API + "/patient/records/" + record._id, { headers: { Authorization: "Bearer " + patientToken } });
+      setMedicalRecords((items) => items.filter((item) => item._id !== record._id));
+      setNotice(response.data.message || "Medical document deleted.");
+    } catch (err) { setError(err.response?.data?.message || "Could not delete medical document."); }
+  }
+
+  function printPaymentInvoice(appointment) {
+    const popup = window.open("", "_blank", "width=760,height=850");
+    if (!popup) { setError("Allow pop-ups to print or save your invoice."); return; }
+    const bookingId = appointment.bookingReference || appointment._id;
+    const amount = Number(appointment.paymentAmount || appointment.doctorId?.fee || 0);
+    const rows = [
+      ["Receipt / Booking ID", bookingId],
+      ["Patient", patient?.fullName || appointment.patientName],
+      ["Clinic", appointment.clinicId?.clinicName || "MediCall clinic"],
+      ["Doctor", appointment.doctorId?.name || "Doctor"],
+      ["Appointment", appointment.date + " at " + appointment.time],
+      ["Payment method", appointment.paymentMethod || "Online"],
+      ["Payment status", appointment.paymentStatus],
+    ];
+    const rowHtml = rows.map((row) => "<tr><td>" + row[0] + "</td><td>" + String(row[1] || "").replace(/[&<>]/g, "") + "</td></tr>").join("");
+    popup.document.write("<!doctype html><html><head><title>MediCall receipt</title><style>body{font:15px Arial;color:#172033;padding:40px;max-width:720px;margin:auto}h1{color:#0f766e}table{width:100%;border-collapse:collapse;margin-top:28px}td{padding:13px;border-bottom:1px solid #ddd}.total{font-size:22px;font-weight:bold;text-align:right;margin-top:28px}</style></head><body><h1>MediCall AI</h1><p>Payment receipt</p><table>" + rowHtml + "</table><p class='total'>Total paid: ₹" + amount.toLocaleString("en-IN") + "</p><script>window.onload=function(){window.print()}</script></body></html>");
+    popup.document.close();
+  }
+
   async function cancelPatientAppointment(id) {
     try {
       const { data } = await axios.patch(`${API}/patient/appointments/${id}/cancel`, {}, { headers: { Authorization: `Bearer ${patientToken}` } });
       setNotice(data.message + (data.emailSent ? " Cancellation email sent." : " Email could not be sent; SMTP may not be configured."));
       await loadPatientAppointments();
     } catch (err) { setError(err.response?.data?.message || "Could not cancel appointment."); }
+  }
+
+  async function removeCancelledPatientAppointment(id) {
+    const confirmed = window.confirm("Remove this cancelled appointment from your patient account? It will remain in the clinic's records and cannot be restored from your account.");
+    if (!confirmed) return;
+    try {
+      const { data } = await axios.patch(`${API}/patient/appointments/${id}/remove`, {}, { headers: { Authorization: `Bearer ${patientToken}` } });
+      setNotice(data.message || "Cancelled appointment removed from your account.");
+      await loadPatientAppointments();
+    } catch (err) { setError(err.response?.data?.message || "Could not remove this appointment."); }
   }
 
   async function requestReschedule(id) {
@@ -896,6 +1195,8 @@ export default function App() {
   function logout() {
     localStorage.removeItem("medicall_token");
     setToken("");
+    setScheduleDoctor("");
+    setOfflineOnly(false);
     setAdminClinic(null);
     setPage("home");
     setNotice("Clinic admin logged out.");
@@ -905,6 +1206,8 @@ export default function App() {
     localStorage.removeItem("medicall_patient_token");
     setPatientToken("");
     setPatient(null);
+    setPatientView("account");
+    setPatientClinicUpdates([]);
     setPage("home");
     setNotice("Patient logged out successfully.");
   }
@@ -916,30 +1219,31 @@ export default function App() {
     "rounded-xl bg-teal-700 px-5 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <div data-theme={theme} className="app-shell min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800">
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/70 bg-white/90 px-4 py-3 shadow-[0_8px_30px_rgba(15,42,58,0.06)] backdrop-blur-2xl sm:px-6 lg:px-12">
+    <div data-page={page} data-theme={theme} className="app-shell min-h-screen overflow-x-clip bg-[#f8fafc] text-slate-800">
+      <header style={{ background: "linear-gradient(105deg, #071426 0%, #102b43 58%, #075c64 100%)", color: "#f1f7ff", borderColor: "#345173" }} className="site-header sticky top-0 z-50 flex items-center justify-between border-b px-4 py-3 shadow-lg backdrop-blur-2xl sm:px-6 lg:px-12">
         <button
           onClick={() => setPage("home")}
           className="flex items-center text-lg font-extrabold tracking-tight sm:text-xl"
         >
-          <img src={theme === "dark" ? medicallLogoDark : medicallLogo} alt="MediCall AI — Care, connected" className="h-11 w-auto sm:h-12" />
+          <img src={page === "home" && theme === "light" ? lightLogo : medicallLogoDark} alt="MediCall AI — Care, connected" className="h-11 w-auto sm:h-12" />
         </button>
 
         <nav className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
-          <button onClick={() => { setPage("home"); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-800">Home</button>
+          <button data-header-action="solid" onClick={() => { setPage("home"); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold transition">Home</button>
           {token ? <>
             <button className="rounded-xl bg-gradient-to-r from-teal-700 to-cyan-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-teal-700/20 transition hover:-translate-y-0.5 hover:shadow-xl" onClick={() => { setPage("dashboard"); setLoginMenuOpen(false); }}>Clinic dashboard</button>
-            <button onClick={() => { logout(); setLoginMenuOpen(false); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
+            <button data-header-action="solid" onClick={() => { logout(); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold">Log out</button>
           </> : patientToken ? <>
             <button className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800" onClick={() => { setPage("patient-dashboard"); setLoginMenuOpen(false); }}>My account</button>
-            <button onClick={() => { patientLogout(); setLoginMenuOpen(false); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold hover:bg-slate-50">Log out</button>
+            <button data-header-action="solid" onClick={() => { patientLogout(); setLoginMenuOpen(false); }} className="rounded-xl px-3 py-2.5 text-sm font-semibold">Log out</button>
           </> : null}
           <button
             type="button"
             onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
             aria-label={theme === "light" ? "Switch to dark theme" : "Switch to warm light theme"}
             title={theme === "light" ? "Switch to dark theme" : "Switch to warm light theme"}
-            className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
+            data-header-action="theme"
+            className="grid h-10 w-10 place-items-center rounded-xl shadow-sm transition focus:outline-none focus:ring-4 focus:ring-teal-100"
           >
             {theme === "light" ? (
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -952,7 +1256,7 @@ export default function App() {
               </svg>
             )}
           </button>
-          <div className="relative">
+          {!token && !patientToken && <div className="relative">
             <button
               type="button"
               aria-haspopup="true"
@@ -1001,158 +1305,148 @@ export default function App() {
                 </button>
               </div>
             )}
-          </div>
+          </div>}
         </nav>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 pt-4">
+      <div className={`portal-feedback ${["patient-dashboard", "dashboard"].includes(page) ? "with-sidebar" : ""}`}>
         {notice && page !== "doctor-portal" && (
-          <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">
+          <div role="status" className="portal-message">
             {notice}
           </div>
         )}
 
         {error && (
-          <div className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+          <div role="alert" className="portal-message error">
             {error}
           </div>
         )}
       </div>
 
+      {page === "password-reset" && <Suspense fallback={<p className="p-8 text-center text-sm text-slate-500">Loading secure password reset…</p>}><ResetPasswordPanel apiUrl={API} token={passwordResetToken} role={passwordResetRole} onComplete={() => {
+        window.history.replaceState({}, "", window.location.pathname);
+        if (passwordResetRole !== "doctor") setAuthMode(passwordResetRole === "patient" ? "patient-login" : "clinic-login");
+        setForgotPasswordOpen(false);
+        setNotice("Password reset successfully. Sign in with your new password.");
+        setPage(passwordResetRole === "doctor" ? "doctor-portal" : "auth");
+      }} /></Suspense>}
+
       {page === "home" && (
-        <main className="mx-auto max-w-[1400px] px-4 py-7 sm:px-6 md:py-10 lg:px-10">
-          <section className="relative grid items-center gap-10 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-sm sm:p-9 md:grid-cols-2 md:p-12 lg:p-16">
+        <main className="booking-landing">
+          <section className="booking-hero">
+            <div className="booking-hero-layout">
+              <div className="booking-hero-copy">
+                <p className="booking-hero-eyebrow"><span aria-hidden="true"></span>CARE, CONNECTED</p>
+                <h1>Book the right doctor in minutes, <em>not phone calls.</em></h1>
+                <p>Tell MediCall AI what kind of care you need. Find registered clinics, compare doctors and choose from real appointment availability.</p>
+                <div className="booking-links">
+                  <button onClick={() => { setPatientView("care"); setAuthMode("patient-login"); setPage(patientToken ? "patient-dashboard" : "auth"); }}>Find care <Icon name="arrow"/></button>
+                  <a href="#how-it-works">See how it works</a>
+                  <button type="button" className="booking-plan-link" onClick={() => setPage("subscriptions")}>Explore subscriptions</button>
+                </div>
+                <div className="booking-trust-note"><span><Icon name="check" size={16}/></span>Patients, doctors and clinic teams share one appointment record.</div>
+              </div>
+              <aside className="assistant-preview" aria-label="MediCall AI booking assistant preview">
+                <div className="assistant-preview-top">
+                  <span className="assistant-preview-mark"><Icon name="spark" size={18}/></span>
+                  <span><strong>MediCall AI assistant</strong><small>Care, connected</small></span>
+                  <span className="assistant-preview-label">PREVIEW</span>
+                </div>
+                <div className="assistant-preview-chat">
+                  <p className="assistant-chat-patient">I need help finding the right doctor.</p>
+                  <div className="assistant-chat-answer"><span className="assistant-chat-avatar"><Icon name="spark" size={15}/></span><p>Choose a registered clinic to explore its doctors, consultation fees and current appointment slots.</p></div>
+                </div>
+                <div className="assistant-preview-doctors">
+                  <div><span className="assistant-doctor-icon"><Icon name="user" size={18}/></span><span><strong>Find a specialist</strong><small>Compare doctors and clinics</small></span></div>
+                  <span className="assistant-live-dot">Live availability</span>
+                </div>
+                <button type="button" className="assistant-preview-action" onClick={() => { setPatientView("care"); setAuthMode("patient-login"); setPage(patientToken ? "patient-dashboard" : "auth"); }}>Explore registered clinics <Icon name="arrow" size={16}/></button>
+              </aside>
+            </div>
+          </section>          <section id="how-it-works" className="booking-section how-it-works-section">
+            <p className="booking-section-eyebrow">HOW IT WORKS</p>
+            <h2>From finding a doctor to following up</h2>
+            <div className="booking-steps">
+              <article><span>01</span><h3>Ask or search</h3><p>Describe your problem in plain words, or browse specialists and compare consultation fees.</p></article>
+              <article><span>02</span><h3>Book a slot</h3><p>Pick a time, pay online or at the clinic, and see it on your appointment calendar.</p></article>
+              <article><span>03</span><h3>Follow up</h3><p>Reports, clinic notes and lab results stay together, ready for your next visit.</p></article>
+            </div>
+          </section>
+          <section id="platform-features" className="booking-section features-section">
+            <p className="booking-section-eyebrow">FEATURES</p>
+            <h2>Everything for one visit, in one record</h2>
+            <div className="booking-grid">{[
+              ["spark","AI booking assistant","Ask about doctors and appointment slots in a conversation."],
+              ["user","Find a specialist","Explore clinics, compare consultation fees and choose your doctor."],
+              ["check","Appointment calendar","View upcoming visits and manage your clinic schedule."],
+              ["plus","Home lab requests","Request a collection slot and track your clinic's response."],
+              ["message","Patient records","Keep reports and clinic updates together for your next visit."],
+              ["arrow","Walk-in bookings","Record offline visits and payments alongside online appointments."]
+            ].map(([icon,title,body]) => <article key={title}><span><Icon name={icon} size={21}/></span><h3>{title}</h3><p>{body}</p></article>)}</div>
+          </section>
+          <PublicReviews api={API}/>
+          <section className="care-entry portal-invitation">
+            <h2>Choose your MediCall workspace</h2>
+            <p>Each role gets its own portal, all connected to the same appointment record.</p>
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-teal-100 bg-teal-50 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-teal-800">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" /> Your clinic, made simpler
-              </p>
-
-              <h1 className="mt-6 max-w-2xl text-4xl font-black leading-[1.08] tracking-tight text-slate-950 sm:text-5xl md:text-6xl lg:text-7xl">
-                Better healthcare, powered by{" "}
-                <span className="text-teal-600">conversation.</span>
-              </h1>
-
-              <p className="mt-6 max-w-xl text-base leading-8 text-slate-600 sm:text-lg">
-                MediCall AI connects patients, doctors and clinics through one simple digital healthcare experience. Discover registered clinics, explore doctors and manage appointments with an AI-powered assistant.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <button className={button} onClick={() => { setAuthMode("patient-login"); setPage("auth"); }}>
-                  Get Started <span className="ml-1">→</span>
-                </button>
-
-                <button
-                  className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
-                  onClick={() => setChatOpen(true)}
-                >
-                  Talk to AI
-                </button>
-              </div>
-            </div>
-
-            <div className="relative rounded-[1.5rem] bg-gradient-to-br from-teal-700 to-teal-600 p-5 text-white shadow-lg shadow-teal-900/10 sm:p-7 md:p-9">
-              <img src={healthcareHero} alt="Illustration representing connected healthcare" className="pointer-events-none absolute -right-12 -top-10 hidden h-56 w-72 object-contain opacity-35 mix-blend-screen md:block" />
-              <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full border border-white/15" />
-              <div className="absolute -bottom-16 -left-12 h-48 w-48 rounded-full border border-white/15" />
-              <div className="relative rounded-2xl border border-white/20 bg-white/10 p-7 text-center shadow-sm backdrop-blur sm:p-9">
-                <div className="mx-auto grid h-20 w-20 place-items-center rounded-2xl border border-white/20 bg-white text-teal-700 shadow-lg">
-                  <Icon name="spark" size={34} />
-                </div>
-                <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-teal-100">MEDICALL AI ASSISTANT</p>
-                <h2 className="mt-3 text-2xl font-black sm:text-3xl">
-                  How can we help today?
-                </h2>
-                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-teal-50">
-                  Ask about doctors, consultation fees or appointments. Chat in Hindi or English.
-                </p>
-                <button
-                  className="mt-6 w-full rounded-xl bg-white px-5 py-4 text-sm font-extrabold text-teal-800 shadow-lg transition hover:bg-teal-50"
-                  onClick={() => setChatOpen(true)}
-                >
-                  Talk to MediCall AI <span className="ml-1">→</span>
-                </button>
-                <div className="mt-5 flex justify-center gap-2 text-xs text-teal-50"><span>✓ Hindi & English</span><span>·</span><span>✓ Voice input</span></div>
-              </div>
+              <button onClick={() => { setAuthMode("patient-login"); setPage(patientToken ? "patient-dashboard" : "auth"); }}>Patient portal</button>
+              <button onClick={() => setPage("doctor-portal")}>Doctor portal</button>
+              <button onClick={() => { setAuthMode("clinic-login"); setPage(token ? "dashboard" : "auth"); }}>Clinic portal</button>
             </div>
           </section>
 
-          <section className="mx-auto mt-10 max-w-6xl grid gap-6 md:grid-cols-[.9fr_1.1fr] md:items-center">
-            <div className="rounded-[1.75rem] bg-[#102c3a] p-8 text-white sm:p-10">
-              <p className="text-xs font-extrabold uppercase tracking-[.22em] text-cyan-200">Why MediCall AI?</p>
-              <h2 className="mt-4 text-3xl font-black leading-tight">Making healthcare access easier for everyone.</h2>
-              <p className="mt-4 text-sm leading-7 text-slate-200">We developed MediCall AI to reduce the friction of finding a clinic, understanding available services and arranging appointments. Patients get a simpler way to connect with care, while clinics get tools to organise their daily work.</p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[{icon:"✦",title:"AI-powered assistance",body:"Ask questions and get guided support through chat or voice."},{icon:"⌖",title:"Clinic discovery",body:"Choose from clinics that have created an account on MediCall AI."},{icon:"▦",title:"Appointment management",body:"Request, review and manage appointments in one place."},{icon:"♡",title:"Connected care teams",body:"Patients, doctors and clinic teams use role-based workspaces."}].map((item) => <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><span className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-50 text-xl text-cyan-800">{item.icon}</span><h3 className="mt-4 font-extrabold text-slate-900">{item.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p></article>)}
-            </div>
-          </section>
-          <section className="mx-auto mt-9 max-w-6xl rounded-[1.75rem] border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white p-8 text-center sm:p-10">
-            <p className="text-xs font-extrabold uppercase tracking-[.2em] text-cyan-800">One platform · Three experiences</p>
-            <h2 className="mt-3 text-3xl font-black text-slate-950">Care works better when everyone is connected.</h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">Patients can find registered clinics, doctors can manage their schedules, and clinics can coordinate appointments and their teams.</p>
-            <button className={`${button} mt-6`} onClick={() => { setAuthMode("patient-login"); setPage("auth"); }}>Get Started with MediCall AI →</button>
-          </section>
+        </main>
+      )}
 
-          {patientToken && <section id="booking" className="mt-12 scroll-mt-24 md:mt-14">
-            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-teal-700">PERSONALIZED CARE</p>
-                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
-                  {selectedClinicId && clinic?.id === selectedClinicId ? clinic.clinicName : "Book your appointment"}
-                </h2>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">Meet the right specialist and choose a time that works for you. Our team is here to make your visit simple.</p>
+      {page === "subscriptions" && <Suspense fallback={<p className="p-8 text-center text-sm text-slate-500">Loading clinic plans.</p>}><PublicClinicPlans onCreateAccount={() => { setAuthMode("clinic-register"); setPage("auth"); }} /></Suspense>}
+
+      {page === "auth" && (
+        <main className="care-login">
+          {forgotPasswordOpen ? (
+            <div className="care-login-card-shell"><Suspense fallback={<p className="text-sm text-slate-400">Loading password recovery.</p>}><ForgotPasswordPanel apiUrl={API} role={authMode.startsWith("patient-") ? "patient" : "clinic"} initialEmail={authMode.startsWith("patient-") ? patientAuth.email : auth.email} onBack={() => setForgotPasswordOpen(false)} /></Suspense></div>
+          ) : (
+            <form onSubmit={registerOrLogin} className="care-login-card">
+              <LoginHeader role={authMode.startsWith("patient") ? "patient" : "clinic"} registering={authMode.endsWith("register")} onSelect={role => {
+                setForgotPasswordOpen(false);
+                setNotice("");
+                setError("");
+                if (role === "doctor") setPage("doctor-portal");
+                else setAuthMode(role + "-login");
+              }} />
+              <div className="care-login-context"><span>{authStory.eyebrow}</span><p>{authStory.description}</p></div>
+              <div className="care-login-fields">
+                {authMode.startsWith("patient-") ? <>
+                  {authMode.endsWith("register") && <><label className="care-login-label">Full name<input autoComplete="name" placeholder="Your full name" required value={patientAuth.fullName} onChange={(e) => setPatientAuth({ ...patientAuth, fullName: e.target.value })} /></label><label className="care-login-label">Phone number<input type="tel" autoComplete="tel" inputMode="numeric" placeholder="10-digit mobile number" required value={patientAuth.phone} onChange={(e) => setPatientAuth({ ...patientAuth, phone: e.target.value })} /></label></>}
+                  <label className="care-login-label">Email address<input type="email" autoComplete="email" placeholder="you@example.com" required value={patientAuth.email} onChange={(e) => setPatientAuth({ ...patientAuth, email: e.target.value })} /></label>
+                  <label className="care-login-label">Password<div className="care-password-wrap"><input type={showPatientPassword ? "text" : "password"} minLength={8} autoComplete={authMode.endsWith("register") ? "new-password" : "current-password"} placeholder="Enter your password" required value={patientAuth.password} onChange={(e) => setPatientAuth({ ...patientAuth, password: e.target.value })} /><button type="button" onClick={() => setShowPatientPassword((v) => !v)}>{showPatientPassword ? "Hide" : "Show"}</button></div></label>
+                </> : <>
+                  {authMode.endsWith("register") && <><label className="care-login-label">Clinic name<input placeholder="Clinic name" required value={auth.clinicName} onChange={(e) => setAuth({ ...auth, clinicName: e.target.value })} /></label><label className="care-login-label">Admin name<input placeholder="Admin name" required value={auth.adminName} onChange={(e) => setAuth({ ...auth, adminName: e.target.value })} /></label></>}
+                  <label className="care-login-label">Email address<input type="email" autoComplete="email" placeholder="clinic@example.com" required value={auth.email} onChange={(e) => setAuth({ ...auth, email: e.target.value })} /></label>
+                  <label className="care-login-label">Password<div className="care-password-wrap"><input type={showClinicPassword ? "text" : "password"} minLength={8} autoComplete={authMode.endsWith("register") ? "new-password" : "current-password"} placeholder="Enter your password" required value={auth.password} onChange={(e) => setAuth({ ...auth, password: e.target.value })} /><button type="button" onClick={() => setShowClinicPassword((v) => !v)}>{showClinicPassword ? "Hide" : "Show"}</button></div></label>
+                </>}
+                {!authMode.endsWith("register") && <div className="care-login-options"><label><input type="checkbox" /> Remember me</label><button type="button" className="care-forgot-link" onClick={() => setForgotPasswordOpen(true)}>Forgot password?</button></div>}
+                {authMode.endsWith("register") && <EmailCode api={API} role={authMode.startsWith("patient")?"patient":"clinic"} email={authMode.startsWith("patient")?patientAuth.email:auth.email} value={emailCode} onChange={setEmailCode}/>}
+                <button className="care-login-submit" disabled={busy}>{busy ? "Please wait…" : authMode.endsWith("register") ? "Create account" : `Log in as ${authMode.startsWith("patient-") ? "Patient" : "Clinic"}`}</button>
               </div>
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-teal-100 bg-white px-4 py-2.5 text-sm font-semibold text-teal-800 shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" /> Easy online booking
-              </div>
-            </div>
+              <p className="care-login-switch">{authMode.endsWith("register") ? "Already have an account?" : "New to MediCall?"} <button type="button" onClick={() => setAuthMode(authMode.endsWith("register") ? authMode.replace("register", "login") : authMode.replace("login", "register"))}>{authMode.endsWith("register") ? "Sign in" : "Create an account"}</button></p>
+              {!authMode.startsWith("patient-") && <button type="button" className="care-plans-link" onClick={() => setPage("subscriptions")}>View clinic plans and features</button>}
+            </form>
+          )}
+        </main>
+      )}
 
-            <div className="grid items-stretch gap-7 xl:grid-cols-[0.95fr_1.05fr]">
-              <section className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white shadow-sm">
-                <div className="bg-gradient-to-br from-slate-950 via-teal-950 to-teal-800 p-7 text-white sm:p-9">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-200">OUR MEDICAL TEAM</p>
-                      <h3 className="mt-3 text-2xl font-black sm:text-3xl">Care you can trust.</h3>
-                      <p className="mt-2 max-w-sm text-sm leading-6 text-teal-50/85">Explore specialists and their consultation fees before you book.</p>
-                    </div>
-                    <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/10"><Icon name="plus" size={28} /></span>
-                  </div>
-                  <div className="mt-6 flex flex-wrap gap-3 text-sm">
-                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">{doctors.length} specialist{doctors.length === 1 ? "" : "s"}</span>
-                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">Transparent fees</span>
-                  </div>
-                </div>
-                <div className="space-y-3 p-5 sm:p-7">
-                  {doctors.map((doctor) => (
-                    <button
-                      key={doctor._id}
-                      type="button"
-                      onClick={() => setBooking((previous) => ({ ...previous, doctorId: doctor._id }))}
-                      className={`group flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition duration-200 sm:p-5 ${booking.doctorId === doctor._id ? "border-teal-400 bg-teal-50 ring-4 ring-teal-50" : "border-slate-100 bg-slate-50/70 hover:border-teal-200 hover:bg-white hover:shadow-md"}`}
-                    >
-                      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-xl font-black ${booking.doctorId === doctor._id ? "bg-teal-600 text-white" : "bg-white text-teal-700 shadow-sm"}`}>{doctor.name?.trim()?.charAt(0)?.toUpperCase() || "D"}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-base font-extrabold text-slate-900 sm:text-lg">{doctor.name}</span>
-                        <span className="mt-1 block text-sm text-slate-500">{doctor.specialization}</span><span className="mt-1 block text-[11px] text-slate-500">At this clinic since {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "date unavailable"}</span>
-                        <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-teal-700"><span>✓</span> Select specialist</span>
-                      </span>
-                      <span className="text-right">
-                        <span className="block text-lg font-black text-slate-950">₹{doctor.fee}</span>
-                        <span className="mt-1 block text-xs text-slate-500">per visit</span>
-                      </span>
-                    </button>
-                  ))}
-                  {!doctors.length && (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                      <span className="text-3xl">🩺</span>
-                      <p className="mt-3 font-bold text-slate-800">Doctor profiles coming soon</p>
-                      <p className="mt-1 text-sm text-slate-500">Please contact the clinic for assistance.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-
+      {page === "patient-dashboard" && (
+        <main className="patient-dashboard mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:pl-[260px] lg:pr-10">
+          <aside className="patient-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[248px] flex-col px-3 py-5 text-white shadow-xl lg:flex" aria-label="Patient portal navigation">
+            <div className="patient-identity"><b aria-hidden="true">{(patient?.fullName || "Patient").trim().split(/\s+/).slice(0,2).map(word=>word[0]).join("").toUpperCase()}</b><div><strong className="block text-sm text-white">{patient?.fullName || "Patient account"}</strong><span className="text-[10px] font-bold tracking-wider text-teal-100">PATIENT PORTAL</span></div></div>
+            <nav className="min-h-0 flex-1 overflow-y-auto" aria-label="Patient sections">{patientSections.map(([key,label]) => <button key={key} type="button" aria-current={patientView===key?"page":undefined} onClick={() => {setPatientView(key);setPatientProfileEditing(false);window.scrollTo({top:0,behavior:"smooth"});}} className={`patient-nav-item mb-1 flex w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold ${patientView===key?"is-active":""}`}><Icon name={key === "ai" ? "spark" : key === "profile" ? "user" : key} size={17}/>{label}</button>)}</nav>
+            <button onClick={patientLogout} className="mt-3 rounded-xl bg-white/10 px-3 py-2.5 text-left text-xs font-bold text-white">Sign out</button>
+          </aside>
+          <PortalNavigation role="Patient" value={patientView} sections={patientView === "booking" ? [...patientSections, ["booking", "Book a visit"]] : patientSections}
+            onChange={key => { setPatientView(key); setPatientProfileEditing(false); }} />
+          <section hidden={patientView !== "booking"} className="mx-auto max-w-5xl rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-5"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-teal-700">APPOINTMENT REQUEST</p><h2 className="mt-1 text-2xl font-black text-slate-950">Book a visit</h2><p className="mt-1 text-sm text-slate-500">Choose a registered clinic, doctor and available appointment time.</p></div>
+            <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
               <form onSubmit={bookAppointment} className="rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
                 <div className="mb-7 flex items-start gap-4">
                   <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-teal-50 text-2xl text-teal-700">▣</span>
@@ -1186,26 +1480,19 @@ export default function App() {
                   </label>
                   <label className="block sm:col-span-2">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Choose a doctor *</span>
-                    <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={booking.doctorId} onChange={(e) => setBooking({ ...booking, doctorId: e.target.value })}>
+                    <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={booking.doctorId} onChange={(e) => setBooking({ ...booking, time: "", doctorId: e.target.value })}>
                       <option value="">Select a specialist</option>
                       {doctors.map((doctor) => <option key={doctor._id} value={doctor._id}>{doctor.name} — {doctor.specialization} (₹{doctor.fee})</option>)}
                     </select>
                   </label>
                   <label className="block">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Preferred date *</span>
-                    <input className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} type="date" min={today} required value={booking.date} onChange={(e) => setBooking({ ...booking, date: e.target.value })} />
+                    <input className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} type="date" min={today} required value={booking.date} onChange={(e) => setBooking({ ...booking, time: "", date: e.target.value })} />
                   </label>
                   <label className="block">
                     <span className="mb-2 block text-sm font-bold text-slate-700">Preferred time *</span>
                     <select className={`${field} min-h-12 rounded-xl bg-slate-50/70 px-4`} required value={booking.time} onChange={(e) => setBooking({ ...booking, time: e.target.value })}>
-                      <option value="">Choose a time</option>
-                      {Array.from({ length: 48 }, (_, i) => {
-                        const hour = Math.floor(i / 2);
-                        const minute = i % 2 ? "30" : "00";
-                        const time = `${String(hour).padStart(2, "0")}:${minute}`;
-                        if (!selectedClinicHours || selectedClinicHours.isOpen === false || time < selectedClinicHours.openTime || time >= selectedClinicHours.closeTime) return null;
-                        return <option key={time} value={time}>{time}</option>;
-                      })}
+                      <SlotOptions apiUrl={API} clinicId={selectedClinicId} doctorId={booking.doctorId} date={booking.date} />
                     </select>
                   </label>
                   {booking.date && (!selectedClinicHours || selectedClinicHours.isOpen === false) && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800 sm:col-span-2">The clinic is closed on {clinicDays[new Date(`${booking.date}T12:00:00`).getDay()]}. Please select one of its working days.</p>}
@@ -1221,58 +1508,11 @@ export default function App() {
                 </button>
                 <p className="mt-4 flex items-start justify-center gap-2 text-center text-xs leading-5 text-slate-500"><span className="text-teal-700">✓</span> Your details are sent securely to the clinic for processing.</p>
               </form>
+              <VideoRequests role="patient" apiUrl={API} token={patientToken} clinicId={selectedClinicId} doctorId={booking.doctorId} date={booking.date} phone={booking.phone || patient?.phone}/>
             </div>
-          </section>}
-        </main>
-      )}
-
-      {page === "auth" && (
-        <main className="relative mx-auto grid min-h-[78vh] max-w-6xl items-center gap-10 px-4 py-10 md:grid-cols-2 md:px-8">
-          <section className="hidden overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-teal-950 to-teal-700 p-10 text-white shadow-xl md:block">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-white/20 bg-white/10 text-2xl">✚</div>
-            <p className="mt-10 text-xs font-bold uppercase tracking-[0.25em] text-teal-200">MEDICALL AI</p>
-            <h1 className="mt-4 text-4xl font-black leading-tight">Better care starts with a simpler experience.</h1>
-            <p className="mt-4 max-w-md leading-7 text-teal-50/80">Separate workspaces for patients, doctors and registered clinic teams, all in one place.</p>
-            <div className="mt-10 grid gap-3 text-sm text-teal-50/90"><p>✓ Manage appointments with ease</p><p>✓ Explore doctors and book visits</p><p>✓ Keep your account details in one place</p></div>
           </section>
-          <form onSubmit={registerOrLogin} className="mx-auto w-full max-w-md space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-9">
-            <div className="mb-2 grid grid-cols-3 rounded-2xl bg-slate-100 p-1.5">
-              <button type="button" onClick={() => setAuthMode("clinic-login")} className={`rounded-xl px-2 py-2.5 text-sm font-bold ${!authMode.startsWith("patient-") ? "bg-white text-teal-800 shadow-sm" : "text-slate-500"}`}>Clinic</button>
-              <button type="button" onClick={() => setAuthMode("patient-login")} className={`rounded-xl px-2 py-2.5 text-sm font-bold ${authMode.startsWith("patient-") ? "bg-white text-teal-800 shadow-sm" : "text-slate-500"}`}>Patient</button>
-              <button type="button" onClick={() => { setNotice(""); setError(""); setPage("doctor-portal"); }} className="rounded-xl px-2 py-2.5 text-sm font-bold text-slate-500 hover:bg-white hover:text-teal-800">Doctor</button>
-            </div>
-            <div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-teal-700">Welcome to MediCall</p><h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{authMode.endsWith("register") ? "Create your account" : "Welcome back"}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{authMode.startsWith("patient-") ? "Sign in to your patient account or create one to get started." : "Sign in to manage your clinic workspace."}</p></div>
-            {authMode.startsWith("patient-") ? <>
-              {authMode.endsWith("register") && <>
-                <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Full name</span><input className={`${field} rounded-xl bg-slate-50`} placeholder="Your full name" required value={patientAuth.fullName} onChange={(e) => setPatientAuth({ ...patientAuth, fullName: e.target.value })} /></label>
-                <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Phone number</span><input className={`${field} rounded-xl bg-slate-50`} type="tel" placeholder="Your phone number" required value={patientAuth.phone} onChange={(e) => setPatientAuth({ ...patientAuth, phone: e.target.value })} /></label>
-              </>}
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Email address</span><input className={`${field} rounded-xl bg-slate-50`} type="email" placeholder="you@example.com" required value={patientAuth.email} onChange={(e) => setPatientAuth({ ...patientAuth, email: e.target.value })} /></label>
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><div className="relative"><input className={`${field} rounded-xl bg-slate-50 pr-20`} type={showPatientPassword ? "text" : "password"} minLength={8} placeholder="At least 8 characters" required value={patientAuth.password} onChange={(e) => setPatientAuth({ ...patientAuth, password: e.target.value })} /><button type="button" onClick={() => setShowPatientPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showPatientPassword ? "Hide" : "Show"}</button></div></label>
-            </> : <>
-              {authMode.endsWith("register") && <>
-                <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Clinic name</span><input className={`${field} rounded-xl bg-slate-50`} placeholder="Clinic name" required value={auth.clinicName} onChange={(e) => setAuth({ ...auth, clinicName: e.target.value })} /></label>
-                <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Admin name</span><input className={`${field} rounded-xl bg-slate-50`} placeholder="Admin name" required value={auth.adminName} onChange={(e) => setAuth({ ...auth, adminName: e.target.value })} /></label>
-              </>}
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Email address</span><input className={`${field} rounded-xl bg-slate-50`} type="email" placeholder="clinic@example.com" required value={auth.email} onChange={(e) => setAuth({ ...auth, email: e.target.value })} /></label>
-              <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-700">Password</span><div className="relative"><input className={`${field} rounded-xl bg-slate-50 pr-20`} type={showClinicPassword ? "text" : "password"} minLength={8} placeholder="At least 8 characters" required value={auth.password} onChange={(e) => setAuth({ ...auth, password: e.target.value })} /><button type="button" onClick={() => setShowClinicPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showClinicPassword ? "Hide" : "Show"}</button></div></label>
-            </>}
-            <button className={`${button} w-full rounded-xl py-4`} disabled={busy}>{busy ? "Please wait…" : authMode.endsWith("register") ? "Create account" : "Sign in securely"}</button>
-            <p className="text-center text-sm text-slate-500">{authMode.endsWith("register") ? "Already have an account?" : "New to MediCall?"} <button type="button" className="font-bold text-teal-700 hover:text-teal-900" onClick={() => setAuthMode(authMode.endsWith("register") ? authMode.replace("register", "login") : authMode.replace("login", "register"))}>{authMode.endsWith("register") ? "Sign in" : "Create account"}</button></p>
-            <button type="button" onClick={() => setPage("home")} className="w-full text-sm font-semibold text-slate-400 hover:text-slate-700">← Back to patient website</button>
-          </form>
-        </main>
-      )}
-
-      {page === "patient-dashboard" && (
-        <main className="patient-dashboard mx-auto max-w-6xl px-4 py-5 sm:px-6">
-          <nav className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"><button onClick={()=>setPatientProfileEditing(false)} className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-blue-50">My account</button><button onClick={()=>setPatientProfileEditing(true)} className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-blue-50">Edit profile</button>
-            <a href="#patient-profile" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">My profile</a>
-            <a href="#patient-appointments" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Appointments</a>
-            {selectedClinicId && clinic?.id === selectedClinicId && <a href="#patient-clinic-location" className="rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-cyan-50 hover:text-cyan-800">Clinic location</a>}
-          </nav>
           <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-            <div id="patient-profile" className="patient-hero scroll-mt-28 bg-gradient-to-r from-[#123747] to-[#087e83] px-6 py-5 text-white sm:px-7 sm:py-6">
+            <div id="patient-profile" hidden={patientView !== "account"} className="patient-hero scroll-mt-28 bg-gradient-to-r from-[#123747] to-[#087e83] px-6 py-5 text-white sm:px-7 sm:py-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-white/15 text-xl font-black text-white">{(patient?.fullName || "P").trim().charAt(0).toUpperCase()}</span>
@@ -1284,32 +1524,132 @@ export default function App() {
                 </div>
               </div>
             </div>
-            {patientProfileEditing && <form onSubmit={savePatientProfile} className="grid gap-3 border-b border-slate-100 bg-blue-50/50 p-4 sm:grid-cols-2 sm:p-5"><label className="text-xs font-bold text-slate-600">Full name<input required value={patientProfileDraft.fullName} onChange={(e)=>setPatientProfileDraft((v)=>({...v,fullName:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Email address<input required type="email" value={patientProfileDraft.email} onChange={(e)=>setPatientProfileDraft((v)=>({...v,email:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Phone number<input required type="tel" value={patientProfileDraft.phone} onChange={(e)=>setPatientProfileDraft((v)=>({...v,phone:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><div className="flex items-end gap-2"><button className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white">Save changes</button><button type="button" onClick={()=>setPatientProfileEditing(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">Cancel</button></div></form>}
-            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+
+            {patientView === "account" && nextVisit && <section className="workspace-panel"><h3>Next appointment</h3>
+              <strong>{nextVisit.doctorId?.name} · {nextVisit.doctorId?.specialization}</strong><p>{nextVisit.date} at {nextVisit.time} · {nextVisit.clinicId?.clinicName}</p>
+              <p>{nextVisit.clinicId?.location?.address}</p><p>Booking ID {nextVisit.bookingReference || nextVisit._id}</p><p>Booked · {nextVisit.paymentStatus === "Paid" ? "Paid" : "Payment pending"}</p>
+              {nextVisit.paymentStatus !== "Paid" && <button onClick={() => payAppointment(nextVisit)}>Pay online</button>}
+              <button onClick={async () => {
+                try {
+                  const {data} = await axios.get(API + "/patient/appointments/" + nextVisit._id + "/confirmation", {headers:{Authorization:"Bearer " + patientToken}, responseType:"blob"});
+                  const url = URL.createObjectURL(data);
+                  const link = document.createElement("a"); link.href = url; link.download = "Booking-" + (nextVisit.bookingReference || nextVisit._id) + ".pdf"; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
+                } catch { setError("Could not download your booking confirmation."); }
+              }}>Download confirmation</button></section>}
+            {patientView === "account" && <nav className="patient-quick-actions" aria-label="Care shortcuts"><button onClick={() => {setPatientView("booking"); window.scrollTo({top:0});}}>Book appointment</button><button onClick={() => setPatientView("care")}>Find doctors</button><button onClick={() => setPatientView("ai")}>Ask MediCall AI</button><button onClick={() => setPatientView("records")}>My records</button></nav>}
+            <div hidden={patientView !== "profile"} className="border-b border-slate-100 px-4 pb-1 pt-4 sm:px-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700">YOUR DETAILS</p><h2 className="mt-1 text-lg font-black text-slate-900">My profile</h2><p className="mt-0.5 text-xs text-slate-500">Keep your contact information up to date.</p></div><button type="button" onClick={()=>setPatientProfileEditing((value)=>!value)} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-xs font-extrabold text-teal-800 transition hover:border-teal-300 hover:bg-teal-100">{patientProfileEditing ? "Close editor" : "Edit details"} <span aria-hidden="true">✎</span></button></div></div>
+            {patientView === "profile" && patientProfileEditing && <form onSubmit={savePatientProfile} className="grid gap-3 border-b border-slate-100 bg-blue-50/50 p-4 sm:grid-cols-2 sm:p-5"><label className="text-xs font-bold text-slate-600">Full name<input required value={patientProfileDraft.fullName} onChange={(e)=>setPatientProfileDraft((v)=>({...v,fullName:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Email address<input required type="email" value={patientProfileDraft.email} onChange={(e)=>setPatientProfileDraft((v)=>({...v,email:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><label className="text-xs font-bold text-slate-600">Phone number<input required type="tel" value={patientProfileDraft.phone} onChange={(e)=>setPatientProfileDraft((v)=>({...v,phone:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label><div className="flex items-end gap-2"><button className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white">Save changes</button><button type="button" onClick={()=>setPatientProfileEditing(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">Cancel</button></div></form>}
+
+              <div hidden={patientView !== "profile"} className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
               <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Full name</p><p className="mt-1.5 text-base font-bold text-slate-900">{patient?.fullName || "—"}</p></div>
               <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email address</p><p className="mt-1.5 break-all text-base font-bold text-slate-900">{patient?.email || "—"}</p></div>
               <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Phone number</p><p className="mt-1.5 text-base font-bold text-slate-900">{patient?.phone || "—"}</p></div>
-              <div className="flex flex-col justify-center gap-2 rounded-2xl bg-teal-50 p-4"><p className="font-bold text-teal-950">Ready to see a doctor?</p><p className="text-sm leading-5 text-teal-800">Choose a clinic and find the right specialist.</p><button className={`${button} w-full py-2.5`} onClick={() => setPage("home")}>Book an appointment →</button></div>
+              <div className="flex flex-col justify-center gap-2 rounded-2xl bg-teal-50 p-4"><p className="font-bold text-teal-950">Ready to see a doctor?</p><p className="text-sm leading-5 text-teal-800">Choose a clinic and find the right specialist.</p><button className={`${button} w-full py-2.5`} onClick={() => setPatientView("booking")}>Book an appointment →</button></div>
             </div>
-            <div className="grid grid-cols-3 gap-2 px-4 pb-4 sm:px-5">
+            <div hidden={patientView !== "profile"} className="px-4 pb-5 sm:px-5">
+              {patientToken && <Suspense fallback={<p className="text-sm text-slate-500">Loading account security…</p>}><ChangePasswordPanel apiUrl={API} token={patientToken} role="patient" onChanged={() => { patientLogout(); setNotice("Password changed. Sign in again with your new password."); }} /></Suspense>}
+            </div>
+            <div hidden={patientView !== "account"} className="grid grid-cols-3 gap-2 px-4 pb-4 sm:px-5">
               <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Confirmed</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.status==="Confirmed").length}</p></div>
               <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Completed</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.status==="Completed").length}</p></div>
               <div className="rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Paid visits</p><p className="mt-1 text-xl font-black text-slate-900">{patientAppointments.filter((item)=>item.paymentStatus==="Paid").length}</p></div>
             </div>
-            <div id="patient-appointments" className="patient-appointments-list scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+            <div id="patient-appointments" hidden={patientView !== "appointments" && patientView !== "account"} className="patient-appointments-list scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+            {patientView === "appointments" && <AppointmentCalendar appointments={patientAppointments} getTitle={(item) => item.doctorId?.name || "Doctor"} />}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold text-slate-900">My appointments</h2><button onClick={loadPatientAppointments} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh</button></div>
               <div className="space-y-3">{(showAllPatientAppointments ? patientAppointments : patientAppointments.slice(0, 3)).map((appt) => <article key={appt._id} className="patient-appointment-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 text-xs font-semibold text-teal-700">Booking ID: {appt.bookingReference || appt._id}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-900">{appt.doctorId?.name || "Doctor"}</p><p className="mt-1 text-sm text-slate-600">{appt.date} at {appt.time} · {appt.status}</p><p className="mt-1 inline-flex items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-extrabold text-teal-800"><span className="text-[10px] uppercase tracking-wider text-teal-600">Booking ID</span> {appt.bookingReference || appt._id}</p><p className="mt-1 text-xs text-slate-500">Payment: {appt.paymentStatus || "Pending"}</p>
                 {selectedClinicId && appt.clinicId?._id === selectedClinicId && appt.clinicId?.location?.address && <div className="mt-2 text-xs text-slate-600"><span className="font-semibold">Clinic:</span> {appt.clinicId.location.address} <a className="ml-1 font-bold text-teal-700 underline" href={appt.clinicId.location.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appt.clinicId.location.address)}`} target="_blank" rel="noreferrer">Get directions</a></div>}{appt.doctorUnavailableNotice && <p className="mt-2 text-sm font-semibold text-amber-700">Doctor unavailable. Suggested dates: {(appt.alternativeDates || []).join(", ")}. Your appointment has not been changed.</p>}</div>
-                <div className="flex flex-wrap gap-2">{appt.status === "Confirmed" && <><button onClick={() => cancelPatientAppointment(appt._id)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700">Cancel</button>{appt.paymentStatus !== "Paid" && <button onClick={() => payAppointment(appt)} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Pay online</button>}</>}</div></div>
+                <div className="flex flex-wrap gap-2">{appt.status === "Confirmed" && <>{appt.videoRoomId && <a href={"https://meet.jit.si/" + encodeURIComponent(appt.videoRoomId)} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-indigo-700 px-3 py-2 text-xs font-bold text-white">Join video visit</a>}<button onClick={() => cancelPatientAppointment(appt._id)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700">Cancel</button>{appt.paymentStatus !== "Paid" && <button onClick={() => payAppointment(appt)} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Pay online</button>}</>}{appt.status === "Cancelled" && <button onClick={() => removeCancelledPatientAppointment(appt._id)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">Remove</button>}</div></div>
                 {appt.status === "Confirmed" && <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><input type="date" min={new Date().toISOString().slice(0,10)} className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.date || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], date: e.target.value } }))}/><input type="time" min="09:00" max="16:59" className="rounded-lg border border-slate-200 p-2 text-sm" value={rescheduleDrafts[appt._id]?.time || ""} onChange={(e) => setRescheduleDrafts((old) => ({ ...old, [appt._id]: { ...old[appt._id], time: e.target.value } }))}/><button onClick={() => requestReschedule(appt._id)} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-bold text-teal-800">Request reschedule</button></div>}
                 {appt.rescheduleRequest?.status === "Pending" && <p className="mt-2 text-xs font-semibold text-amber-700">Reschedule request pending clinic approval: {appt.rescheduleRequest.date} at {appt.rescheduleRequest.time}</p>}
+                {appt.status === "Completed" && !patientReviews.some((review)=>String(review.appointmentId)===String(appt._id)) && <form onSubmit={(e)=>{e.preventDefault();submitPatientReview(appt._id);}} className="mt-3 grid gap-2 rounded-xl border border-amber-100 bg-amber-50/50 p-3 sm:grid-cols-[150px_1fr_auto]"><label className="text-xs font-bold text-slate-700">Rate your visit<select value={reviewDrafts[appt._id]?.rating || 5} onChange={(e)=>setReviewDrafts((old)=>({...old,[appt._id]:{...old[appt._id],rating:e.target.value}}))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">{[5,4,3,2,1].map((n)=><option key={n} value={n}>{n} / 5 stars</option>)}</select></label><label className="text-xs font-bold text-slate-700">Feedback (optional)<input maxLength={1000} value={reviewDrafts[appt._id]?.comment || ""} onChange={(e)=>setReviewDrafts((old)=>({...old,[appt._id]:{...old[appt._id],comment:e.target.value}}))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" placeholder="Share your experience"/></label><button className="self-end rounded-lg bg-amber-600 px-3 py-2.5 text-xs font-bold text-white">Submit review</button></form>}
+                {patientReviews.some((review)=>String(review.appointmentId)===String(appt._id)) && <p className="mt-2 text-xs font-semibold text-emerald-700">✓ Your verified visit review has been submitted.</p>}
               </article>)}{!patientAppointments.length && <p className="text-sm text-slate-500">No appointments linked to this patient account yet. Book using the same email address as your account.</p>}
               {patientAppointments.length > 3 && <button onClick={() => setShowAllPatientAppointments((value) => !value)} className="mt-2 rounded-xl border border-teal-200 px-4 py-2.5 text-sm font-bold text-teal-800 hover:bg-teal-50">{showAllPatientAppointments ? "Show latest 3 bookings" : `View all bookings (${patientAppointments.length})`}</button>}</div>
             </div>
-            <section className="smart-care-card border-t border-slate-100 bg-gradient-to-br from-indigo-50/80 via-white to-teal-50/70 px-4 py-5 sm:px-5">
+
+            <section id="patient-health-dashboard" hidden={patientView !== "health"} className="scroll-mt-28 border-t border-slate-100 bg-slate-50/70 px-4 py-5 sm:px-5">
+              {patientView === "health" && <WorkspaceRegister kind="history" apiUrl={API} token={patientToken} />}
+              <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700">YOUR HEALTH SNAPSHOT</p><h2 className="mt-1 text-xl font-black text-slate-900">Health dashboard</h2><p className="mt-1 text-sm text-slate-500">A summary of your MediCall appointments and recorded payments.</p></div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[{label:"Total visits",value:patientAppointments.length},{label:"Completed",value:patientAppointments.filter((item)=>item.status==="Completed").length},{label:"Upcoming",value:patientAppointments.filter((item)=>item.status==="Confirmed"&&item.date>=today).length},{label:"Health documents",value:medicalRecords.length + patientClinicUpdates.filter((item)=>item.fileName).length}].map((item)=><article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">{item.label}</p><p className="mt-2 text-2xl font-black text-slate-900">{item.value}</p></article>)}
+              </div>
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4"><h3 className="font-bold text-slate-900">Recent care activity</h3>
+                {patientAppointments.length ? <div className="mt-3 space-y-3">{patientAppointments.slice(0,4).map((item)=><div key={item._id} className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0"><div><p className="text-sm font-bold text-slate-800">{item.doctorId?.name || "Doctor"} · {item.clinicId?.clinicName || "Clinic"}</p><p className="mt-1 text-xs text-slate-500">{item.date} at {item.time}</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700">{item.status}</span></div>)}</div> : <p className="mt-2 text-sm text-slate-500">Your appointment timeline will appear here after your first booking.</p>}
+              </div>
+            </section>
+
+            <section id="patient-care-history" hidden={patientView !== "care-history"} className="scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+              {patientView === "care-history" && <Suspense fallback={<p className="p-4 text-sm text-slate-500">Opening your care history…</p>}><CareTimeline key={patientToken} apiUrl={API} token={patientToken} /></Suspense>}
+            </section>
+
+
+            <section id="patient-notifications" hidden={patientView !== "updates"} className="scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+              <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-blue-700">APPOINTMENT UPDATES</p><h2 className="mt-1 text-xl font-black text-slate-900">Notifications & reminders</h2><p className="mt-1 text-sm text-slate-500">Important updates are generated from your appointment status and schedule.</p></div>
+              <div className="space-y-2">
+                {patientAppointments.filter((item)=>item.doctorUnavailableNotice || ["Pending","Approved","Rejected"].includes(item.rescheduleRequest?.status) || (item.status==="Confirmed" && item.date>=today)).sort((x,y)=>String(x.date).localeCompare(String(y.date))).slice(0,8).map((item)=><article key={item._id} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700">◷</span><div className="min-w-0"><p className="text-sm font-bold text-slate-900">{item.doctorUnavailableNotice ? "Doctor availability update" : item.rescheduleRequest?.status && item.rescheduleRequest.status!=="None" ? "Reschedule request " + item.rescheduleRequest.status.toLowerCase() : "Upcoming appointment reminder"}</p><p className="mt-1 text-xs text-slate-600">{item.doctorId?.name || "Your doctor"} · {item.date} at {item.time}</p>{item.doctorUnavailableNotice && <p className="mt-1 text-xs text-amber-700">Suggested alternatives: {(item.alternativeDates || []).join(", ") || "Please contact the clinic."}</p>}</div><span className="ml-auto shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{item.status}</span></article>)}
+                {!patientAppointments.some((item)=>item.doctorUnavailableNotice || ["Pending","Approved","Rejected"].includes(item.rescheduleRequest?.status) || (item.status==="Confirmed" && item.date>=today)) && <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">You are all caught up. New appointment updates will appear here.</p>}
+              </div>
+              <div className="mt-4 space-y-3"><h3 className="text-sm font-black text-slate-900">Reports and healthcare updates from your clinic</h3>{patientClinicUpdates.map((update)=><article key={update._id} className="rounded-xl border border-blue-100 bg-blue-50/50 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-bold text-slate-900">{update.title}</p><p className="mt-1 text-xs text-slate-600">{update.clinicId?.clinicName || "Your clinic"} · {new Date(update.createdAt).toLocaleString("en-IN")}</p></div><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-blue-700">{update.category}</span></div>{update.message && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{update.message}</p>}{update.fileName && <button type="button" onClick={()=>downloadClinicUpdate(update)} className="mt-3 rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white">Download {update.fileName}</button>}</article>)}{!patientClinicUpdates.length && <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">Clinic reports and healthcare updates shared with you will appear here.</p>}</div>
+              <p className="mt-3 text-[10px] leading-4 text-slate-500">These are in-app reminders based on the latest appointment data. Automatic SMS reminders are currently paused.</p>
+            </section>
+
+            <section id="patient-records" hidden={patientView !== "records"} className="scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+              {patientView === "records" && <Prescriptions apiUrl={API} token={patientToken} />}
+              {patientView === "records" && <ReportReader onUploaded={record => setMedicalRecords(current => [record, ...current])} apiUrl={API} records={medicalRecords} token={patientToken} />}
+              <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-indigo-700">PRIVATE HEALTH FILES</p><h2 className="mt-1 text-xl font-black text-slate-900">Medical records & prescriptions</h2><p className="mt-1 text-sm text-slate-500">Upload prescriptions, lab reports, scans and discharge summaries. Only your signed-in account can access these files.</p></div>
+              <div className="mb-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4"><div className="mb-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Shared by your clinic</p><h3 className="mt-1 font-bold text-slate-900">Clinic reports & healthcare documents</h3></div><div className="space-y-2">{patientClinicUpdates.filter((item)=>item.fileName).map((item)=><article key={item._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-white p-3"><div><p className="text-sm font-bold text-slate-900">{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.clinicId?.clinicName || "Clinic"} · {item.category} · {new Date(item.createdAt).toLocaleDateString("en-IN")}</p></div><button type="button" onClick={()=>downloadClinicUpdate(item)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white">Download</button></article>)}{!patientClinicUpdates.some((item)=>item.fileName) && <p className="text-sm text-slate-500">No clinic documents have been shared yet.</p>}</div></div>
+              <form onSubmit={uploadMedicalRecord} className="grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:grid-cols-2">
+                <label className="text-xs font-bold text-slate-700">Document title<input required maxLength={120} value={recordDraft.title} onChange={(e)=>setRecordDraft((v)=>({...v,title:e.target.value}))} placeholder="e.g. Blood test report" className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label>
+                <label className="text-xs font-bold text-slate-700">Category<select value={recordDraft.category} onChange={(e)=>setRecordDraft((v)=>({...v,category:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm">{["Prescription","Lab report","Scan / imaging","Discharge summary","Other"].map((item)=><option key={item}>{item}</option>)}</select></label>
+                <label className="text-xs font-bold text-slate-700">For family member (optional)<select value={recordDraft.familyMemberId} onChange={(e)=>setRecordDraft((v)=>({...v,familyMemberId:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"><option value="">Myself</option>{familyMembers.map((member)=><option key={member._id} value={member._id}>{member.fullName} · {member.relationship}</option>)}</select></label>
+                <label className="text-xs font-bold text-slate-700">Link appointment (optional)<select value={recordDraft.appointmentId} onChange={(e)=>setRecordDraft((v)=>({...v,appointmentId:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"><option value="">No linked appointment</option>{patientAppointments.map((item)=><option key={item._id} value={item._id}>{item.date} · {item.doctorId?.name || "Doctor"}</option>)}</select></label>
+                <label className="text-xs font-bold text-slate-700 sm:col-span-2">Choose file (PDF, JPG or PNG · max 5 MB)<input required type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={(e)=>setRecordFile(e.target.files?.[0] || null)} className="mt-1 block w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"/></label>
+                <button disabled={patientModuleBusy} className="rounded-xl bg-indigo-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 sm:col-span-2">{patientModuleBusy ? "Saving…" : "Upload medical document"}</button>
+              </form>
+              <div className="mt-4 space-y-2">{medicalRecords.map((record)=><article key={record._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3"><div className="min-w-0"><p className="font-bold text-slate-900">{record.title}</p><p className="mt-1 text-xs text-slate-500">{record.category} · {record.fileName} · {(record.fileSize/1024).toFixed(0)} KB</p><p className="mt-1 text-[10px] text-slate-400">{record.familyMemberId?.fullName ? "For " + record.familyMemberId.fullName : "For you"} · {new Date(record.createdAt).toLocaleDateString("en-IN")}</p></div><div className="flex gap-2"><button onClick={()=>downloadMedicalRecord(record)} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Download</button><button onClick={()=>deleteMedicalRecord(record)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700">Delete</button></div></article>)}
+                {!medicalRecords.length && <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">No medical documents uploaded yet.</p>}</div>
+            </section>
+
+            <section id="patient-family" hidden={patientView !== "family"} className="scroll-mt-28 border-t border-slate-100 bg-emerald-50/30 px-4 py-5 sm:px-5">
+              <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-700">CARE FOR YOUR HOUSEHOLD</p><h2 className="mt-1 text-xl font-black text-slate-900">Family members</h2><p className="mt-1 text-sm text-slate-500">Keep dependent details and link their medical documents to the right person.</p></div>
+              <form onSubmit={saveFamilyMember} className="grid gap-3 rounded-2xl border border-emerald-100 bg-white p-4 sm:grid-cols-2">
+                <label className="text-xs font-bold text-slate-700">Full name<input required maxLength={100} value={familyDraft.fullName} onChange={(e)=>setFamilyDraft((v)=>({...v,fullName:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm" placeholder="Family member name"/></label>
+                <label className="text-xs font-bold text-slate-700">Relationship<select value={familyDraft.relationship} onChange={(e)=>setFamilyDraft((v)=>({...v,relationship:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm">{["Child","Parent","Spouse","Sibling","Other"].map((item)=><option key={item}>{item}</option>)}</select></label>
+                <label className="text-xs font-bold text-slate-700">Date of birth (optional)<input type="date" value={familyDraft.dateOfBirth} onChange={(e)=>setFamilyDraft((v)=>({...v,dateOfBirth:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"/></label>
+                <label className="text-xs font-bold text-slate-700">Phone (optional)<input type="tel" maxLength={20} value={familyDraft.phone} onChange={(e)=>setFamilyDraft((v)=>({...v,phone:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm" placeholder="Contact number"/></label>
+                <button disabled={patientModuleBusy} className="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 sm:col-span-2">Add family member</button>
+              </form>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">{familyMembers.map((member)=><article key={member._id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4"><div><p className="font-bold text-slate-900">{member.fullName}</p><p className="mt-1 text-xs text-slate-500">{member.relationship}{member.dateOfBirth ? " · DOB " + member.dateOfBirth : ""}{member.phone ? " · " + member.phone : ""}</p></div><button onClick={()=>removeFamilyMember(member)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700">Remove</button></article>)}
+                {!familyMembers.length && <p className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500 sm:col-span-2">No family members added yet.</p>}</div>
+            </section>
+
+            <section id="patient-payments" hidden={patientView !== "payments"} className="scroll-mt-28 border-t border-slate-100 px-4 py-5 sm:px-5">
+              <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-amber-700">BILLING & RECEIPTS</p><h2 className="mt-1 text-xl font-black text-slate-900">Payment history & invoices</h2><p className="mt-1 text-sm text-slate-500">Review recorded payment status and print or save receipts for paid appointments.</p></div>
+              <div className="space-y-2">{patientAppointments.filter((item)=>Number(item.paymentAmount || item.doctorId?.fee || 0)>0 || item.paymentStatus).map((item)=><article key={item._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4"><div><p className="font-bold text-slate-900">{item.doctorId?.name || "Doctor"} · {item.clinicId?.clinicName || "Clinic"}</p><p className="mt-1 text-xs text-slate-500">{item.date} at {item.time} · {item.bookingReference || item._id}</p><p className="mt-1 text-xs font-semibold text-slate-700">₹{Number(item.paymentAmount || item.doctorId?.fee || 0).toLocaleString("en-IN")} · {item.paymentMethod || "Payment method not recorded"}</p></div><div className="flex items-center gap-2"><span className={"rounded-full px-3 py-1.5 text-[10px] font-bold " + (item.paymentStatus==="Paid"?"bg-emerald-50 text-emerald-700":"bg-amber-50 text-amber-700")}>{item.paymentStatus || "Pending"}</span>{item.paymentStatus==="Paid" && <button onClick={()=>printPaymentInvoice(item)} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">Invoice / Print</button>}</div></article>)}
+                {!patientAppointments.length && <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">Payment history will appear after you book an appointment.</p>}</div>
+            </section>
+
+
+            <section id="patient-ai-assistant" hidden={patientView !== "ai"} className="scroll-mt-28 border-t border-slate-100 bg-gradient-to-br from-indigo-50/60 via-white to-cyan-50/60 px-4 py-5 sm:px-5">
+              <div className="mb-4"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-indigo-700">PERSONAL CARE COMPANION</p><h2 className="mt-1 text-xl font-black text-slate-900">MediCall AI assistant</h2><p className="mt-1 text-sm text-slate-500">Ask about your appointment schedule, common health terms or how to prepare for a clinic visit.</p></div>
+              <div className="max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4">
+                {!assistantMessages.length && <p className="text-sm text-slate-500">Try asking: “What appointments do I have coming up?” or “What should I bring to a doctor visit?”</p>}
+                {assistantMessages.map((message,index)=><div key={index} className={"max-w-[90%] rounded-2xl px-3 py-2.5 text-sm " + (message.role==="user"?"ml-auto bg-indigo-700 text-white":"bg-slate-100 text-slate-800")}><p className="whitespace-pre-wrap">{message.text}</p></div>)}
+                {assistantBusy && <p className="text-xs font-semibold text-indigo-700">MediCall AI is preparing a reply…</p>}
+              </div>
+              {patientView === "ai" && <AssistantControls messages={assistantMessages} onInput={setAssistantInput} />}
+              <form onSubmit={askPatientAssistant} className="mt-3 flex gap-2"><input value={assistantInput} onChange={(e)=>setAssistantInput(e.target.value)} maxLength={2000} placeholder="Ask your health or appointment question…" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500"/><button disabled={assistantBusy || !assistantInput.trim()} className="rounded-xl bg-indigo-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Ask</button></form>
+              <p className="mt-2 text-[10px] leading-4 text-slate-500">AI support is informational, not a diagnosis or prescription. Do not use it for emergencies; seek urgent medical care when needed.</p>
+            </section>
+
+            {["care","labs"].includes(patientView) && clinicLoadState !== "ready" && <div className="clinic-load-note" role="status">{clinicLoadState === "loading" ? "Loading registered clinics…" : <>{clinicLoadState === "error" ? "Could not reach the clinic list." : "No registered clinics are available."} <button type="button" onClick={() => loadClinic(selectedClinicId)}>Retry</button></>}</div>}
+            {patientView === "labs" && <HomeLabs role="patient" apiUrl={API} token={patientToken} clinics={clinics} clinicId={selectedClinicId} phone={patient?.phone} />}
+
+            <section id="patient-smart-care" hidden={patientView !== "care"} className="smart-care-card scroll-mt-28 border-t border-slate-100 bg-gradient-to-br from-indigo-50/80 via-white to-teal-50/70 px-4 py-5 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-100 text-indigo-700"><Icon name="spark" size={18}/></span><div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-indigo-700">SMART CARE FINDER</p><h2 className="text-lg font-black text-slate-950">Find the right specialist</h2></div></div>
+                <div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-100 text-indigo-700"><Icon name="spark" size={18}/></span><div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-indigo-700">SMART CARE FINDER</p><h2 className="text-lg font-black text-slate-950">Find the right clinic</h2></div></div>
                 <span className="rounded-full border border-indigo-100 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-indigo-700">Guidance, not diagnosis</span>
               </div>
               <p className="mt-2 max-w-2xl text-sm leading-5 text-slate-600">Choose a clinic and describe your concern. We’ll match it with real doctors listed by that clinic.</p>
@@ -1317,7 +1657,9 @@ export default function App() {
                 <label className="block"><span className="mb-1 block text-[11px] font-bold text-slate-600">Selected clinic</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"><option value="">Choose a clinic first</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
                 <label className="block"><span className="mb-1 block text-[11px] font-bold text-slate-600">What symptoms or concern do you have?</span><input value={symptomQuery} onChange={(e)=>setSymptomQuery(e.target.value)} placeholder="e.g. skin rash, knee pain, fever, tooth pain" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/></label>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2"><button onClick={()=>{if(!symptomQuery.trim()){setError("Please describe your symptoms first.");return;}if(!selectedClinicId){setError("Please select a clinic first.");return;}setSymptomSpecialty(matchedSpecialty);}} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-800">Find matching doctors</button>{symptomSpecialty && <button onClick={()=>{setSymptomSpecialty("");setSymptomQuery("");}} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600">Clear</button>}</div>
+              <div className="patient-care-actions">{selectedClinicId && clinic?.id === selectedClinicId && <><button onClick={() => setPatientView("booking")}>Book at this clinic</button><button onClick={() => setPatientView("account")}>Continue to dashboard</button></>}
+
+              <button onClick={()=>{if(!symptomQuery.trim()){setError("Please describe your symptoms first.");return;}if(!selectedClinicId){setError("Please select a clinic first.");return;}setSymptomSpecialty(matchedSpecialty);}} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-800">Find matching doctors</button>{symptomSpecialty && <button onClick={()=>{setSymptomSpecialty("");setSymptomQuery("");}} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600">Clear</button>}</div>
               {symptomSpecialty && selectedClinicId && clinic?.id===selectedClinicId && <div className="mt-3 rounded-2xl border border-indigo-100 bg-white p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">Suggested medical specialty</p><p className="mt-1 text-lg font-black text-slate-900">{symptomSpecialty}</p><p className="mt-1 text-xs text-slate-500">Based on the words you entered; this is not a medical diagnosis.</p></div>
@@ -1327,16 +1669,23 @@ export default function App() {
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {recommendedDoctors.slice(0,4).map((doctor)=><article key={doctor._id} className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
                     <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-extrabold text-slate-900">{doctor.name}</p><p className="mt-0.5 text-xs font-semibold text-indigo-700">{doctor.specialization}</p><p className="mt-1 text-[10px] text-slate-500">Listed at {clinic.clinicName}</p><p className="mt-1 text-[10px] font-medium text-slate-500">Joined clinic: {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }) : "Date not available"}</p></div><p className="shrink-0 text-sm font-black text-teal-800">₹{doctor.fee}</p></div>
-                    <button onClick={()=>{setBooking((old)=>({...old,doctorId:doctor._id}));setPage("home");window.setTimeout(()=>document.getElementById("booking")?.scrollIntoView({behavior:"smooth",block:"start"}),120);}} className="mt-2 rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Book this doctor →</button>
+                    <button onClick={()=>{setBooking((old)=>({...old,doctorId:doctor._id}));setPatientView("booking");window.scrollTo({top:0});}} className="mt-2 rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">Book this doctor →</button>
                   </article>)}
                 </div>
                 {!recommendedDoctors.length && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">No doctor with this specialty is currently listed at {clinic.clinicName}. Please contact the clinic or select another clinic. For general concerns, consider speaking with a General Physician.</p>}
                 {recommendedDoctors.length>0 && <p className="mt-2 text-[10px] text-slate-500">Showing up to four matching doctors from this selected clinic.</p>}
               </div>}
               {!selectedClinicId && <p className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-white/80 p-3 text-xs text-indigo-800">Select a registered clinic to see its doctors, address and directions.</p>}
-              <p className="mt-3 text-[10px] leading-4 text-slate-500">For severe chest pain, difficulty breathing, stroke symptoms, heavy bleeding or another emergency, seek emergency medical care immediately.</p>
+              <p className="patient-emergency-note">For severe chest pain, difficulty breathing, stroke symptoms, heavy bleeding or another emergency, seek emergency medical care immediately.</p>
             </section>
-            {selectedClinicId && clinic?.id===selectedClinicId && <div id="patient-clinic-location" className="scroll-mt-28 border-t border-slate-100 bg-cyan-50/60 px-4 py-4 sm:px-5">
+            {patientView === "care" && <NearbyCare apiUrl={API} token={patientToken} onBook={async (clinicId, doctorId) => {
+              const loaded = await chooseClinic(clinicId);
+              if (loaded?.clinic?.id !== clinicId || !loaded.doctors.some(d => d._id === doctorId)) throw new Error("Unavailable");
+              setBooking(previous => ({...previous,doctorId,date:"",time:""}));
+              setPatientView("booking");
+              window.scrollTo({top:0});
+            }} />}
+            {selectedClinicId && clinic?.id===selectedClinicId && <div id="patient-clinic-location" hidden={patientView !== "clinic-location"} className="scroll-mt-28 border-t border-slate-100 bg-cyan-50/60 px-4 py-4 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-cyan-700">SELECTED CLINIC</p><h2 className="mt-1 font-extrabold text-slate-900">{clinic.clinicName}</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-bold text-teal-800">Clinic location</span></div>
               <p className="mt-2 text-sm leading-5 text-slate-600">{clinic.location?.address || "This clinic has not added its full address yet."}</p>
               <div className="mt-3 rounded-xl border border-cyan-100 bg-white/80 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-800">Opening hours</p><p className="mt-1 text-[11px] font-semibold text-cyan-800">Open {(clinic.businessHours || []).filter((item) => item.isOpen).length} days per week</p><div className="mt-2 grid gap-1 sm:grid-cols-2">{(clinic.businessHours || []).map((hours)=><p key={hours.dayOfWeek} className="text-xs text-slate-600"><strong className="inline-block w-24 text-slate-800">{clinicDays[hours.dayOfWeek]}</strong>{hours.isOpen ? `${hours.openTime} – ${hours.closeTime}` : "Closed"}</p>)}</div></div>
@@ -1353,20 +1702,23 @@ export default function App() {
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-3 py-1.5 text-[11px] font-bold tracking-wide text-blue-700 shadow-sm"><span className="h-2 w-2 rounded-full bg-emerald-500" /> CLINIC WORKSPACE</div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">Good day, ${adminClinic?.clinicName || "Your clinic"}</h1>
+                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">Good day, {adminClinic?.clinicName || "Your clinic"}</h1>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Your clinic at a glance. Manage appointments, care teams and daily operations from one place.</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600"><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🩺 ${adminDoctors.length} doctors</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">📅 ${todayAppointmentsCount} visits today</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🤖 ${adminClinic?.aiAgentName || "MediCall AI"} assistant</span></div>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600"><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🩺 {adminDoctors.length} doctors</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">📅 {todayAppointmentsCount} visits today</span><span className="rounded-full border border-white bg-white/80 px-3 py-1.5">🤖 {adminClinic?.aiAgentName || "MediCall AI"} assistant</span></div>
               </div>
-              <div className="flex shrink-0 items-center gap-3 self-stretch sm:self-center"><img src={clinicWorkspaceArt} alt="Illustration of a modern clinic team" className="hidden h-24 w-28 rounded-2xl object-contain sm:block md:h-28 md:w-36"/><button className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50" onClick={loadDashboard}><Icon name="arrow" size={16}/> Refresh</button></div>
+              <div className="flex shrink-0 items-center gap-3 self-stretch sm:self-center"><img src={clinicWorkspaceArt} alt="Illustration of a modern clinic team" className="hidden h-24 w-28 rounded-2xl object-contain sm:block md:h-28 md:w-36"/><button title="Reload the latest clinic profile, appointments, statistics, doctors and analytics from the server." aria-label="Refresh clinic dashboard data" className="clinic-refresh-button inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold shadow-sm transition" onClick={loadDashboard}><Icon name="arrow" size={16}/> Refresh data</button></div>
             </div>
 </section>
-          <aside className="clinic-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[232px] flex-col border-r border-slate-200 px-3 py-5 text-white shadow-xl lg:flex" aria-label="Clinic dashboard navigation">
+          <aside className="clinic-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[248px] flex-col border-r border-slate-200 px-3 py-5 text-white shadow-xl lg:flex" aria-label="Clinic dashboard navigation">
             <div className="mb-7 flex items-center gap-3 px-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg"><Icon name="plus" size={22}/></span><span className="min-w-0"><strong className="block truncate text-sm font-black">{adminClinic?.clinicName || "MAX HEALTHCARE"}</strong><span className="text-[10px] font-semibold tracking-wider text-blue-200">CLINIC WORKSPACE</span></span></div>
             <p className="px-3 pb-2 text-[9px] font-extrabold tracking-[.2em] text-blue-200/70">CLINICAL</p>
-            {[[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["team","Doctors & team","user"],["settings","Clinic settings","plus"]].map(([key,label,icon]) => <button key={key} onClick={() => {setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold transition ${clinicView===key?"bg-blue-500/25 text-white ring-1 ring-blue-300/30":"text-blue-100/75 hover:bg-white/10 hover:text-white"}`}><Icon name={icon} size={17}/>{label}</button>)}
-            <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-[10px] font-bold text-blue-100">Managed by</p><button onClick={logout} className="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-left text-xs font-bold text-blue-100 hover:bg-white/15">Sign out</button></div>
+            {clinicSections.map(([key,label,icon]) => <button key={key} type="button" aria-current={clinicView===key?"page":undefined} onClick={() => {setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`clinic-nav-item mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left text-sm font-bold transition ${clinicView===key?"is-active":" "}`}><span className="clinic-nav-icon"><Icon name={icon} size={18}/></span><span>{label}</span>{clinicView===key && <span className="ml-auto text-[10px] font-black tracking-wider">●</span>}</button>)}
+            <div className="mt-auto rounded-2xl border border-white/15 bg-white/[0.08] p-3.5"><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-blue-200">Managed by</p><p className="mt-1 text-sm font-extrabold tracking-wide text-white">MAX Healthcare</p><div className="my-3 h-px bg-white/15"/><button onClick={logout} className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-left text-xs font-bold text-white transition hover:bg-white/20">Sign out</button></div>
           </aside>
-          <nav className="clinic-mobile-nav mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">{[[ "overview","Overview"],["analytics","Analytics"],["appointments","Appointments"],["team","Team"],["settings","Settings"]].map(([key,label])=><button key={key} onClick={()=>{setClinicView(key);window.scrollTo({top:0,behavior:"smooth"});}} className={`shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold ${clinicView===key?"bg-blue-700 text-white":"text-slate-600 hover:bg-blue-50"}`}>{label}</button>)}</nav>
+          <PortalNavigation role="Clinic" value={clinicView} sections={clinicSections}
+            onChange={key => { setClinicView(key); window.scrollTo({top: 0}); }} />
+          {clinicView==="billing" && token && <Suspense fallback={<p className="p-6 text-sm text-slate-500">Loading subscription details.</p>}><ClinicBilling api={API} token={token}/></Suspense>}
+          {token && <PlatformReview key={token} api={API} token={token} role="clinic"/>}
 
           <section id="clinic-analytics" data-clinic-panel="overview" hidden={clinicView !== "overview"} className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {[
@@ -1390,6 +1742,7 @@ export default function App() {
             ))}
           </section>
 
+          {clinicView === "analytics" && <ClinicInsights appointments={appointments} downloadCsv={downloadCsv} />}
           <section data-clinic-panel="analytics" hidden={clinicView !== "analytics"} className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 clinic-ai-metrics">
             {[{ label: "AI conversations", value: analytics?.totalConversations ?? 0 }, { label: "Booked from AI", value: analytics?.convertedConversations ?? 0 }, { label: "AI conversion", value: `${analytics?.conversionRate ?? 0}%` }, { label: "Chat / Voice", value: `${analytics?.chatConversations ?? 0} / ${analytics?.voiceConversations ?? 0}` }].map((item) => <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{item.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{item.value}</p></article>)}
             <p className="sm:col-span-2 xl:col-span-4 text-xs text-slate-500">Conversion = unique tracked AI conversations that created an appointment ÷ total unique AI conversations. Chat and voice are counted separately using the conversation channel sent by the website.</p>
@@ -1444,7 +1797,16 @@ export default function App() {
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Quick stats</p><div className="mt-4 space-y-4">{[{label:"Today's appointments",value:todayAppointmentsCount},{label:"Tomorrow",value:tomorrowAppointmentsCount},{label:"AI bookings",value:analytics?.convertedConversations ?? 0}].map((item)=><div key={item.label} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0"><span className="text-sm text-slate-500">{item.label}</span><strong className="text-xl text-slate-900">{item.value}</strong></div>)}</div></article>
           </section>
 
-          <section id="clinic-appointments" data-clinic-panel="appointments" hidden={clinicView !== "appointments"} className="clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
+          {clinicView === "overview" && <button className="mb-4 rounded-xl bg-teal-700 px-4 py-2 font-bold text-white" onClick={() => setClinicView("offline-booking")}>Add walk-in</button>}
+          {clinicView === "labs" && <div className="clinic-page-panel clinic-labs-panel"><HomeLabs role="clinic" apiUrl={API} token={token} /></div>}
+          {clinicView === "offline-booking" && <section className="clinic-page-panel clinic-offline-booking-panel mb-7 rounded-2xl border bg-white"><OfflineBooking initiallyOpen api={api} apiUrl={API} clinicId={adminClinic?._id || adminClinic?.id} doctors={adminDoctors} today={todayDateKey} onSaved={loadDashboard} /></section>}
+          <section id="clinic-appointments" data-clinic-panel="appointments" hidden={clinicView !== "appointments"} className="clinic-page-panel clinic-appointments mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,42,58,.045)]">
+            {clinicView === "appointments" && <OfflineBooking api={api} apiUrl={API} clinicId={adminClinic?._id || adminClinic?.id} doctors={adminDoctors} today={todayDateKey} onSaved={loadDashboard} />}
+            <div className="flex flex-wrap items-center gap-4 px-5 py-4">
+              <label>Doctor <select className="rounded-lg border p-2" value={scheduleDoctor} onChange={e => setScheduleDoctor(e.target.value)}><option value="">All doctors</option>{adminDoctors.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}</select></label>
+              <label><input type="checkbox" checked={offlineOnly} onChange={e => setOfflineOnly(e.target.checked)} /> Offline bookings only</label>
+            </div>
+            {clinicView === "appointments" && <AppointmentCalendar appointments={schedule} getTitle={(item) => item.patientName || "Patient"} />}
             <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">Appointments</h2>
@@ -1474,8 +1836,11 @@ export default function App() {
                   {filteredClinicAppointments.map((appointment) => (
                     <tr key={appointment._id} className="transition hover:bg-slate-50/70">
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-slate-800">{appointment.patientName}</div>
-                        <div className="mt-1 text-xs text-slate-500">{appointment.phone}</div><div className="mt-1 text-[10px] font-semibold text-slate-400">{appointment.bookingReference || appointment._id}</div>
+                        <div className="font-semibold text-slate-800">{appointment.patientName}{appointment.bookingSource === "Offline" && <small className="ml-2">Offline</small>}</div>
+                        <div className="mt-1 text-xs text-slate-500">{appointment.phone}</div>{appointment.status === "Confirmed" && appointment.patientEmail && <button type="button" onClick={async () => {
+                          try { await api.post(`/clinic/appointments/${appointment._id}/resend-confirmation`); setNotice("Confirmation email sent."); }
+                          catch (err) { setError(err.response?.data?.message || "Could not send confirmation."); }
+                        }}>Resend confirmation email</button>}<div className="mt-1 text-[10px] font-semibold text-slate-400">{appointment.bookingReference || appointment._id}</div>
                       </td>
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.doctorId?.name || "Doctor"}</div></td>
                       <td className="px-6 py-4"><div className="font-medium text-slate-700">{appointment.date}</div><div className="mt-1 text-xs text-slate-500">{appointment.time}</div></td>
@@ -1505,43 +1870,76 @@ export default function App() {
 
 
 
-          <section id="clinic-team" data-clinic-panel="team" hidden={clinicView !== "team"} className="grid scroll-mt-28 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-            <div className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
-              <div className="mb-5">
+          <section data-clinic-panel="patients" hidden={clinicView !== "patients"} className="clinic-page-panel mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Patient directory</p><h2 className="mt-1 text-xl font-black text-slate-950">Patients</h2><p className="mt-1 text-sm text-slate-500">A clinic-scoped view built from your appointment records.</p></div>
+              <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">{clinicPatients.length} unique patients</span><button type="button" onClick={() => downloadCsv(`medicall-patients-${todayDateKey}.csv`, [["Patient name","Email","Phone","Total appointments","Completed visits","Upcoming visits","Last appointment"], ...clinicPatients.map((item) => [item.patientName,item.email,item.phone,item.totalVisits,item.completedVisits,item.upcomingVisits,item.lastAppointment])])} disabled={!clinicPatients.length} className="rounded-xl bg-blue-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Export patients CSV</button></div>
+            </div>
+            <div className="border-b border-slate-100 p-4 sm:px-6"><input value={patientSearch} onChange={(event) => setPatientSearch(event.target.value)} placeholder="Search by patient name, email or phone..." className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 sm:max-w-md"/></div>
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:px-6">{[{label:"Unique patients",value:clinicPatients.length},{label:"Returning patients",value:clinicPatients.filter((item) => item.totalVisits > 1).length},{label:"Upcoming visits",value:clinicPatients.reduce((sum, item) => sum + item.upcomingVisits, 0)},{label:"Completed visits",value:clinicPatients.reduce((sum, item) => sum + item.completedVisits, 0)}].map((item) => <article key={item.label} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{item.label}</p><p className="mt-1 text-2xl font-black text-slate-900">{item.value}</p></article>)}</div>
+            <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Patient</th><th className="px-5 py-3">Contact</th><th className="px-5 py-3">Appointments</th><th className="px-5 py-3">Upcoming</th><th className="px-5 py-3">Last appointment</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredClinicPatients.map((item) => <tr key={item.identity} className="hover:bg-slate-50/70"><td className="px-5 py-4 font-semibold text-slate-800">{item.patientName}</td><td className="px-5 py-4"><div className="text-slate-700">{item.phone || "Phone not provided"}</div><div className="mt-1 text-xs text-slate-500">{item.email || "Email not provided"}</div></td><td className="px-5 py-4"><strong>{item.totalVisits}</strong><span className="ml-2 text-xs text-slate-500">· {item.completedVisits} completed</span></td><td className="px-5 py-4">{item.upcomingVisits}</td><td className="px-5 py-4 text-slate-600">{item.lastAppointment}</td></tr>)}{!filteredClinicPatients.length && <tr><td colSpan="5" className="px-5 py-12 text-center text-sm text-slate-500">{clinicPatients.length ? "No patients match your search." : "Patient records will appear after appointments are booked."}</td></tr>}</tbody></table></div>
+            <p className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500">Patient details are shown only to the authenticated clinic team. Records are grouped by email, then phone when email is unavailable.</p>
+          </section>
+
+          <section data-clinic-panel="reports" hidden={clinicView !== "reports"} className="clinic-page-panel clinic-reports-panel mb-7 space-y-5">
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6"><div><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Clinic reporting</p><h2 className="mt-1 text-xl font-black text-slate-950">Reports & exports</h2><p className="mt-1 text-sm text-slate-500">Download clinic appointment and patient summaries for offline review.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => downloadCsv(`medicall-appointments-${todayDateKey}.csv`, [["Booking ID","Patient","Email","Phone","Doctor","Date","Time","Status","Payment status","Payment method","Amount (INR)"], ...appointments.map((item) => [item.bookingReference || item._id,item.patientName,item.patientEmail,item.phone,item.doctorId?.name || "Doctor",item.date,item.time,item.status,item.paymentStatus || "Pending",item.paymentMethod || "",amountForAppointment(item)])])} disabled={!appointments.length} className="rounded-xl bg-blue-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Export appointments CSV</button><button type="button" onClick={() => downloadCsv(`medicall-doctor-workload-${todayDateKey}.csv`, [["Doctor","Specialization","Total appointments","Upcoming appointments","Completed appointments","Status"], ...doctorWorkload.map((item) => [item.name,item.specialization,item.totalAppointments,item.upcomingAppointments,item.completedAppointments,item.isActive ? "Active" : "Unavailable"])])} disabled={!doctorWorkload.length} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Export doctor report</button></div></div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[{label:"Total appointments",value:appointments.length},{label:"Completed visits",value:completedAppointments},{label:"Cancelled bookings",value:cancelledAppointmentsCount},{label:"Collected revenue",value:`₹${paidRevenue.toLocaleString("en-IN")}`}].map((item) => <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">{item.label}</p><p className="mt-2 text-2xl font-black text-slate-900">{item.value}</p></article>)}</div>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 p-5"><h3 className="font-bold text-slate-900">Doctor workload</h3><p className="mt-1 text-xs text-slate-500">Appointment counts are calculated from this clinic’s records.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Doctor</th><th className="px-5 py-3">Total</th><th className="px-5 py-3">Upcoming</th><th className="px-5 py-3">Completed</th><th className="px-5 py-3">Availability</th></tr></thead><tbody className="divide-y divide-slate-100">{doctorWorkload.map((item) => <tr key={item._id}><td className="px-5 py-4"><div className="font-semibold text-slate-800">{item.name}</div><div className="text-xs text-slate-500">{item.specialization}</div></td><td className="px-5 py-4 font-bold">{item.totalAppointments}</td><td className="px-5 py-4">{item.upcomingAppointments}</td><td className="px-5 py-4">{item.completedAppointments}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.isActive ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.isActive ? "Active" : "Unavailable"}</span></td></tr>)}{!doctorWorkload.length && <tr><td colSpan="5" className="px-5 py-10 text-center text-sm text-slate-500">Add doctors to see workload reports.</td></tr>}</tbody></table></div></div>
+            <p className="text-[11px] text-slate-500">Revenue uses recorded payments only. CSV exports contain patient contact information; store and share them securely.</p>
+            <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+              <form onSubmit={sendClinicUpdate} className="space-y-3 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <div><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Patient communication</p><h3 className="mt-1 text-lg font-black text-slate-950">Share a report or healthcare update</h3><p className="mt-1 text-xs leading-5 text-slate-500">Send a private report, prescription, lab result or clinic notice to a patient who has an appointment with this clinic.</p></div>
+                <label className="block text-xs font-bold text-slate-700">Patient<select required value={clinicUpdateDraft.patientEmail} onChange={(e)=>setClinicUpdateDraft((v)=>({...v,patientEmail:e.target.value,appointmentId:""}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"><option value="">Select a patient</option>{Array.from(new Map(appointments.filter((item)=>item.patientEmail).map((item)=>[item.patientEmail.toLowerCase(),item])).values()).map((item)=><option key={item.patientEmail} value={item.patientEmail}>{item.patientName} · {item.patientEmail}</option>)}</select></label>
+                <label className="block text-xs font-bold text-slate-700">Related appointment (optional)<select value={clinicUpdateDraft.appointmentId} onChange={(e)=>setClinicUpdateDraft((v)=>({...v,appointmentId:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"><option value="">Not linked to an appointment</option>{appointments.filter((item)=>item.patientEmail && item.patientEmail.toLowerCase()===clinicUpdateDraft.patientEmail.toLowerCase()).map((item)=><option key={item._id} value={item._id}>{item.date} · {item.doctorId?.name || "Doctor"} · {item.bookingReference || item._id}</option>)}</select></label>
+                <label className="block text-xs font-bold text-slate-700">Report / update title<input required maxLength={120} value={clinicUpdateDraft.title} onChange={(e)=>setClinicUpdateDraft((v)=>({...v,title:e.target.value}))} placeholder="e.g. Blood test report is ready" className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"/></label>
+                <label className="block text-xs font-bold text-slate-700">Type<select value={clinicUpdateDraft.category} onChange={(e)=>setClinicUpdateDraft((v)=>({...v,category:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm">{["Medical report","Lab result","Prescription","Discharge summary","Healthcare update","General notice"].map((item)=><option key={item}>{item}</option>)}</select></label>
+                <label className="block text-xs font-bold text-slate-700">Message<textarea maxLength={2000} rows={3} value={clinicUpdateDraft.message} onChange={(e)=>setClinicUpdateDraft((v)=>({...v,message:e.target.value}))} placeholder="Add instructions or details for the patient…" className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"/></label>
+                <label className="block text-xs font-bold text-slate-700">Attach report (PDF, JPG or PNG · max 5 MB)<input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={(e)=>setClinicUpdateFile(e.target.files?.[0] || null)} className="mt-1 block w-full rounded-xl border border-slate-200 p-3 text-sm"/></label>
+                <button disabled={patientModuleBusy || !clinicUpdateDraft.patientEmail || !clinicUpdateDraft.title.trim() || (!clinicUpdateDraft.message.trim() && !clinicUpdateFile)} className="w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{patientModuleBusy ? "Sharing…" : "Share securely with patient"}</button>
+              </form>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 p-5"><h3 className="font-bold text-slate-900">Recently shared with patients</h3><p className="mt-1 text-xs text-slate-500">Only your clinic's published items are listed here.</p></div><div className="divide-y divide-slate-100">{clinicUpdates.map((item)=><article key={item._id} className="p-4"><div className="flex flex-wrap justify-between gap-2"><div><p className="text-sm font-bold text-slate-900">{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.patientId?.fullName || item.patientEmail} · {new Date(item.createdAt).toLocaleString("en-IN")}</p></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">{item.category}</span></div>{item.message && <p className="mt-2 text-sm text-slate-600">{item.message}</p>}{item.fileName && <p className="mt-2 text-xs font-semibold text-slate-500">Attachment: {item.fileName}</p>}</article>)}{!clinicUpdates.length && <p className="p-6 text-center text-sm text-slate-500">No patient reports or updates have been shared yet.</p>}</div></div>
+            </div>
+          </section>
+
+          <section id="clinic-team" data-clinic-panel="team" hidden={clinicView !== "team"} className="clinic-team-layout grid scroll-mt-28 items-start gap-5 xl:grid-cols-[minmax(17rem,.82fr)_minmax(0,1.65fr)]">
+            <div className="clinic-add-doctor-card clinic-add-doctor-panel rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-5 shadow-[0_12px_35px_rgba(15,42,58,.06)] sm:p-6">
+              <div className="mb-4">
                 <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-teal-700"><Icon name="plus" size={13}/> Team setup</span>
-                <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Add your first doctor</h2>
-                <p className="mt-1 text-sm text-slate-500">Add a specialist to your clinic directory.</p>
-                <img src={clinicWorkspaceArt} alt="Modern clinic building illustration" className="my-3 h-28 w-full rounded-xl bg-slate-50 object-contain"/>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Add a doctor</h2>
+                <p className="mt-1 text-sm text-slate-500">Add a specialist to your clinic team.</p>
               </div>
-              <form onSubmit={addDoctor} className="space-y-4">
+              <form onSubmit={addDoctor} className="clinic-doctor-form space-y-4">
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor name</span><input className={`${field} rounded-xl bg-slate-50/70`} placeholder="e.g. Dr. Aditi Sharma" required value={doctorForm.name} onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })} /></label>
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Specialization</span><input className={`${field} rounded-xl bg-slate-50/70`} placeholder="e.g. Orthopaedics" required value={doctorForm.specialization} onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })} /></label>
                 <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Consultation fee (₹)</span><input className={`${field} rounded-xl bg-slate-50/70`} type="number" min="0" placeholder="500" value={doctorForm.fee} onChange={(e) => setDoctorForm({ ...doctorForm, fee: e.target.value })} /></label>
-                <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3"><p className="text-sm font-bold text-teal-900">Doctor portal account (optional)</p><p className="mt-1 text-xs text-teal-800">Add an email and temporary password so this doctor can sign in separately. Both fields are required together.</p><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor email</span><input className={`${field} rounded-xl bg-white`} type="email" placeholder="doctor@example.com" value={doctorForm.email} onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })} /></label><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Temporary password (minimum 8 characters)</span><div className="relative"><input className={`${field} rounded-xl bg-white pr-20`} type={showDoctorSetupPassword ? "text" : "password"} minLength="8" placeholder="Create initial password" value={doctorForm.password} onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })} /><button type="button" onClick={() => setShowDoctorSetupPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showDoctorSetupPassword ? "Hide" : "Show"}</button></div></label></div>
-                <button className={`${button} flex w-full items-center justify-center gap-2 rounded-xl`}><Icon name="plus" size={16} /> Add doctor</button>
+                <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3"><p className="text-sm font-bold text-teal-900">Doctor portal account (optional)</p><p className="mt-1 text-xs text-teal-800">Add an email and temporary password so this doctor can sign in separately. Both fields are required together.</p><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Doctor email</span><input className={`${field} rounded-xl bg-white`} type="email" placeholder="doctor@example.com" value={doctorForm.email} onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })} /></label><label className="mt-3 block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Temporary password (minimum 8 characters)</span><div className="relative"><input className={`${field} rounded-xl bg-white pr-20`} type={showDoctorSetupPassword ? "text" : "password"} minLength="8" placeholder="Create initial password" value={doctorForm.password} onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })} /><button type="button" onClick={() => setShowDoctorSetupPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-700">{showDoctorSetupPassword ? "Hide" : "Show"}</button></div></label>{doctorForm.email && <EmailCode api={API} role="doctor" email={doctorForm.email} value={teamCode} onChange={setTeamCode}/>}</div>
+                <button type="submit" className={`${button} flex w-full items-center justify-center gap-2 rounded-xl`}><Icon name="plus" size={16} /> Add doctor</button>
               </form>
             </div>
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div><h2 className="text-lg font-semibold tracking-tight text-slate-950">Clinic team</h2><p className="mt-1 text-sm text-slate-500">Build and maintain your clinic’s own care team. No sample doctors are added automatically.</p></div>
-                <span className="rounded-full bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">{adminDoctors.length} doctors</span>
+            <div className="clinic-team-roster rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+              <div className="clinic-team-roster-header mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div><h2 className="text-lg font-semibold tracking-tight text-slate-950">Clinic team</h2><p className="mt-1 text-sm text-slate-500">Manage doctor profiles, visit fees and availability.</p></div>
+                <span className="rounded-full bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">{adminDoctors.length} doctor{adminDoctors.length === 1 ? "" : "s"}</span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {adminDoctors.map((doctor) => (
-                  <article key={doctor._id} className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-teal-50/50 p-4 shadow-[0_5px_20px_rgba(15,42,58,.035)] transition duration-200 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_16px_35px_rgba(15,118,110,.10)]">
+              {clinicView === "team" && <TeamRequests api={api} refreshTeam={loadDashboard}/>}
+              <label className="clinic-doctor-search mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3"><Icon name="spark" size={16}/><input type="search" aria-label="Search clinic doctors" value={doctorSearch} onChange={(event) => setDoctorSearch(event.target.value)} placeholder="Search by name or specialty" /></label>
+              <div className="clinic-doctor-grid grid gap-3 sm:grid-cols-2">
+                {clinicTeamDoctors.map((doctor) => (
+                  <article key={doctor._id} className="clinic-doctor-card group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-teal-50/50 p-4 shadow-[0_5px_20px_rgba(15,42,58,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_16px_35px_rgba(15,118,110,.10)]">
                     <div className="absolute right-0 top-0 h-20 w-20 rounded-bl-[3rem] bg-teal-50/80 transition group-hover:bg-teal-100/80" />
                     <div className="relative flex items-start gap-3">
                       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-700 text-base font-black text-white shadow-md shadow-teal-700/15">{(doctor.name || "D").replace(/^dr\.?\s*/i, "").slice(0, 1).toUpperCase()}</span>
                       <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-extrabold text-slate-900">{doctor.name}</p><span className={`rounded-full px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider ${doctor.isActive ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{doctor.isActive ? "Active" : "Unavailable"}</span></div>
                         <p className="mt-1 truncate text-xs font-medium text-slate-500">{doctor.specialization}</p><p className="mt-1 truncate text-[10px] text-slate-400">{doctor.email || "Doctor portal login not configured"}</p>
-                        <div className="mt-3 flex items-center justify-between gap-2"><div><p className="text-sm font-extrabold text-teal-800">₹{doctor.fee}<span className="ml-1 text-[10px] font-medium text-slate-400">/ visit</span></p><div className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1"><button type="button" aria-label="Decrease consultation fee by 50 rupees" onClick={() => updateDoctorFee(doctor,-50)} className="grid h-7 w-8 place-items-center rounded-md text-sm font-black text-slate-700 hover:bg-rose-50 hover:text-rose-700">−</button><span className="px-1 text-[10px] font-bold text-slate-500">₹50</span><button type="button" aria-label="Increase consultation fee by 50 rupees" onClick={() => updateDoctorFee(doctor,50)} className="grid h-7 w-8 place-items-center rounded-md text-sm font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-700">+</button></div><p className="mt-1 text-[9px] text-slate-400">Adjust future visit fee</p></div><button onClick={() => removeDoctor(doctor)} className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-rose-600 transition hover:bg-rose-50">Remove doctor</button></div>
+                        <div className="mt-3 flex items-center justify-between gap-2"><div><p className="text-sm font-extrabold text-teal-800">₹{doctor.fee}<span className="ml-1 text-[10px] font-medium text-slate-400">/ visit</span></p><div className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1"><button type="button" aria-label="Decrease consultation fee by 50 rupees" onClick={() => updateDoctorFee(doctor,-50)} className="grid h-7 w-8 place-items-center rounded-md text-sm font-black text-slate-700 hover:bg-rose-50 hover:text-rose-700">−</button><span className="px-1 text-[10px] font-bold text-slate-500">₹50</span><button type="button" aria-label="Increase consultation fee by 50 rupees" onClick={() => updateDoctorFee(doctor,50)} className="grid h-7 w-8 place-items-center rounded-md text-sm font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-700">+</button></div><p className="mt-1 text-[9px] text-slate-400">Adjust future visit fee</p></div><EditDoctor clinicAdmin api={API} profile={doctor} save={async fields=>{await api.patch("/doctors/"+doctor._id+"/profile",fields);await loadDashboard();}}/><button onClick={() => removeDoctor(doctor)} className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-rose-600 transition hover:bg-rose-50">Remove doctor</button></div>
                         {doctor.isActive ? <button className="mt-3 w-full rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-[11px] font-bold text-amber-800 transition hover:bg-amber-100" onClick={async () => { const fromDate = window.prompt("Unavailable from date (YYYY-MM-DD)", new Date().toISOString().slice(0,10)); if (!fromDate) return; const toDate = window.prompt("Unavailable through date (YYYY-MM-DD, optional)", fromDate) || ""; try { const { data } = await api.post(`/doctors/${doctor._id}/unavailable`, { fromDate, toDate }); setNotice(data.message); await loadDashboard(); } catch (e) { setError(e.response?.data?.message || "Could not notify patients."); } }}>Mark unavailable & notify patients</button> : <button className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[11px] font-bold text-emerald-800 transition hover:bg-emerald-100" onClick={async () => { try { const { data } = await api.patch(`/doctors/${doctor._id}/availability-status`, { isActive: true }); setNotice(data.message); await loadDashboard(); await loadClinic(); } catch (e) { setError(e.response?.data?.message || "Could not reactivate doctor."); } }}>Reactivate doctor</button>}
                       </div>
                     </div>
                   </article>
                 ))}
-                {!adminDoctors.length && <div className="col-span-full rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center"><p className="font-semibold text-slate-700">No doctors added yet</p><p className="mt-1 text-sm text-slate-500">Add your clinic’s first doctor using the form.</p></div>}
+                {!clinicTeamDoctors.length && <div className="col-span-full rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center"><p className="font-semibold text-slate-700">{adminDoctors.length ? "No doctors match your search" : "No doctors added yet"}</p><p className="mt-1 text-sm text-slate-500">{adminDoctors.length ? "Try a different name or specialty." : "Add your clinic's first doctor using the form."}</p></div>}
               </div>
+              {clinicTeamDoctors.length > 4 && <p className="clinic-team-list-hint">Showing all {clinicTeamDoctors.length} matching doctors · scroll to view the rest</p>}
             </div>
           </section>
 
@@ -1552,15 +1950,20 @@ export default function App() {
               {!availabilityRequests.length && <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">No doctor availability requests yet.</p>}
             </div>
           </section>
-          <section data-clinic-panel="settings" hidden={clinicView !== "settings"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <section data-clinic-panel="settings" hidden={clinicView !== "settings"} className="clinic-page-panel mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-5"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-blue-700">Clinic settings</p><h2 className="mt-1 text-xl font-black text-slate-900">Practice profile & opening hours</h2><p className="mt-1 text-sm text-slate-500">Keep public clinic details and weekly schedule up to date.</p></div>
+            <button type="button" className={button} onClick={async () => {
+              try { const { data } = await api.post("/clinic/gmail/connect"); window.location.assign(data.url); }
+              catch (err) { setError(err.response?.data?.message || "Could not connect clinic Gmail."); }
+            }}>Connect Gmail for booking confirmations</button>
             <form onSubmit={saveClinicProfile} className="grid gap-4 md:grid-cols-2">
-              {[[ "clinicName","Clinic name"],["adminName","Admin / contact person"],["email","Clinic email"],["aiAgentName","AI assistant name"]].map(([key,label])=><label key={key} className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><input required type={key==="email"?"email":"text"} maxLength={key==="aiAgentName"?50:undefined} value={clinicProfileDraft[key] || ""} onChange={(e)=>setClinicProfileDraft((old)=>({...old,[key]:e.target.value}))} placeholder={key==="aiAgentName"?"e.g. MediCall Assistant":"Enter "+label.toLowerCase()} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none focus:border-blue-500"/>{key==="aiAgentName" && <span className="mt-1 block text-[11px] text-slate-500">This name is shown to patients when they chat with your clinic assistant.</span>}</label>)}
+              {[[ "clinicName","Clinic name"],["adminName","Admin / contact person"],["email","Clinic email"],["phone","Clinic phone number"],["aiAgentName","AI assistant name"]].map(([key,label])=><label key={key} className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><input required={key!=="phone"} type={key==="email"?"email":key==="phone"?"tel":"text"} inputMode={key==="phone"?"tel":undefined} autoComplete={key==="phone"?"tel":undefined} maxLength={key==="aiAgentName"?50:key==="phone"?20:undefined} value={clinicProfileDraft[key] || ""} onChange={(e)=>setClinicProfileDraft((old)=>({...old,[key]:e.target.value}))} placeholder={key==="aiAgentName"?"e.g. MediCall Assistant":key==="phone"?"+91 98765 43210":"Enter "+label.toLowerCase()} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none focus:border-blue-500"/>{key==="aiAgentName" && <span className="mt-1 block text-[11px] text-slate-500">This name is shown to patients when they chat with your clinic assistant.</span>}{key==="phone" && <span className="mt-1 block text-[11px] text-slate-500">Optional. Patients can use this number to contact your clinic.</span>}</label>)}
               <div className="md:col-span-2"><div className="mb-3"><h3 className="font-extrabold text-slate-900">Weekly opening hours</h3><p className="mt-1 text-xs font-semibold text-blue-700">Open {(clinicProfileDraft.businessHours || []).filter((item) => item.isOpen).length} days per week</p><p className="mt-1 text-xs text-slate-500">Select operating days and the opening / closing time.</p></div><div className="space-y-2">{(clinicProfileDraft.businessHours||[]).map((item,index)=><div key={item.dayOfWeek} className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3"><span className="text-xs font-bold text-slate-700">{clinicDays[item.dayOfWeek]}</span><label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600"><input type="checkbox" checked={item.isOpen} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,isOpen:e.target.checked}:h)}))}/> Open</label><input type="time" disabled={!item.isOpen} value={item.openTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,openTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/><input type="time" disabled={!item.isOpen} value={item.closeTime} onChange={(e)=>setClinicProfileDraft((old)=>({...old,businessHours:old.businessHours.map((h,i)=>i===index?{...h,closeTime:e.target.value}:h)}))} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs disabled:opacity-40"/></div>)}</div></div>
               <button className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-blue-800 md:col-span-2">Save clinic profile & hours</button>
             </form>
+             {token && <div className="mt-6 border-t border-slate-100 pt-6"><Suspense fallback={<p className="text-sm text-slate-500">Loading account security…</p>}><ChangePasswordPanel apiUrl={API} token={token} role="clinic" onChanged={() => { logout(); setAuthMode("clinic-login"); setNotice("Password changed. Sign in again with your new password."); }} /></Suspense></div>}
           </section>
-          <details id="clinic-location" data-clinic-panel="settings" hidden={clinicView !== "settings"} open className="mt-8 scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <details id="clinic-location" data-clinic-panel="settings" hidden={clinicView !== "settings"} open className="clinic-page-panel clinic-location-panel mt-4 scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
               <span><span className="block text-[10px] font-extrabold uppercase tracking-[.16em] text-slate-500">Clinic settings · rarely changed</span><span className="mt-1 block text-base font-bold text-slate-800">Location and directions</span><span className="mt-1 block text-xs text-slate-500">{clinicLocationDraft.address || "Add your clinic address so patients can find you."}</span></span>
               <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">Edit location</span>
@@ -1585,7 +1988,7 @@ export default function App() {
           </details>
         </main>
       )}
-      {page === "doctor-portal" && <DoctorPortal onExit={() => setPage("home")} />}
+      {page === "doctor-portal" && <Suspense fallback={<p role="status">Loading doctor portal…</p>}><DoctorPortal onExit={() => setPage("home")} onSelectRole={(role) => { setAuthMode(role === "patient" ? "patient-login" : "clinic-login"); setForgotPasswordOpen(false); setPage("auth"); }} /></Suspense>}
 
       {collectionModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCollectionModal(null); }}>
@@ -1626,11 +2029,11 @@ export default function App() {
         </div>
       )}
 
-      <footer className="border-t bg-white px-5 py-6 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} MediCall AI · Clinic-managed appointments
+      <footer className={page === "home" ? "site-footer-home" : "border-t bg-white px-5 py-6 text-center text-xs text-slate-500"}>
+        {page === "home" ? <><span>MediCall AI · Care, connected</span><nav aria-label="Footer links"><a href="#platform-features">Explore features</a><button type="button" onClick={() => setPage("subscriptions")}>Explore subscriptions</button></nav></> : <>© {new Date().getFullYear()} MediCall AI · Clinic-managed appointments</>}
       </footer>
 
-      {chatOpen && (
+      {page === "patient-dashboard" && chatOpen && (
         <section className="fixed bottom-20 right-3 z-50 flex h-[min(720px,82dvh)] w-[min(440px,calc(100vw-24px))] flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_24px_80px_-28px_rgba(15,23,42,0.35)] sm:bottom-24 sm:right-5">
           <header className="flex items-center justify-between border-b border-slate-100 bg-white p-4 text-slate-900">
             <div>
@@ -1649,11 +2052,11 @@ export default function App() {
             </button>
           </header>
           <div className="border-b border-slate-100 bg-white px-3 py-2">
-            <label className="flex items-center gap-2 text-[11px] font-bold text-slate-500"><span className="shrink-0">Clinic context</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700"><option value="">Select a clinic for AI recommendations</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
+            <label className="flex items-center gap-2 text-[11px] font-bold text-slate-500"><span className="shrink-0">Clinic context</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700"><option value="">Choose a clinic</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
             {selectedClinicId && clinic?.id===selectedClinicId && clinic.location?.address && <p className="mt-1 truncate text-[10px] text-slate-500">📍 {clinic.location.address}</p>}
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto bg-[#f8fafc] p-4">
+          <div className="chat-history flex-1 space-y-3 overflow-y-auto bg-[#f8fafc] p-4">
             {chatMessages.map((message, index) => (
               <div
                 key={index}
@@ -1703,7 +2106,7 @@ export default function App() {
               disabled={chatLoading && !voiceMode}
               aria-label={voiceMode ? "Stop live voice conversation" : "Start live voice conversation"}
             >
-              <span className="inline-flex items-center gap-2">{voiceMode ? <Icon name="close" size={16} /> : <Icon name="mic" size={16} />}{voiceMode ? "End voice" : "Live voice"}</span>
+              <span className="inline-flex items-center gap-2">{voiceMode ? <Icon name="close" size={16} /> : <Icon name="mic" size={16} />}<span className="hidden sm:inline">{voiceMode ? "End voice" : "Live voice"}</span></span>
             </button>
 
             <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-700 text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={chatLoading || !chatInput.trim()} aria-label="Send message" title="Send message">
@@ -1717,7 +2120,7 @@ export default function App() {
         </section>
       )}
 
-      {!chatOpen && (
+      {page === "patient-dashboard" && !chatOpen && (
         <button
           className="fixed bottom-5 right-5 z-40 grid h-16 w-16 place-items-center rounded-2xl bg-teal-700 text-2xl text-white shadow-xl shadow-teal-900/25 transition hover:-translate-y-1 hover:bg-teal-800"
           onClick={() => setChatOpen(true)}
