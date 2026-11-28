@@ -100,9 +100,16 @@ async function sendAppointmentEmail(details) {
   if (!mailbox) return false;
   const { bookingId, confirmed, html, subject, fields, from } = bookingMessage(details);
   const to = details.to;
-  const attachments = confirmed ? [{ filename: `Booking-${bookingId}.pdf`, content: await renderConfirmation(html), contentType: "application/pdf", contentDisposition: "attachment" }] : [];
-  await sendGmail(mailbox.token, { from: mailbox.email, to, subject, html: confirmed ? html + "<p>Your booking confirmation PDF is attached. Download it for your visit.</p>" : html, attachments,
-    text: [subject, ...(confirmed ? ["Your booking confirmation PDF is attached."] : []), ...fields.map(([label, value]) => `${label}: ${value}`)].join("\n") });
+  const attachments = [];
+  if (confirmed) {
+    try {
+      attachments.push({ filename: `Booking-${bookingId}.pdf`, content: await renderConfirmation(html), contentType: "application/pdf", contentDisposition: "attachment" });
+    } catch {
+      console.warn("Booking PDF unavailable. Sending confirmation details in the email body.");
+    }
+  }
+  await sendGmail(mailbox.token, { from: mailbox.email, to, subject, html: attachments.length ? html + "<p>Your booking confirmation PDF is attached. Download it for your visit.</p>" : html, attachments,
+    text: [subject, ...(attachments.length ? ["Your booking confirmation PDF is attached."] : []), ...fields.map(([label, value]) => `${label}: ${value}`)].join("\n") });
   return true;
 }
 
