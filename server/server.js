@@ -134,7 +134,7 @@ async function sendGmail(refreshToken, message) {
     }),
     signal: AbortSignal.timeout(10000)
   });
-  if (!tokenResult.ok) throw new Error("Google could not authorize the welcome email sender.");
+  if (!tokenResult.ok) throw Object.assign(new Error("Google could not authorize the email sender."), {mailStage: "OAuth token exchange", mailStatus: tokenResult.status});
   const { access_token } = await tokenResult.json();
   const mime = await nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "windows" }).sendMail({
     ...message
@@ -143,7 +143,7 @@ async function sendGmail(refreshToken, message) {
     method: "POST", headers: { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ raw: mime.message.toString("base64url") }), signal: AbortSignal.timeout(15000)
   });
-  if (!sent.ok) throw new Error(`Gmail rejected the welcome email (HTTP ${sent.status}).`);
+  if (!sent.ok) throw Object.assign(new Error(`Gmail rejected the email (HTTP ${sent.status}).`), {mailStage: "Gmail send", mailStatus: sent.status});
   return true;
 }
 
@@ -1006,7 +1006,28 @@ function validateAccountCredentials(req, res, next) {
 }
 
 const {setupVerification, verifySignup} = require("./signupVerification");
-setupVerification(app, message => process.env.GMAIL_REFRESH_TOKEN ? sendGmail(process.env.GMAIL_REFRESH_TOKEN, {...message, from:"MediCall AI <shubhamjoshi20060203@gmail.com>"}) : sendMediCallEmail(message));
+setupVerification(app, async message => {
+  if (process.env.GMAIL_REFRESH_TOKEN) {
+    try {
+      return await sendGmail(process.env.GMAIL_REFRESH_TOKEN, {
+        ...message, from: "MediCall AI <shubhamjoshi20060203@gmail.com>"
+      });
+    } catch (error) {
+      console.warn("Signup OTP: Gmail delivery failed.", error.mailStage || "Network or transport failure", error.mailStatus || "");
+      if (!mailTransporter || !error.mailStatus) throw error;
+    }
+  }
+  if (!mailTransporter) {
+    console.warn("Signup OTP: no developer email sender configured.");
+    return false;
+  }
+  try {
+    return await sendMediCallEmail(message);
+  } catch (error) {
+    console.warn("Signup OTP: backup email delivery failed.", error.responseCode || error.code || "Check sender configuration");
+    throw error;
+  }
+});
 app.post("/api/auth/register", validateAccountCredentials, verifySignup("clinic"), async (req, res) => {
   try {
     const {

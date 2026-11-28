@@ -23,10 +23,10 @@ function setupVerification(app, send) {
     }
     try {
       if (!await send({to:email, subject:"Verify your MediCall email",text:"Your registration code is " + code + ". It expires in 10 minutes.", html:"<p>Your registration code is <strong>"+code+"</strong>. It expires in 10 minutes.</p>"})) throw Error("Mail unavailable");
-      res.json({message:"Check your inbox for the verification code."});
+      res.json({message:"Code sent. Check your inbox and spam folder. The code expires in 10 minutes."});
     } catch {
       await Challenge.deleteOne({_id:key,digest:hash});
-      res.status(503).json({message:"Could not send the verification code. Check the address and retry."});
+      res.status(503).json({message:"MediCall could not send the verification email. Please retry or contact the clinic if this continues."});
     }
   });
 }

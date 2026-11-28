@@ -1,3 +1,4 @@
+import LoginHeader from "./LoginHeader.jsx";
 import { EmailCode, EditDoctor, TeamRequests } from "./DoctorMembership.jsx";
 import PortalNavigation from "./PortalNavigation.jsx";
 const clinicSections = [[ "overview","Overview","spark"],["analytics","Analytics","message"],["appointments","Appointments","check"],["offline-booking","Offline booking","plus"],["labs","Home lab tests","check"],["patients","Patients","user"],["team","Doctors & team","user"],["reports","Reports","check"],["settings","Clinic settings","plus"],["billing","Subscription","check"]];
@@ -1396,12 +1397,13 @@ export default function App() {
             <div className="care-login-card-shell"><Suspense fallback={<p className="text-sm text-slate-400">Loading password recovery.</p>}><ForgotPasswordPanel apiUrl={API} role={authMode.startsWith("patient-") ? "patient" : "clinic"} initialEmail={authMode.startsWith("patient-") ? patientAuth.email : auth.email} onBack={() => setForgotPasswordOpen(false)} /></Suspense></div>
           ) : (
             <form onSubmit={registerOrLogin} className="care-login-card">
-              <header className="care-login-heading"><p className="care-login-brand">MEDICALL AI <span>·</span> CARE, CONNECTED</p><h1>{authMode.endsWith("register") ? "Create your account" : "Welcome back"}</h1><p>{authMode.endsWith("register") ? "Get started with your MediCall workspace." : "Choose how you use MediCall."}</p></header>
-              <div className="care-role-selector" aria-label="Choose account type">
-                <button type="button" className={authMode.startsWith("patient-") ? "is-active" : ""} onClick={() => { setForgotPasswordOpen(false); setAuthMode("patient-login"); }}>♙<span>Patient</span></button>
-                <button type="button" onClick={() => { setNotice(""); setError(""); setPage("doctor-portal"); }}>♧<span>Doctor</span></button>
-                <button type="button" className={!authMode.startsWith("patient-") ? "is-active" : ""} onClick={() => { setForgotPasswordOpen(false); setAuthMode("clinic-login"); }}>✚<span>Clinic</span></button>
-              </div>
+              <LoginHeader role={authMode.startsWith("patient") ? "patient" : "clinic"} registering={authMode.endsWith("register")} onSelect={role => {
+                setForgotPasswordOpen(false);
+                setNotice("");
+                setError("");
+                if (role === "doctor") setPage("doctor-portal");
+                else setAuthMode(role + "-login");
+              }} />
               <div className="care-login-context"><span>{authStory.eyebrow}</span><p>{authStory.description}</p></div>
               <div className="care-login-fields">
                 {authMode.startsWith("patient-") ? <>
