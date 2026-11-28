@@ -48,6 +48,15 @@ api.interceptors.request.use((config) => {
 function Icon({ name, size = 18, className = "" }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", className, "aria-hidden": true };
   const paths = {
+    care: <path d="M21 21l-5-5 M18 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0"/>,
+    account: <path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"/>,
+    appointments: <path d="M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4"/>,
+    health: <path d="M2 12h5l3-8 4 16 3-8h5"/>,
+    records: <path d="M6 3h9l4 4v14H6z M9 12h7 M9 16h5"/>,
+    labs: <path d="M9 3h6 M10 3v7L4 20h16l-6-10V3"/>,
+    updates: <path d="M5 17h14l-2-4V9a5 5 0 0 0-10 0v4z M10 20h4"/>,
+    payments: <path d="M3 5h18v14H3z M3 10h18"/>,
+    family: <path d="M3 20a6 6 0 0 1 12 0 M12 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0 M17 6a3 3 0 0 1 0 6 M17 15a5 5 0 0 1 5 5"/>,
     plus: <><path d="M12 5v14"/><path d="M5 12h14"/></>,
     spark: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/><path d="m19 14 1 2.5 2 1-2 1-1 2.5-1-2.5-2-1 2-1 1-2.5Z"/></>,
     mic: <><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11.5a7 7 0 0 0 14 0"/><path d="M12 18.5v3"/><path d="M8.5 21.5h7"/></>,
@@ -1429,8 +1438,8 @@ export default function App() {
       {page === "patient-dashboard" && (
         <main className="patient-dashboard mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:pl-[260px] lg:pr-10">
           <aside className="patient-sidebar fixed left-0 top-[76px] z-30 hidden h-[calc(100vh-76px)] w-[248px] flex-col px-3 py-5 text-white shadow-xl lg:flex" aria-label="Patient portal navigation">
-            <div className="mb-5 px-3"><strong className="block text-sm text-white">{patient?.fullName || "Patient account"}</strong><span className="text-[10px] font-bold tracking-wider text-teal-100">PATIENT PORTAL</span></div>
-            <nav className="min-h-0 flex-1 overflow-y-auto" aria-label="Patient sections">{patientSections.map(([key,label]) => <button key={key} type="button" aria-current={patientView===key?"page":undefined} onClick={() => {setPatientView(key);setPatientProfileEditing(false);window.scrollTo({top:0,behavior:"smooth"});}} className={`patient-nav-item mb-1 flex w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold ${patientView===key?"is-active":""}`}>{label}</button>)}</nav>
+            <div className="patient-identity"><b aria-hidden="true">{(patient?.fullName || "Patient").trim().split(/\s+/).slice(0,2).map(word=>word[0]).join("").toUpperCase()}</b><div><strong className="block text-sm text-white">{patient?.fullName || "Patient account"}</strong><span className="text-[10px] font-bold tracking-wider text-teal-100">PATIENT PORTAL</span></div></div>
+            <nav className="min-h-0 flex-1 overflow-y-auto" aria-label="Patient sections">{patientSections.map(([key,label]) => <button key={key} type="button" aria-current={patientView===key?"page":undefined} onClick={() => {setPatientView(key);setPatientProfileEditing(false);window.scrollTo({top:0,behavior:"smooth"});}} className={`patient-nav-item mb-1 flex w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold ${patientView===key?"is-active":""}`}><Icon name={key === "ai" ? "spark" : key === "profile" ? "user" : key} size={17}/>{label}</button>)}</nav>
             <button onClick={patientLogout} className="mt-3 rounded-xl bg-white/10 px-3 py-2.5 text-left text-xs font-bold text-white">Sign out</button>
           </aside>
           <PortalNavigation role="Patient" value={patientView} sections={patientView === "booking" ? [...patientSections, ["booking", "Book a visit"]] : patientSections}
@@ -1648,9 +1657,9 @@ export default function App() {
                 <label className="block"><span className="mb-1 block text-[11px] font-bold text-slate-600">Selected clinic</span><select value={selectedClinicId} onChange={(e)=>chooseClinic(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"><option value="">Choose a clinic first</option>{clinics.map((item)=><option key={item._id} value={item._id}>{item.clinicName}</option>)}</select></label>
                 <label className="block"><span className="mb-1 block text-[11px] font-bold text-slate-600">What symptoms or concern do you have?</span><input value={symptomQuery} onChange={(e)=>setSymptomQuery(e.target.value)} placeholder="e.g. skin rash, knee pain, fever, tooth pain" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/></label>
               </div>
-              {selectedClinicId && clinic?.id === selectedClinicId && <div className="care-entry-actions"><button onClick={() => setPatientView("booking")}>Book at this clinic</button><button onClick={() => setPatientView("account")}>Continue to dashboard</button></div>}
+              <div className="patient-care-actions">{selectedClinicId && clinic?.id === selectedClinicId && <><button onClick={() => setPatientView("booking")}>Book at this clinic</button><button onClick={() => setPatientView("account")}>Continue to dashboard</button></>}
 
-              <div className="mt-2 flex flex-wrap items-center gap-2"><button onClick={()=>{if(!symptomQuery.trim()){setError("Please describe your symptoms first.");return;}if(!selectedClinicId){setError("Please select a clinic first.");return;}setSymptomSpecialty(matchedSpecialty);}} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-800">Find matching doctors</button>{symptomSpecialty && <button onClick={()=>{setSymptomSpecialty("");setSymptomQuery("");}} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600">Clear</button>}</div>
+              <button onClick={()=>{if(!symptomQuery.trim()){setError("Please describe your symptoms first.");return;}if(!selectedClinicId){setError("Please select a clinic first.");return;}setSymptomSpecialty(matchedSpecialty);}} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-800">Find matching doctors</button>{symptomSpecialty && <button onClick={()=>{setSymptomSpecialty("");setSymptomQuery("");}} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600">Clear</button>}</div>
               {symptomSpecialty && selectedClinicId && clinic?.id===selectedClinicId && <div className="mt-3 rounded-2xl border border-indigo-100 bg-white p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">Suggested medical specialty</p><p className="mt-1 text-lg font-black text-slate-900">{symptomSpecialty}</p><p className="mt-1 text-xs text-slate-500">Based on the words you entered; this is not a medical diagnosis.</p></div>
@@ -1667,7 +1676,7 @@ export default function App() {
                 {recommendedDoctors.length>0 && <p className="mt-2 text-[10px] text-slate-500">Showing up to four matching doctors from this selected clinic.</p>}
               </div>}
               {!selectedClinicId && <p className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-white/80 p-3 text-xs text-indigo-800">Select a registered clinic to see its doctors, address and directions.</p>}
-              <p className="mt-3 text-[10px] leading-4 text-slate-500">For severe chest pain, difficulty breathing, stroke symptoms, heavy bleeding or another emergency, seek emergency medical care immediately.</p>
+              <p className="patient-emergency-note">For severe chest pain, difficulty breathing, stroke symptoms, heavy bleeding or another emergency, seek emergency medical care immediately.</p>
             </section>
             {patientView === "care" && <NearbyCare apiUrl={API} token={patientToken} onBook={async (clinicId, doctorId) => {
               const loaded = await chooseClinic(clinicId);

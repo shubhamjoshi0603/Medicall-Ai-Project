@@ -724,3 +724,36 @@
   .doctor-agenda li { grid-template-columns: auto minmax(0,1fr); }
   .doctor-agenda li button { grid-column: 2; justify-self: start; }
 }
+
+.app-shell[data-page="patient-dashboard"] {
+  --pt-bg:#f3f6f9; --pt-card:#fff; --pt-row:#f7f9fb; --pt-ink:#152c42; --pt-muted:#475c70;
+  --pt-line:#d5dfe6; --pt-selected:#e4f3f1; --pt-accent:#075d61; --pt-alert:#fff5df; --pt-alert-ink:#774208;
+  background:var(--pt-bg)!important; color:var(--pt-ink);
+}
+.app-shell[data-page="patient-dashboard"][data-theme="dark"] {
+  color-scheme: dark; --pt-bg:#0c1926; --pt-card:#15283a; --pt-row:#1c3246; --pt-ink:#eff6fa;
+  --pt-muted:#bdcdda; --pt-line:#42576a; --pt-selected:#17464b; --pt-accent:#95eee2; --pt-alert:#412f1a; --pt-alert-ink:#ffe2ae;
+}
+.app-shell[data-page="patient-dashboard"][data-theme] :is(.site-header,.patient-sidebar,#patient-smart-care,.patient-directory) {
+  background:var(--pt-card)!important; color:var(--pt-ink)!important; border-color:var(--pt-line)!important; box-shadow:none!important;
+}
+.app-shell[data-page="patient-dashboard"] .patient-sidebar { border-inline-end:1px solid; }
+.patient-identity { display:flex; gap:.65rem; align-items:center; padding:.55rem .55rem 1rem; margin-bottom:.85rem; border-bottom:1px solid var(--pt-line); overflow-wrap:anywhere; }
+.patient-identity b,.directory-avatar { display:grid; place-items:center; flex:none; width:2.5rem; height:2.5rem; border-radius:50%; background:var(--pt-selected); color:var(--pt-accent); }
+.app-shell[data-page="patient-dashboard"][data-theme] .patient-sidebar :is(strong,button,small,span) {color:var(--pt-ink)!important;}
+.app-shell[data-page="patient-dashboard"][data-theme] .patient-sidebar button { background:transparent!important; }
+.app-shell[data-page="patient-dashboard"][data-theme] .patient-sidebar button:is(:hover,[aria-current="page"]) {background:var(--pt-selected)!important;color:var(--pt-accent)!important;}
+.patient-sidebar .patient-nav-item {align-items:center;gap:.75rem;}
+.app-shell[data-page="patient-dashboard"] :is(#patient-smart-care,.patient-directory) {padding:clamp(1rem,2.5vw,2rem); border:1px solid var(--pt-line);border-radius:1rem;}
+.patient-directory {margin-top:1rem;}
+.app-shell[data-page="patient-dashboard"][data-theme] :is(#patient-smart-care,.patient-directory) :is(h2,h3,strong,label) {color:var(--pt-ink)!important;}
+.app-shell[data-page="patient-dashboard"][data-theme] :is(#patient-smart-care,.patient-directory) :is(p,label>span) {color:var(--pt-muted)!important;}
+.app-shell[data-page="patient-dashboard"][data-theme] :is(#patient-smart-care,.patient-directory) :is(select,input,.lab-request) {background:var(--pt-row)!important;border-color:var(--pt-line)!important;color:var(--pt-ink)!important;min-width:0;}
+.app-shell[data-page="patient-dashboard"] :is(#patient-smart-care,.patient-directory) input::placeholder {color:var(--pt-muted);opacity:1;}
+.patient-care-actions {display:flex;flex-wrap:wrap;gap:.55rem;margin-top:1rem;}
+.app-shell[data-page="patient-dashboard"] :is(.patient-care-actions,.patient-directory) button {min-height:44px;padding:.55rem .9rem;border-radius:.65rem;}
+.app-shell[data-page="patient-dashboard"][data-theme] :is(.patient-care-actions button,.patient-directory .lab-request button) {background:#086b70!important;color:white!important;}
+.app-shell[data-page="patient-dashboard"][data-theme] .patient-care-actions button.bg-indigo-700 {background:#5140b6!important;}
+.app-shell[data-page="patient-dashboard"][data-theme] #patient-smart-care .patient-emergency-note {background:var(--pt-alert);color:var(--pt-alert-ink)!important;margin-top:1rem;padding:.6rem .85rem;border-radius:.55rem;font-size:.8rem;}
+.directory-doctor {flex:1 1 9rem;min-width:0;overflow-wrap:anywhere;}
+@media(max-width:520px){.patient-care-actions button {flex:1 1 100%;}.patient-directory .lab-form {grid-template-columns:minmax(0,1fr);}}

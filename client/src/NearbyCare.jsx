@@ -47,7 +47,7 @@ export default function NearbyCare({ apiUrl, token, onBook }) {
     catch { setMessage("This doctor could not be selected. Refresh the results and try again."); }
     finally {setBooking(false);}
   }
-  return <section className="workspace-panel lab-panel"><header><h2>Nearby clinics and specialists</h2>
+  return <section className="workspace-panel lab-panel patient-directory"><header><h2>Nearby clinics and specialists</h2>
     <button onClick={()=>{setMessage("");setRevision(v=>v+1);}}>Refresh</button></header>
     <p>Search clinics registered with MediCall and the specialists listed by each clinic.</p>
     <div className="lab-form"><label>Doctor, clinic or area<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search by name or locality" /></label>
@@ -60,7 +60,7 @@ export default function NearbyCare({ apiUrl, token, onBook }) {
     {matches.map(c=><article key={c._id} className="lab-request"><header><h3>{c.clinicName}</h3>
       {origin && <span>{c.distance === null ? "Distance unavailable" : c.distance.toFixed(1) + " km away"}</span>}</header>
       <p>{c.location?.address || "Address unavailable"}</p>
-      {c.doctors.map(d=><div className="flex flex-wrap items-center justify-between gap-2 py-2" key={d._id}><div><strong>{d.name}</strong><p>{d.specialization} · ₹{d.fee}</p></div>
+      {c.doctors.map(d=><div className="flex flex-wrap items-center justify-between gap-2 py-2" key={d._id}><span className="directory-avatar" aria-hidden="true">{d.name?.replace(/^Dr\.?\s+/i,"").split(/\s+/).slice(0,2).map(w=>w[0]).join("")}</span><div className="directory-doctor"><strong>{d.name}</strong><p>{d.specialization} · ₹{d.fee}</p></div>
         <button disabled={booking} onClick={()=>book(c,d)}>Book with {d.name}</button></div>)}
       {!c.doctors.length && <p>No active doctors listed.</p>}</article>)}
   </section>;
