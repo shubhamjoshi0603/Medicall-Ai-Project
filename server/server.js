@@ -1896,6 +1896,27 @@ app.get("/api/doctor/appointments", protectDoctor, async (req, res) => {
   } catch (error) { console.error("Doctor appointments error:", error); return res.status(500).json({ message: "Could not load appointments." }); }
 });
 
+const ConsultationDraft = mongoose.model("ConsultationDraft", new Schema({
+  _id: Schema.Types.ObjectId, doctorId: Schema.Types.ObjectId, clinicId: Schema.Types.ObjectId,
+  fields: {symptoms:String, diagnosis:String, treatmentPlan:String, doctorNotes:String, medicinesText:String, followUpDate:String}
+}, {timestamps:true}));
+app.put("/api/doctor/appointments/:id/draft", protectDoctor, async (req,res) => {
+  const scope = {_id:req.params.id, doctorId:req.doctorId, clinicId:req.clinicId};
+  if (!await Appointment.exists(scope)) return res.sendStatus(404);
+  const fields = {};
+  for (const key of ["symptoms","diagnosis","treatmentPlan","doctorNotes","medicinesText","followUpDate"]) {
+    if (typeof req.body[key] !== "string" || req.body[key].length > 16000) return res.sendStatus(400);
+    fields[key] = req.body[key];
+  }
+  await ConsultationDraft.updateOne(scope, {$set:{fields}}, {upsert:true});
+  res.sendStatus(204);
+});
+app.get("/api/doctor/follow-ups", protectDoctor, async (req,res) => {
+  res.set("Cache-Control","no-store").json(await DoctorClinicalNote.find({
+    clinicId:req.clinicId,doctorId:req.doctorId,followUpDate:{$gt:""}
+  }).select("appointmentId followUpDate").sort({followUpDate:1}).lean());
+});
+
 app.get("/api/doctor/appointments/:id/clinical-note", protectDoctor, async (req, res) => {
   try {
     const appointment = await Appointment.findOne({ _id: req.params.id, clinicId: req.clinicId, doctorId: req.doctorId }).select("_id patientEmail");
@@ -1905,7 +1926,8 @@ app.get("/api/doctor/appointments/:id/clinical-note", protectDoctor, async (req,
       clinicId: req.clinicId, doctorId: req.doctorId, patientEmail: appointment.patientEmail,
       appointmentId: { $ne: appointment._id },
     }).select("appointmentId diagnosis followUpDate updatedAt").sort({ updatedAt: -1 }).limit(20) : [];
-    return res.json({ note, previous });
+    const draft = await ConsultationDraft.findOne({_id:appointment._id, doctorId:req.doctorId, clinicId:req.clinicId}).lean();
+    return res.set("Cache-Control","no-store").json({note, previous, draft: draft && (!note || draft.updatedAt > note.updatedAt) ? draft.fields : null});
   } catch (error) {
     console.error("Doctor clinical note load:", error);
     return res.status(500).json({ message: "Could not load consultation notes." });

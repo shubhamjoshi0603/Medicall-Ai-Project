@@ -1,3 +1,4 @@
+import {TimeOff, FollowUps} from "./DoctorScheduleTools.jsx";
 import LoginHeader from "./LoginHeader.jsx";
 import {EmailCode, ProfileFields, EditDoctor, JoinClinic} from "./DoctorMembership.jsx";
 import PortalNavigation from "./PortalNavigation.jsx";
@@ -5,7 +6,7 @@ import VideoRequests from "./VideoRequests.jsx";
 import PlatformReview from "./PlatformReview.jsx";
 import AppointmentCalendar from "./AppointmentCalendar.jsx";
 import { ChangePasswordPanel, ForgotPasswordPanel } from "./PasswordSecurity.jsx";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import consultationPhoto from "./assets/clinic-consultation.jpg";
 
@@ -15,10 +16,11 @@ const sectionIcons = {
   "appointments": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4",
   "video": "M3 6h12v12H3z M15 10l6-4v12l-6-4",
   "availability": "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l4 2",
+  "followups": "M4 12h12 M12 8l4 4-4 4 M4 5h16v15H4z",
   "files": "M3 6h7l2 2h9v12H3z",
   "settings": "M4 7h8m4 0h4 M4 17h2m4 0h10 M12 4v6h4V4z M6 14v6h4v-6z"
 };
-const doctorSections = [["overview","Dashboard"],["appointments","Appointments"],["video","Video visits"],["availability","Availability"],["files","Patient files"],["settings","Settings"]];
+const doctorSections = [["overview","Dashboard"],["appointments","Appointments"],["video","Video visits"],["availability","Availability"],["followups","Follow-ups"],["files","Patient files"],["settings","Settings"]];
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const input = "w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50";
 const btn = "doctor-primary-button rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-50";
@@ -112,15 +114,41 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
   }
 
 
+  const draftQueue = useRef(Promise.resolve());
+  const pendingDrafts = useRef(new Map());
+  const fileVersion = useRef(0);
+  const [draftStatus,setDraftStatus] = useState("");
+  const [fileReady,setFileReady] = useState(false);
+  function editNote(fields) {
+    setClinicalNote(fields);
+    const version = ++fileVersion.current;
+    const id = selectedAppointment._id;
+    setDraftStatus("Saving draft…");
+    pendingDrafts.current.set(id,fields);
+    draftQueue.current = draftQueue.current.then(async () => {
+      if (pendingDrafts.current.get(id) !== fields) return;
+      pendingDrafts.current.delete(id);
+      await doctorApi.put("/doctor/appointments/" + id + "/draft", fields);
+      if (version === fileVersion.current) setDraftStatus("Draft saved");
+    }).catch(() => {
+      if (version === fileVersion.current) setDraftStatus("Draft could not be saved. Save the consultation before leaving.");
+    });
+  }
   async function openPatientFile(appointment) {
+    const version = ++fileVersion.current;
+    setFileReady(false); setDraftStatus("");
     navigateToSection("files");
     setPreviousVisits([]); setSelectedAppointment(appointment); setNoteBusy(true); setError(""); setMessage("");
     setClinicalNote({ symptoms: "", diagnosis: "", treatmentPlan: "", doctorNotes: "", followUpDate: "", medicinesText: "" });
     try {
+      await draftQueue.current;
       const response = await doctorApi.get("/doctor/appointments/" + appointment._id + "/clinical-note");
+      if (version !== fileVersion.current) return;
+      setFileReady(true);
+      if (response.data.draft) setDraftStatus("Saved draft restored");
       setPreviousVisits(response.data.previous || []);
       const note = response.data.note || {};
-      setClinicalNote({
+      setClinicalNote(response.data.draft || {
         symptoms: note.symptoms || "", diagnosis: note.diagnosis || "", treatmentPlan: note.treatmentPlan || "",
         doctorNotes: note.doctorNotes || "", followUpDate: note.followUpDate || "",
         medicinesText: (note.medicines || []).map((m) => [m.name, m.dosage, m.duration, m.instructions].join(" | ")).join("\n"),
@@ -137,10 +165,12 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
       return { name: parts[0] || "", dosage: parts[1] || "", duration: parts[2] || "", instructions: parts[3] || "" };
     });
     try {
+      await draftQueue.current;
       const response = await doctorApi.put("/doctor/appointments/" + selectedAppointment._id + "/clinical-note", {
         symptoms: clinicalNote.symptoms, diagnosis: clinicalNote.diagnosis, treatmentPlan: clinicalNote.treatmentPlan,
         doctorNotes: clinicalNote.doctorNotes, followUpDate: clinicalNote.followUpDate, medicines,
       });
+      setDraftStatus("");
       setMessage(response.data.message || "Consultation notes saved securely.");
     } catch (err) { setError(err.response?.data?.message || "Could not save the patient file."); }
     finally { setNoteBusy(false); }
@@ -275,12 +305,12 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
         </div>
         <div className="grid gap-5 p-5 lg:grid-cols-[.8fr_1.2fr]">
           <div><h3 className="font-bold text-slate-900">Previous appointments in this doctor workspace</h3><p className="mt-1 text-xs text-slate-500">Only appointments visible to this doctor are shown.</p><div className="mt-3 space-y-2">{appointments.filter((a)=>a.patientEmail && a.patientEmail.toLowerCase()===String(selectedAppointment.patientEmail||"").toLowerCase() && a._id!==selectedAppointment._id).sort((a,b)=>b.date.localeCompare(a.date)).map((a)=><div key={a._id} className="rounded-xl border border-slate-100 p-3"><p className="text-sm font-semibold text-slate-800">{a.date} · {a.time}</p><p className="mt-1 text-xs text-slate-500">{a.reason || "No visit reason recorded"} · {a.status}</p></div>)}{!appointments.some((a)=>a.patientEmail && a.patientEmail.toLowerCase()===String(selectedAppointment.patientEmail||"").toLowerCase() && a._id!==selectedAppointment._id)&&<p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No previous appointments found in this doctor workspace.</p>}</div><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">This is appointment history only; it is not a verified medical history or allergy record.</p></div>
-          <form onSubmit={saveClinicalNote} className="space-y-3">
+          <form onSubmit={saveClinicalNote}><fieldset disabled={!fileReady || noteBusy} className="space-y-3"><p role="status">{draftStatus}</p>
             {previousVisits.length > 0 && <details><summary>Previous consultations with this patient</summary><ul>{previousVisits.map(v => <li key={v._id}>{new Date(v.updatedAt).toLocaleDateString()} · {v.diagnosis || "Consultation recorded"}</li>)}</ul></details>}
             <div><h3 className="font-bold text-slate-900">Consultation notes & prescription</h3><p className="mt-1 text-xs text-slate-500">Enter the clinical assessment and treatment prescribed by you.</p></div>
-            {[[ "symptoms","Symptoms / patient concerns","Describe reported symptoms." ],[ "diagnosis","Clinical assessment / diagnosis","Doctor-entered assessment." ],[ "treatmentPlan","Treatment plan","Advice, tests or treatment plan." ],[ "doctorNotes","Doctor notes","Additional clinical workflow notes." ]].map(([key,label,placeholder])=><label key={key} className="block text-xs font-bold text-slate-600">{label}<textarea className={input+" mt-1 min-h-20"} value={clinicalNote[key]} onChange={(e)=>setClinicalNote({...clinicalNote,[key]:e.target.value})} placeholder={placeholder}/></label>)}
-            <label className="block text-xs font-bold text-slate-600">Prescription medicines (one per line: Medicine | Dosage | Duration | Instructions)<textarea className={input+" mt-1 min-h-24"} value={clinicalNote.medicinesText} onChange={(e)=>setClinicalNote({...clinicalNote,medicinesText:e.target.value})} placeholder="Medicine name | 1 tablet | 5 days | After food"/></label>
-            <label className="block text-xs font-bold text-slate-600">Follow-up date<input type="date" className={input+" mt-1"} value={clinicalNote.followUpDate} onChange={(e)=>setClinicalNote({...clinicalNote,followUpDate:e.target.value})}/></label>
+            {[[ "symptoms","Symptoms / patient concerns","Describe reported symptoms." ],[ "diagnosis","Clinical assessment / diagnosis","Doctor-entered assessment." ],[ "treatmentPlan","Treatment plan","Advice, tests or treatment plan." ],[ "doctorNotes","Doctor notes","Additional clinical workflow notes." ]].map(([key,label,placeholder])=><label key={key} className="block text-xs font-bold text-slate-600">{label}<textarea className={input+" mt-1 min-h-20"} value={clinicalNote[key]} onChange={(e)=>editNote({...clinicalNote,[key]:e.target.value})} placeholder={placeholder}/></label>)}
+            <label className="block text-xs font-bold text-slate-600">Prescription medicines (one per line: Medicine | Dosage | Duration | Instructions)<textarea className={input+" mt-1 min-h-24"} value={clinicalNote.medicinesText} onChange={(e)=>editNote({...clinicalNote,medicinesText:e.target.value})} placeholder="Medicine name | 1 tablet | 5 days | After food"/></label>
+            <label className="block text-xs font-bold text-slate-600">Follow-up date<input type="date" className={input+" mt-1"} value={clinicalNote.followUpDate} onChange={(e)=>editNote({...clinicalNote,followUpDate:e.target.value})}/></label>
             <div className="flex flex-wrap gap-2"><button disabled={noteBusy} className={btn}>{noteBusy?"Saving…":"Save consultation & prescription"}</button><button type="button" onClick={() => window.print()} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">Print / Save PDF</button></div>
             <div className="doctor-prescription-print">
               <h1>MediCall AI · Prescription</h1>
@@ -293,9 +323,11 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
               <p className="print-disclaimer">This document is prepared from the information entered by the treating doctor. Verify details and sign before issuing to the patient.</p>
             </div>
             <p className="text-[11px] text-slate-400">Saved to this doctor's secure workspace. Verify clinical details before saving.</p>
-          </form>
+          </fieldset></form>
         </div>
       </section>}
+      {activeSection === "followups" && <FollowUps api={API} token={token} appointments={appointments} today={todayKey} openFile={openPatientFile}/>}
+      {activeSection === "availability" && <TimeOff api={API} token={token} appointments={appointments} today={todayKey}/>}
       {activeSection === "availability" && <section id="doctor-availability" className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
         <form onSubmit={submitAvailability} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div><h2 className="text-lg font-bold">Submit availability</h2><p className="mt-1 text-sm text-slate-500">Publishing replaces your hours for this weekday. Patients can book free slots within those hours while the clinic is open.</p></div>

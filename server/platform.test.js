@@ -36,3 +36,13 @@ test("every protected route rejects a missing session before touching MongoDB", 
   assert.ok(checked > 60, "Expected coverage across all three portals");
   assert.equal((await fetch(base + "/api/health")).status, 200);
 });
+
+test("time off blocks intersecting slots and preserves adjacent slots and weekly hours", () => {
+  const {slotTimes} = require("./scheduling");
+  const hours = {isOpen:true, openTime:"09:00", closeTime:"11:00"};
+  const shifts = [{dayOfWeek:1,startTime:"09:00",endTime:"11:00",slotMinutes:30}];
+  const slots = blocks => slotTimes(hours,shifts,[],"2030-01-07",new Date("2029-01-01"),blocks);
+  assert.deepEqual(slots([{startTime:"09:45",endTime:"10:30"}]),["09:00","10:30"]);
+  assert.deepEqual(slots([{}]),[]);
+  assert.equal(slots([]).length,4);
+});

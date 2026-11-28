@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Leave = mongoose.model("DoctorLeave", new mongoose.Schema({
   clinicId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
   doctorId: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true, index: true },
+  selfBlocked: Boolean, startTime: String, endTime: String,
   from: String, through: String, reason: { type: String, maxlength: 200 },
   status: { type: String, enum: ["Pending", "Approved", "Declined"], default: "Pending" },
 }, { timestamps: true }));
@@ -13,7 +14,7 @@ function validDay(date) {
   return Number.isFinite(+parsed) && parsed.toISOString().slice(0,10) === date;
 }
 function minutes(time) { const [h,m] = time.split(":").map(Number); return h * 60 + m; }
-function slotTimes(hours, shifts, booked, date, now = new Date()) {
+function slotTimes(hours, shifts, booked, date, now = new Date(), blocks = []) {
   if (!hours?.isOpen) return [];
   const start = minutes(hours.openTime), end = minutes(hours.closeTime);
   const weekday = new Date(date + "T12:00:00").getDay();
@@ -23,7 +24,8 @@ function slotTimes(hours, shifts, booked, date, now = new Date()) {
     if (!(window.slotMinutes > 0)) continue;
     for (let t = minutes(window.startTime); t + window.slotMinutes <= Math.min(end, minutes(window.endTime)); t += window.slotMinutes) {
       const time = [Math.floor(t/60), t%60].map(n => String(n).padStart(2,"0")).join(":");
-      if (t >= start && !booked.includes(time) && new Date(date + "T" + time + ":00+05:30") > now) slots.add(time);
+      const blocked = blocks.some(b => !b.startTime || (t < minutes(b.endTime) && t + window.slotMinutes > minutes(b.startTime)));
+      if (!blocked && t >= start && !booked.includes(time) && new Date(date + "T" + time + ":00+05:30") > now) slots.add(time);
     }
   }
   return [...slots].sort();
@@ -33,18 +35,36 @@ async function availableSlots({ Doctor, Clinic, Appointment, Availability }, cli
   const scope = { clinicId, doctorId };
   const [doctor, clinic, leave, shifts, booked] = await Promise.all([
     Doctor.exists({ _id: doctorId, clinicId, isActive: true }), Clinic.findById(clinicId).select("businessHours"),
-    Leave.exists({ ...scope, status: "Approved", from: { $lte: date }, through: { $gte: date } }),
+    Leave.find({ ...scope, status: "Approved", from: { $lte: date }, through: { $gte: date } }).select('startTime endTime').lean(),
     Availability.find({ ...scope, approved: true }).lean(),
     Appointment.find({ ...scope, date, status: "Confirmed", ...(exceptId && { _id: { $ne: exceptId } }) }).distinct("time"),
   ]);
-  if (!doctor || !clinic || leave) return [];
+  if (!doctor || !clinic) return [];
   const hours = clinic.businessHours.find(h => h.dayOfWeek === new Date(date + "T12:00:00").getDay());
-  return slotTimes(hours, shifts, booked, date);
+  return slotTimes(hours, shifts, booked, date, new Date(), leave);
 }
 function register(app, models, { protect, protectDoctor }) {
   app.get("/api/public/slots", async (req, res) => {
     const { clinicId, doctorId, date } = req.query;
     res.set("Cache-Control","no-store").json(await availableSlots(models, clinicId, doctorId, date));
+  });
+  const ownBlocks = req => ({clinicId:req.clinicId, doctorId:req.doctorId, selfBlocked:true});
+  app.get("/api/doctor/time-off", protectDoctor, async (req,res) => {
+    res.json(await Leave.find(ownBlocks(req)).sort({from:1,startTime:1}).lean());
+  });
+  app.post("/api/doctor/time-off", protectDoctor, async (req,res) => {
+    const {date, startTime = "", endTime = ""} = req.body;
+    const clock = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!validDay(date) || date < new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kolkata"}) ||
+      ((startTime !== "" || endTime !== "") && (!clock.test(startTime) || !clock.test(endTime) || startTime >= endTime))) {
+      return res.status(400).json({message:"Choose today or a future date and a valid time range."});
+    }
+    res.json(await Leave.findOneAndUpdate({...ownBlocks(req),from:date,through:date,startTime,endTime},
+      {$setOnInsert:{status:"Approved"}},{upsert:true,new:true}));
+  });
+  app.delete("/api/doctor/time-off/:id", protectDoctor, async (req,res) => {
+    await Leave.deleteOne({...ownBlocks(req),_id:req.params.id});
+    res.sendStatus(204);
   });
   app.get("/api/doctor/leave", protectDoctor, async (req, res) => res.json(await Leave.find({ clinicId: req.clinicId, doctorId: req.doctorId }).sort({ from: -1 })));
   app.post("/api/doctor/leave", protectDoctor, async (req, res) => {
