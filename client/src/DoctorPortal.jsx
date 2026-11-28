@@ -10,6 +10,14 @@ import axios from "axios";
 import consultationPhoto from "./assets/clinic-consultation.jpg";
 
 const API = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000/api`;
+const sectionIcons = {
+  "overview": "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
+  "appointments": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4",
+  "video": "M3 6h12v12H3z M15 10l6-4v12l-6-4",
+  "availability": "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l4 2",
+  "files": "M3 6h7l2 2h9v12H3z",
+  "settings": "M4 7h8m4 0h4 M4 17h2m4 0h10 M12 4v6h4V4z M6 14v6h4v-6z"
+};
 const doctorSections = [["overview","Dashboard"],["appointments","Appointments"],["video","Video visits"],["availability","Availability"],["files","Patient files"],["settings","Settings"]];
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const input = "w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50";
@@ -208,10 +216,10 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
         <div className="doctor-sidebar-brand"><span className="doctor-sidebar-mark">+</span><span><strong>MediCall AI</strong><small>{doctor.clinicName || "DOCTOR PORTAL"}</small></span></div>
         <p className="doctor-sidebar-label">WORKSPACE</p>
         <nav className="doctor-sidebar-nav">
-          {doctorSections.map(([key,label]) => <button key={key} type="button" aria-current={activeSection === key ? "page" : undefined} className={activeSection === key ? "is-active" : ""} onClick={() => navigateToSection(key)}>{label}</button>)}
+          {doctorSections.map(([key,label]) => <button key={key} type="button" aria-current={activeSection === key ? "page" : undefined} className={activeSection === key ? "is-active" : ""} onClick={() => navigateToSection(key)}><svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinejoin="round" strokeLinecap="round"><path d={sectionIcons[key]}/></svg>{label}</button>)}
         </nav>
         <div className="doctor-sidebar-profile"><span>{(doctor.name || "D").trim().charAt(0).toUpperCase()}</span><div><strong>{doctor.name}</strong><small>{doctor.specialization || "Doctor"}</small></div></div>
-        <button type="button" className="doctor-sidebar-logout" onClick={logout}>↗ <span>Log out</span></button>
+        <button type="button" className="doctor-sidebar-logout" onClick={logout}><span>Log out</span></button>
       </aside>
       <div className="doctor-portal-content">
         <PortalNavigation role="Doctor" value={activeSection} sections={doctorSections}
@@ -221,7 +229,7 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
       {activeSection === "overview" && <section id="doctor-overview" className="doctor-welcome">
         <div>{doctor.clinicName && <p className="doctor-welcome-clinic">{doctor.clinicName}</p>}
           <h1>Welcome, {doctor.name}</h1>
-          <p>{[doctor.specialization, doctor.email].filter(Boolean).join(" · ")}</p>
+          <p>{doctor.specialization} · {new Intl.DateTimeFormat("en-IN", {weekday:"long", day:"numeric", month:"long"}).format(new Date())}</p>
         </div><div className="doctor-welcome-actions"><button type="button" onClick={() => loadPortal().catch((err) => setError(err.response?.data?.message || "Could not refresh your workspace."))}>Refresh</button><button type="button" onClick={logout}>Log out</button></div>
       </section>}
       {activeSection === "settings" && <div className="doctor-settings-stack"><section className="doctor-profile-card"><h2>Professional profile</h2><p>{doctor.name} · {doctor.specialization}</p>
@@ -241,7 +249,14 @@ export default function DoctorPortal({ onExit, onSelectRole }) {
           {label:"Scheduled later",value:scheduledLater.length,view:"later"},
           {label:"Completed",value:completedAppointments.length,view:"completed"},
         ].map((x) => <button type="button" key={x.label} onClick={()=>{setAppointmentView(x.view); navigateToSection("appointments");}} className={`doctor-summary-card rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-blue-300 ${appointmentView===x.view?"border-blue-400 ring-2 ring-blue-50":"border-slate-200"}`}><p className="text-xs font-semibold text-slate-500">{x.label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{x.value}</p></button>)}
-      </section><PlatformReview api={API} role="doctor" token={token}/></>}
+      </section>
+      <section className="doctor-agenda doctor-profile-card">
+        <header><h2>Today’s schedule</h2><button type="button" onClick={() => { setAppointmentView("today"); navigateToSection("appointments"); }}>View schedule →</button></header>
+        {todayAppointments.length ? <ul>{[...todayAppointments].sort((a,b) => a.time.localeCompare(b.time)).slice(0,5).map(visit =>
+          <li key={visit._id}><time>{visit.time}</time><strong>{visit.patientName}</strong><button type="button" onClick={() => openPatientFile(visit)}>Open file</button></li>
+        )}</ul> : <p>No confirmed appointments today.</p>}
+      </section>
+      <PlatformReview api={API} role="doctor" token={token}/></>}
       {activeSection === "appointments" && <section id="doctor-appointments" className="mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">My patient appointments</h2><p className="mt-1 text-sm text-slate-500">Choose a schedule or visit status to focus on the right patients.</p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{filteredAppointments.length} shown · {appointments.length} total</span></div>
           <div className="mt-4 flex flex-wrap gap-2">{[["upcoming","Upcoming"],["today","Today"],["tomorrow","Tomorrow"],["later","Later"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]].map(([value,label])=><button key={value} onClick={()=>setAppointmentView(value)} className={`rounded-full border px-3 py-2 text-xs font-bold ${appointmentView===value?"border-slate-700 bg-slate-800 text-white":"border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}>{label}</button>)}</div>

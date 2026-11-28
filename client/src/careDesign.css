@@ -709,3 +709,18 @@
 .care-login-card .care-login-switch { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: .25rem .45rem; margin-top: 1rem; }
 .care-login-card .care-password-wrap { display: block; }
 .care-role-selector button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
+.doctor-sidebar-nav button svg { flex: none; }
+.doctor-sidebar-nav button { font-size: .9rem; min-height: 2.85rem; }
+.doctor-sidebar-brand small, .doctor-sidebar-profile strong { white-space: normal; overflow-wrap: anywhere; }
+.doctor-agenda { margin-block: 1rem 1.5rem; border-top: 3px solid #15988b; background: linear-gradient(120deg, #15988b0c, transparent); }
+.doctor-agenda header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.doctor-agenda button { padding: .6rem .85rem; border: 1px solid #668f9666; border-radius: .65rem; font-size: .85rem; font-weight: 650; }
+.doctor-agenda ul { margin: 0; padding: 0; list-style: none; }
+.doctor-agenda li { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: .8rem; padding-block: .7rem; border-top: 1px solid #8296a544; }
+.doctor-agenda time { font-variant-numeric: tabular-nums; }
+.doctor-agenda button:focus-visible, .doctor-sidebar-nav button:focus-visible { outline: 3px solid #15988b; outline-offset: 2px; }
+@media (max-width: 380px) {
+  .doctor-agenda li { grid-template-columns: auto minmax(0,1fr); }
+  .doctor-agenda li button { grid-column: 2; justify-self: start; }
+}
